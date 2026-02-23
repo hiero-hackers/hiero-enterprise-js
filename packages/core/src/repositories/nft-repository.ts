@@ -3,7 +3,6 @@ import type { MirrorNodeClient } from "../mirror/index.js";
 
 /**
  * Repository for querying NFT data from the mirror node.
- * Maps to Java: com.openelements.hiero.base.mirrornode.NftRepository
  */
 export class NftRepository {
     constructor(private readonly mirrorNodeClient: MirrorNodeClient) {}

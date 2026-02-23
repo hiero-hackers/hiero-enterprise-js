@@ -1,6 +1,5 @@
 /**
  * A paginated result from the mirror node REST API.
- * Maps to Java: com.openelements.hiero.base.data.Page
  *
  * @template T The type of items in the page
  */

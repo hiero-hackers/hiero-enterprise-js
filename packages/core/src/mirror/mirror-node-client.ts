@@ -24,7 +24,6 @@ import { HieroError } from "../errors/index.js";
 
 /**
  * HTTP client for querying the Hiero Mirror Node REST API.
- * Maps to Java: com.openelements.hiero.base.mirrornode.MirrorNodeClient
  */
 export class MirrorNodeClient {
     private readonly baseUrl: string;

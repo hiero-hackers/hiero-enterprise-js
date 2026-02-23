@@ -1,6 +1,5 @@
 /**
  * Full token information from the mirror node.
- * Maps to Java: com.openelements.hiero.base.data.TokenInfo
  */
 export interface TokenInfo {
     /** Token ID */
@@ -66,7 +65,6 @@ export interface TokenTransfer {
 
 /**
  * Custom fee attached to a token.
- * Maps to Java: com.openelements.hiero.base.data.CustomFee and subtypes
  */
 export interface CustomFee {
     /** Fee type */

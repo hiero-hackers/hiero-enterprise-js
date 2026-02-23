@@ -54,7 +54,6 @@ declare global {
  * Express middleware that initializes the HieroContext and injects all
  * Hiero services into `req.hiero`.
  *
- * Maps to Java: Spring @Configuration + HieroAutoConfiguration
  *
  * @example
  * ```ts

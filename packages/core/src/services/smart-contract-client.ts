@@ -14,7 +14,6 @@ import { normalizeError } from "../errors/index.js";
 
 /**
  * Service for managing smart contracts on the Hiero network.
- * Maps to Java: com.openelements.hiero.base.SmartContractClient
  */
 export class SmartContractClient {
     private readonly context: HieroContext;

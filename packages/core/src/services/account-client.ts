@@ -24,7 +24,6 @@ export interface CreateAccountOptions {
 
 /**
  * Service for managing accounts on the Hiero network.
- * Maps to Java: com.openelements.hiero.base.AccountClient
  */
 export class AccountClient {
     private readonly context: HieroContext;

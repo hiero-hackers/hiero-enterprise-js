@@ -1,6 +1,5 @@
 /**
  * Event emitted before and after each SDK transaction.
- * Maps to Java: com.openelements.hiero.base.protocol.TransactionListener
  */
 export interface TransactionEvent {
     /** Transaction type, e.g. "AccountCreate", "TokenMint" */

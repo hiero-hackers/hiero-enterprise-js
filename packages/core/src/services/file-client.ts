@@ -15,7 +15,6 @@ const MAX_CHUNK_SIZE = 4096;
 
 /**
  * Service for managing files on the Hiero network.
- * Maps to Java: com.openelements.hiero.base.FileClient
  *
  * Automatically handles chunking for files > 4KB.
  */

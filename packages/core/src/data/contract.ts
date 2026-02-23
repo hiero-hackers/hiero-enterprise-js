@@ -1,6 +1,5 @@
 /**
  * Result of a smart contract function call.
- * Maps to Java: com.openelements.hiero.base.data.ContractCallResult
  */
 export interface ContractCallResult {
     /** Gas consumed by the call */

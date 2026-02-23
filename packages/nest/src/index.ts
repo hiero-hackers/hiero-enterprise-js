@@ -27,7 +27,6 @@ export const HIERO_CONTEXT = "HIERO_CONTEXT";
 
 /**
  * NestJS module that provides all Hiero services.
- * Maps to Java: Spring HieroAutoConfiguration
  *
  * @example
  * ```ts

@@ -1,6 +1,5 @@
 /**
  * Exchange rate between HBAR and USD cents.
- * Maps to Java: com.openelements.hiero.base.data.ExchangeRate
  */
 export interface ExchangeRate {
     /** HBAR equivalent */
@@ -13,7 +12,6 @@ export interface ExchangeRate {
 
 /**
  * Current and next exchange rates.
- * Maps to Java: com.openelements.hiero.base.data.ExchangeRates
  */
 export interface ExchangeRates {
     /** Current exchange rate */
@@ -24,7 +22,6 @@ export interface ExchangeRates {
 
 /**
  * Network staking information.
- * Maps to Java: com.openelements.hiero.base.data.NetworkStake
  */
 export interface NetworkStake {
     /** Maximum stake rewarded in tinybars */
@@ -53,7 +50,6 @@ export interface NetworkStake {
 
 /**
  * Network supply information.
- * Maps to Java: com.openelements.hiero.base.data.NetworkSupplies
  */
 export interface NetworkSupplies {
     /** Released supply in tinybars */

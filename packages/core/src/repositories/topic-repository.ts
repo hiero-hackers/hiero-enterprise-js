@@ -3,7 +3,6 @@ import type { MirrorNodeClient } from "../mirror/index.js";
 
 /**
  * Repository for querying topic messages from the mirror node.
- * Maps to Java: com.openelements.hiero.base.mirrornode.TopicRepository
  */
 export class TopicRepository {
     constructor(private readonly mirrorNodeClient: MirrorNodeClient) {}

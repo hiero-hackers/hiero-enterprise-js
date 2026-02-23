@@ -11,7 +11,6 @@ import type {
  * Central context for interacting with a Hiero network.
  * Manages the SDK Client lifecycle and provides access to the operator account.
  *
- * Maps to Java: com.openelements.hiero.base.HieroContext
  *
  * @example
  * ```ts

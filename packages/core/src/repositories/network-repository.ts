@@ -7,7 +7,6 @@ import type { MirrorNodeClient } from "../mirror/index.js";
 
 /**
  * Repository for querying network-level data from the mirror node.
- * Maps to Java: com.openelements.hiero.base.mirrornode.NetworkRepository
  */
 export class NetworkRepository {
     constructor(private readonly mirrorNodeClient: MirrorNodeClient) {}

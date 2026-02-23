@@ -12,7 +12,7 @@ vi.mock("@hashgraph/sdk", async (importOriginal) => {
 
     // Create chainable mock transactions
     const mockTx = {
-        setKey: vi.fn().mockReturnThis(),
+        setKeyWithoutAlias: vi.fn().mockReturnThis(),
         setInitialBalance: vi.fn().mockReturnThis(),
         setMaxAutomaticTokenAssociations: vi.fn().mockReturnThis(),
         setAccountMemo: vi.fn().mockReturnThis(),
@@ -99,7 +99,7 @@ describe("Transaction Interceptors", () => {
         // Redefine the mock to throw an error
         const mockError = new Error("NETWORK_ERROR");
         const failingTx = {
-            setKey: vi.fn().mockReturnThis(),
+            setKeyWithoutAlias: vi.fn().mockReturnThis(),
             setInitialBalance: vi.fn().mockReturnThis(),
             execute: vi.fn().mockRejectedValue(mockError),
         };
@@ -112,7 +112,9 @@ describe("Transaction Interceptors", () => {
 
         const events: TransactionEvent[] = [];
         context.addTransactionListener({
-            onAfterTransaction: (e) => events.push(e),
+            onAfterTransaction: (e) => {
+                events.push(e);
+            },
         });
 
         await expect(client.createAccount()).rejects.toThrow("NETWORK_ERROR");

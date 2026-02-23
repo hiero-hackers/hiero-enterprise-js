@@ -43,7 +43,6 @@ export interface UpdateTopicOptions {
 
 /**
  * Service for managing topics on the Hiero consensus service.
- * Maps to Java: com.openelements.hiero.base.TopicClient
  */
 export class TopicClient {
     private readonly context: HieroContext;

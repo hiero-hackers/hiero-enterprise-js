@@ -58,7 +58,6 @@ export interface HieroPluginOptions extends FastifyPluginOptions {
  * Fastify plugin that initializes the HieroContext and decorates the
  * Fastify instance with all Hiero services at `fastify.hiero`.
  *
- * Maps to Java: MicroProfile CDI integration
  *
  * @example
  * ```ts

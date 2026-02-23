@@ -22,7 +22,6 @@ export interface Topic {
 
 /**
  * A message submitted to a topic.
- * Maps to Java: com.openelements.hiero.base.data.TopicMessage
  */
 export interface TopicMessage {
     /** Topic ID */

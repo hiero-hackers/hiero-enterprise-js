@@ -1,6 +1,5 @@
 /**
  * Represents a non-fungible token instance.
- * Maps to Java: com.openelements.hiero.base.data.Nft
  */
 export interface Nft {
     /** Token ID of the NFT collection */

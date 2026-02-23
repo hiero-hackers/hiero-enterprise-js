@@ -1,6 +1,5 @@
 /**
  * Configuration for connecting to a Hiero/Hedera network.
- * Maps to Java: com.openelements.hiero.base.config.HieroConfig
  */
 export interface HieroConfig {
     /** Network to connect to (e.g., "testnet", "mainnet", "previewnet", or custom) */

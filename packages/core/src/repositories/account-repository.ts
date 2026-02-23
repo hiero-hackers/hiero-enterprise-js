@@ -3,7 +3,6 @@ import type { MirrorNodeClient } from "../mirror/index.js";
 
 /**
  * Repository for querying account data from the mirror node.
- * Maps to Java: com.openelements.hiero.base.mirrornode.AccountRepository
  */
 export class AccountRepository {
     constructor(private readonly mirrorNodeClient: MirrorNodeClient) {}

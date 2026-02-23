@@ -1,6 +1,5 @@
 /**
  * Transaction information from the mirror node.
- * Maps to Java: com.openelements.hiero.base.data.TransactionInfo
  */
 export interface TransactionInfo {
     /** Transaction ID */
@@ -81,7 +80,6 @@ export interface StakingRewardTransfer {
 
 /**
  * Transaction type enum matching Hedera's transaction types.
- * Maps to Java: com.openelements.hiero.base.protocol.data.TransactionType
  */
 export type TransactionType =
     | "CONSENSUSCREATETOPIC"

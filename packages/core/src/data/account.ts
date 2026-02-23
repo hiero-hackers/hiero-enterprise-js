@@ -1,6 +1,5 @@
 /**
  * Represents a Hiero network account.
- * Maps to Java: com.openelements.hiero.base.data.Account
  */
 export interface Account {
     /** The account ID (e.g., "0.0.12345") */
@@ -15,7 +14,6 @@ export interface Account {
 
 /**
  * Extended account information from the mirror node.
- * Maps to Java: com.openelements.hiero.base.data.AccountInfo
  */
 export interface AccountInfo {
     /** The account ID */

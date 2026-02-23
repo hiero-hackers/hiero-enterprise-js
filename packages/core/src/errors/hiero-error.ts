@@ -2,7 +2,6 @@
  * Custom error class for Hiero operations.
  * Wraps SDK and network errors with additional context.
  *
- * Maps to Java: com.openelements.hiero.base.HieroException
  */
 export class HieroError extends Error {
     /** Machine-readable error code */

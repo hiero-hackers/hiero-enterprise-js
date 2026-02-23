@@ -40,7 +40,6 @@ export interface CreateTokenOptions {
 
 /**
  * Service for managing fungible tokens on the Hiero network (HTS).
- * Maps to Java: com.openelements.hiero.base.FungibleTokenClient
  */
 export class FungibleTokenClient {
     private readonly context: HieroContext;

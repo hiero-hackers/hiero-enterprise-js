@@ -1,6 +1,5 @@
 /**
  * HBAR and token balance for an account.
- * Maps to Java: com.openelements.hiero.base.data.AccountBalance
  */
 export interface Balance {
     /** Account ID */

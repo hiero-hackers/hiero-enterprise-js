@@ -9,6 +9,7 @@ import {
     NftId,
     TokenId,
     PrivateKey,
+    TokenSupplyType,
 } from "@hashgraph/sdk";
 import type { HieroContext } from "../context/index.js";
 import type { TransactionEvent } from "../listeners/index.js";
@@ -38,7 +39,6 @@ export interface CreateNftTypeOptions {
 
 /**
  * Service for managing non-fungible tokens on the Hiero network (HTS).
- * Maps to Java: com.openelements.hiero.base.NftClient
  */
 export class NftClient {
     private readonly context: HieroContext;
@@ -90,6 +90,7 @@ export class NftClient {
 
             if (options.maxSupply !== undefined && options.maxSupply > 0) {
                 tx.setMaxSupply(options.maxSupply);
+                tx.setSupplyType(TokenSupplyType.Finite);
             }
             if (options.memo) {
                 tx.setTokenMemo(options.memo);
