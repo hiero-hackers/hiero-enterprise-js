@@ -37,6 +37,23 @@ class AccountController {
     getAccountNfts(@Param("id") id: string) {
         return this.nftRepo.findByOwner(id);
     }
+
+    @Post("accounts")
+    async createAccount(
+        @Body() body: { initialBalance?: number; memo?: string },
+    ) {
+        const account = await this.accountClient.createAccount({
+            initialBalance: body.initialBalance,
+            memo: body.memo,
+        });
+        return {
+            message: "Account created successfully",
+            accountId: account.accountId,
+            publicKey: account.publicKey,
+            privateKey: account.privateKey,
+            evmAddress: account.evmAddress,
+        };
+    }
 }
 
 @Controller("api/tokens")
@@ -117,6 +134,7 @@ async function bootstrap() {
     console.log("    GET  /api/balance");
     console.log("    GET  /api/accounts/:id");
     console.log("    GET  /api/accounts/:id/nfts");
+    console.log("    POST /api/accounts");
     console.log("    GET  /api/tokens/:id");
     console.log("    GET  /api/topics/:id/messages");
     console.log("    POST /api/topics");
