@@ -5,7 +5,7 @@
     "description": "Sample NestJS app using @hiero-enterprise/nest",
     "type": "module",
     "scripts": {
-        "dev": "tsx src/main.ts",
+        "dev": "tsc && node dist/main.js",
         "build": "tsc",
         "start": "node dist/main.js"
     },

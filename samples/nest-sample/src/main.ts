@@ -1,4 +1,3 @@
-import "reflect-metadata";
 import { Module, Controller, Get, Post, Param, Body } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -178,5 +177,7 @@ async function bootstrap() {
     console.log(`    http://localhost:${port}/api/network/supply`);
     console.log();
 }
-
-bootstrap();
+bootstrap().catch((err) => {
+    console.error("Bootstrap failed:", err);
+    process.exit(1);
+});

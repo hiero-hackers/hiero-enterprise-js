@@ -23,5 +23,8 @@
     "dependencies": {
         "@hashgraph/sdk": "^2.55.0",
         "dotenv": "^16.4.7"
+    },
+    "engines": {
+        "node": ">=20"
     }
 }

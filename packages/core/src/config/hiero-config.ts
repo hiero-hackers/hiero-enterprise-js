@@ -1,4 +1,5 @@
-import { config as loadDotenvFile } from "dotenv";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 
 /**
  * Configuration for connecting to a Hiero network.
@@ -50,14 +51,28 @@ export function resolveMirrorNodeUrl(
 }
 
 /**
- * Loads any .env file present in the current working directory into
- * process.env. Silently skips if no .env file is found.
- *
- * This mirrors the Java enterprise library's use of:
- *   Dotenv.configure().ignoreIfMissing().load()
+ * Loads a .env file from the current working directory into process.env.
+ * Uses Node.js built-in process.loadEnvFile() (Node 20.12+).
+ * Silently skips if no .env file is found.
  */
 function loadDotenv(): void {
-    loadDotenvFile();
+    try {
+        const envPath = resolve(process.cwd(), ".env");
+        if (existsSync(envPath)) {
+            if (typeof process.loadEnvFile === "function") {
+                process.loadEnvFile(envPath);
+            } else {
+                console.warn(
+                    "⚠️  Hiero Configuration: Node version too old to natively load .env files.",
+                );
+                console.warn(
+                    "   Please use Node >= 20.12.0 or manually load environment variables.",
+                );
+            }
+        }
+    } catch {
+        // .env loading failed — skip silently
+    }
 }
 
 /**
