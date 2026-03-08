@@ -14,4 +14,4 @@ jobs:
                   fetch-depth: 0
 
             - name: Check DCO sign-off
-              uses: githubtools/dco-action@v3
+              uses: dco-method/dco-action@v2
