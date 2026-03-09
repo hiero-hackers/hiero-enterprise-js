@@ -5,9 +5,9 @@
     "description": "Sample NestJS app using @hiero-enterprise/nest",
     "type": "module",
     "scripts": {
-        "dev": "tsx --env-file-if-exists=.env src/main.ts",
+        "dev": "tsc && node dist/main.js",
         "build": "tsc",
-        "start": "node --env-file-if-exists=.env dist/main.js"
+        "start": "node dist/main.js"
     },
     "dependencies": {
         "@hiero-enterprise/nest": "workspace:*",

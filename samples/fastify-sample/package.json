@@ -5,9 +5,9 @@
     "description": "Sample Fastify app using @hiero-enterprise/fastify",
     "type": "module",
     "scripts": {
-        "dev": "tsx --env-file-if-exists=.env src/app.ts",
+        "dev": "tsx src/app.ts",
         "build": "tsc",
-        "start": "node --env-file-if-exists=.env dist/app.js"
+        "start": "node dist/app.js"
     },
     "dependencies": {
         "@hiero-enterprise/fastify": "workspace:*",

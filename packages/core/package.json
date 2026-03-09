@@ -21,6 +21,10 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
-        "@hashgraph/sdk": "^2.55.0"
+        "@hashgraph/sdk": "^2.55.0",
+        "dotenv": "^16.4.7"
+    },
+    "engines": {
+        "node": ">=20"
     }
 }

@@ -9,6 +9,33 @@ app.use(express.json());
 // No additional setup required — config is read from env vars.
 app.use(hieroMiddleware());
 
+// ─── Root Route ───────────────────────────────────────────────
+
+app.get("/", (_req, res) => {
+    res.json({
+        service: "Hiero Express Sample",
+        message:
+            "Server is running. Try one of the endpoints below to view data.",
+        endpoints: {
+            accounts: [
+                "GET /api/balance",
+                "GET /api/accounts/:id",
+                "GET /api/accounts/:id/nfts",
+            ],
+            tokens: ["GET /api/tokens/:id"],
+            topics: [
+                "GET  /api/topics/:id/messages",
+                "POST /api/topics",
+                "POST /api/topics/:id/messages",
+            ],
+            network: [
+                "GET /api/network/exchange-rates",
+                "GET /api/network/supply",
+            ],
+        },
+    });
+});
+
 // ─── Account Routes ───────────────────────────────────────────
 
 /** Get the operator account balance */
@@ -120,7 +147,7 @@ const port = process.env["PORT"] ?? 3000;
 app.listen(port, () => {
     console.log(`🌐 Hiero Express sample running on http://localhost:${port}`);
     console.log();
-    console.log("  Endpoints:");
+    console.log("  Available endpoints:");
     console.log("    GET  /api/balance");
     console.log("    GET  /api/accounts/:id");
     console.log("    GET  /api/accounts/:id/nfts");
@@ -130,4 +157,9 @@ app.listen(port, () => {
     console.log("    POST /api/topics/:id/messages");
     console.log("    GET  /api/network/exchange-rates");
     console.log("    GET  /api/network/supply");
+    console.log();
+    console.log("  Try opening in your browser:");
+    console.log(`    http://localhost:${port}/api/balance`);
+    console.log(`    http://localhost:${port}/api/network/supply`);
+    console.log();
 });
