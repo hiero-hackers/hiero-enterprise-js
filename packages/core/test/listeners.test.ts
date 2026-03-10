@@ -16,6 +16,7 @@ vi.mock("@hashgraph/sdk", async (importOriginal) => {
         setInitialBalance: vi.fn().mockReturnThis(),
         setMaxAutomaticTokenAssociations: vi.fn().mockReturnThis(),
         setAccountMemo: vi.fn().mockReturnThis(),
+        setAlias: vi.fn().mockReturnThis(),
         execute: vi.fn().mockResolvedValue({
             transactionId: { toString: () => "0.0.123@1234567890.000000000" },
             getReceipt: vi.fn().mockResolvedValue({
@@ -101,6 +102,7 @@ describe("Transaction Interceptors", () => {
         const failingTx = {
             setKeyWithoutAlias: vi.fn().mockReturnThis(),
             setInitialBalance: vi.fn().mockReturnThis(),
+            setAlias: vi.fn().mockReturnThis(),
             execute: vi.fn().mockRejectedValue(mockError),
         };
 
