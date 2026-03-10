@@ -5,9 +5,9 @@
  */
 export interface Page<T> {
     /** Items in this page */
-    readonly data: T[];
+    data: T[];
     /** Pagination links */
-    readonly links: PageLinks;
+    links: PageLinks;
 }
 
 /**
@@ -15,5 +15,5 @@ export interface Page<T> {
  */
 export interface PageLinks {
     /** Link to the next page (null if no more pages) */
-    readonly next: string | null;
+    next: string | null;
 }

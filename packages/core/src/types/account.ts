@@ -11,13 +11,13 @@ export enum AccountType {
  */
 export interface Account {
     /** The account ID (e.g., "0.0.12345") */
-    readonly accountId: string;
+    accountId: string;
     /** The public key associated with the account */
-    readonly publicKey: string;
+    publicKey: string;
     /** The private key (only available if the account was created by this client) */
-    readonly privateKey?: string;
+    privateKey?: string;
     /** The EVM address derived from the public key */
-    readonly evmAddress?: string;
+    evmAddress?: string;
 }
 
 /**
@@ -25,27 +25,27 @@ export interface Account {
  */
 export interface AccountInfo {
     /** The account ID */
-    readonly accountId: string;
+    accountId: string;
     /** The EVM address */
-    readonly evmAddress?: string;
+    evmAddress?: string;
     /** The public key */
-    readonly key?: string;
+    key?: string;
     /** Account balance in tinybars */
-    readonly balance: number;
+    balance: number;
     /** Whether the account has been deleted */
-    readonly deleted: boolean;
+    deleted: boolean;
     /** Auto-renewal period in seconds */
-    readonly autoRenewPeriod?: number;
+    autoRenewPeriod?: number;
     /** Memo associated with the account */
-    readonly memo?: string;
+    memo?: string;
     /** Maximum automatic token associations */
-    readonly maxAutomaticTokenAssociations?: number;
+    maxAutomaticTokenAssociations?: number;
     /** Staking info */
-    readonly stakedAccountId?: string;
-    readonly stakedNodeId?: number;
-    readonly stakePeriodStart?: string;
+    stakedAccountId?: string;
+    stakedNodeId?: number;
+    stakePeriodStart?: string;
     /** Account creation timestamp */
-    readonly createdTimestamp?: string;
+    createdTimestamp?: string;
     /** Expiration timestamp */
-    readonly expirationTimestamp?: string;
+    expirationTimestamp?: string;
 }

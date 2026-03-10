@@ -3,31 +3,31 @@
  */
 export interface TransactionInfo {
     /** Transaction ID */
-    readonly transactionId: string;
+    transactionId: string;
     /** Transaction type (e.g., "CRYPTOTRANSFER", "TOKENCREATION") */
-    readonly type: string;
+    type: string;
     /** Human-readable name */
-    readonly name: string;
+    name: string;
     /** Transaction result status */
-    readonly result: string;
+    result: string;
     /** Consensus timestamp */
-    readonly consensusTimestamp: string;
+    consensusTimestamp: string;
     /** Valid start timestamp */
-    readonly validStartTimestamp: string;
+    validStartTimestamp: string;
     /** Whether the transaction was successful */
-    readonly successful: boolean;
+    successful: boolean;
     /** Charged transaction fee in tinybars */
-    readonly chargedTxFee: number;
+    chargedTxFee: number;
     /** Memo */
-    readonly memo?: string;
+    memo?: string;
     /** HBAR transfers */
-    readonly transfers: Transfer[];
+    transfers: Transfer[];
     /** Token transfers */
-    readonly tokenTransfers: TokenTransferInfo[];
+    tokenTransfers: TokenTransferInfo[];
     /** NFT transfers */
-    readonly nftTransfers: NftTransferInfo[];
+    nftTransfers: NftTransferInfo[];
     /** Staking reward transfers */
-    readonly stakingRewardTransfers: StakingRewardTransfer[];
+    stakingRewardTransfers: StakingRewardTransfer[];
 }
 
 /**
@@ -35,11 +35,11 @@ export interface TransactionInfo {
  */
 export interface Transfer {
     /** Account ID */
-    readonly accountId: string;
+    accountId: string;
     /** Amount in tinybars (negative = sent, positive = received) */
-    readonly amount: number;
+    amount: number;
     /** Whether this is a reward payout */
-    readonly isApproval: boolean;
+    isApproval: boolean;
 }
 
 /**
@@ -47,11 +47,11 @@ export interface Transfer {
  */
 export interface TokenTransferInfo {
     /** Token ID */
-    readonly tokenId: string;
+    tokenId: string;
     /** Account ID */
-    readonly accountId: string;
+    accountId: string;
     /** Amount transferred */
-    readonly amount: number;
+    amount: number;
 }
 
 /**
@@ -59,13 +59,13 @@ export interface TokenTransferInfo {
  */
 export interface NftTransferInfo {
     /** Token ID */
-    readonly tokenId: string;
+    tokenId: string;
     /** Serial number */
-    readonly serialNumber: number;
+    serialNumber: number;
     /** Sender account ID */
-    readonly senderAccountId: string;
+    senderAccountId: string;
     /** Receiver account ID */
-    readonly receiverAccountId: string;
+    receiverAccountId: string;
 }
 
 /**
@@ -73,9 +73,9 @@ export interface NftTransferInfo {
  */
 export interface StakingRewardTransfer {
     /** Account ID receiving the reward */
-    readonly accountId: string;
+    accountId: string;
     /** Reward amount in tinybars */
-    readonly amount: number;
+    amount: number;
 }
 
 /**

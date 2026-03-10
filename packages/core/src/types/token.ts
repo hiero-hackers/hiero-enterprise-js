@@ -3,47 +3,47 @@
  */
 export interface TokenInfo {
     /** Token ID */
-    readonly tokenId: string;
+    tokenId: string;
     /** Token name */
-    readonly name: string;
+    name: string;
     /** Token symbol */
-    readonly symbol: string;
+    symbol: string;
     /** Token type: FUNGIBLE_COMMON or NON_FUNGIBLE_UNIQUE */
-    readonly type: TokenType;
+    type: TokenType;
     /** Decimal places (fungible tokens only) */
-    readonly decimals: number;
+    decimals: number;
     /** Total supply currently in circulation */
-    readonly totalSupply: string;
+    totalSupply: string;
     /** Maximum supply (0 = infinite) */
-    readonly maxSupply: string;
+    maxSupply: string;
     /** Treasury account receiving minted tokens */
-    readonly treasuryAccountId: string;
+    treasuryAccountId: string;
     /** Admin key (can modify token properties) */
-    readonly adminKey?: string;
+    adminKey?: string;
     /** Supply key (can mint/burn) */
-    readonly supplyKey?: string;
+    supplyKey?: string;
     /** Freeze key */
-    readonly freezeKey?: string;
+    freezeKey?: string;
     /** Wipe key */
-    readonly wipeKey?: string;
+    wipeKey?: string;
     /** KYC key */
-    readonly kycKey?: string;
+    kycKey?: string;
     /** Pause key */
-    readonly pauseKey?: string;
+    pauseKey?: string;
     /** Fee schedule key */
-    readonly feeScheduleKey?: string;
+    feeScheduleKey?: string;
     /** Whether the token is deleted */
-    readonly deleted: boolean;
+    deleted: boolean;
     /** Whether the token is paused */
-    readonly paused: boolean;
+    paused: boolean;
     /** Custom fees */
-    readonly customFees: CustomFee[];
+    customFees: CustomFee[];
     /** Creation timestamp */
-    readonly createdTimestamp?: string;
+    createdTimestamp?: string;
     /** Expiration timestamp */
-    readonly expirationTimestamp?: string;
+    expirationTimestamp?: string;
     /** Memo */
-    readonly memo?: string;
+    memo?: string;
 }
 
 /**
@@ -56,11 +56,11 @@ export type TokenType = "FUNGIBLE_COMMON" | "NON_FUNGIBLE_UNIQUE";
  */
 export interface TokenTransfer {
     /** Token ID */
-    readonly tokenId: string;
+    tokenId: string;
     /** Account ID */
-    readonly accountId: string;
+    accountId: string;
     /** Amount transferred (negative = sent, positive = received) */
-    readonly amount: number;
+    amount: number;
 }
 
 /**
@@ -68,53 +68,53 @@ export interface TokenTransfer {
  */
 export interface CustomFee {
     /** Fee type */
-    readonly type: "fixed" | "fractional" | "royalty";
+    type: "fixed" | "fractional" | "royalty";
     /** Fee collector account */
-    readonly collectorAccountId: string;
+    collectorAccountId: string;
     /** Whether all collectors are exempt */
-    readonly allCollectorsAreExempt: boolean;
+    allCollectorsAreExempt: boolean;
 }
 
 /**
  * Fixed fee — a flat fee charged per transaction.
  */
 export interface FixedFee extends CustomFee {
-    readonly type: "fixed";
+    type: "fixed";
     /** Amount of the fee */
-    readonly amount: number;
+    amount: number;
     /** Token ID for the fee (null = HBAR) */
-    readonly denominatingTokenId?: string;
+    denominatingTokenId?: string;
 }
 
 /**
  * Fractional fee — a percentage of the transferred amount.
  */
 export interface FractionalFee extends CustomFee {
-    readonly type: "fractional";
+    type: "fractional";
     /** Numerator of the fraction */
-    readonly numerator: number;
+    numerator: number;
     /** Denominator of the fraction */
-    readonly denominator: number;
+    denominator: number;
     /** Minimum fee amount */
-    readonly min?: number;
+    min?: number;
     /** Maximum fee amount */
-    readonly max?: number;
+    max?: number;
     /** Whether the fee is deducted from the transferred amount */
-    readonly netOfTransfers: boolean;
+    netOfTransfers: boolean;
 }
 
 /**
  * Royalty fee — charged on NFT transfers as a percentage of the value exchanged.
  */
 export interface RoyaltyFee extends CustomFee {
-    readonly type: "royalty";
+    type: "royalty";
     /** Numerator of the fraction */
-    readonly numerator: number;
+    numerator: number;
     /** Denominator of the fraction */
-    readonly denominator: number;
+    denominator: number;
     /** Fallback fixed fee if no value is exchanged */
-    readonly fallbackFee?: {
-        readonly amount: number;
-        readonly denominatingTokenId?: string;
+    fallbackFee?: {
+        amount: number;
+        denominatingTokenId?: string;
     };
 }

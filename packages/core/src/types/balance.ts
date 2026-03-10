@@ -3,11 +3,11 @@
  */
 export interface Balance {
     /** Account ID */
-    readonly accountId: string;
+    accountId: string;
     /** HBAR balance in tinybars */
-    readonly hbars: number;
+    hbars: number;
     /** Token balances associated with this account */
-    readonly tokens: TokenBalance[];
+    tokens: TokenBalance[];
 }
 
 /**
@@ -15,9 +15,9 @@ export interface Balance {
  */
 export interface TokenBalance {
     /** Token ID */
-    readonly tokenId: string;
+    tokenId: string;
     /** Balance amount */
-    readonly balance: number;
+    balance: number;
     /** Token decimals */
-    readonly decimals: number;
+    decimals: number;
 }

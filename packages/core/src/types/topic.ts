@@ -3,21 +3,21 @@
  */
 export interface Topic {
     /** Topic ID */
-    readonly topicId: string;
+    topicId: string;
     /** Topic memo */
-    readonly memo?: string;
+    memo?: string;
     /** Admin key (can update/delete the topic) */
-    readonly adminKey?: string;
+    adminKey?: string;
     /** Submit key (required to submit messages if set) */
-    readonly submitKey?: string;
+    submitKey?: string;
     /** Auto-renew account ID */
-    readonly autoRenewAccount?: string;
+    autoRenewAccount?: string;
     /** Auto-renew period in seconds */
-    readonly autoRenewPeriod?: number;
+    autoRenewPeriod?: number;
     /** Creation timestamp */
-    readonly createdTimestamp?: string;
+    createdTimestamp?: string;
     /** Whether the topic is deleted */
-    readonly deleted: boolean;
+    deleted: boolean;
 }
 
 /**
@@ -25,15 +25,15 @@ export interface Topic {
  */
 export interface TopicMessage {
     /** Topic ID */
-    readonly topicId: string;
+    topicId: string;
     /** Sequence number of the message within the topic */
-    readonly sequenceNumber: number;
+    sequenceNumber: number;
     /** Message contents (base64 encoded) */
-    readonly message: string;
+    message: string;
     /** Running hash of topic messages */
-    readonly runningHash: string;
+    runningHash: string;
     /** Consensus timestamp */
-    readonly consensusTimestamp: string;
+    consensusTimestamp: string;
     /** Payer account ID */
-    readonly payerAccountId?: string;
+    payerAccountId?: string;
 }

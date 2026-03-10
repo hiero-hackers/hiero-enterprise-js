@@ -3,13 +3,13 @@
  */
 export interface ContractCallResult {
     /** Gas consumed by the call */
-    readonly gasUsed: number;
+    gasUsed: number;
     /** HBAR result (in tinybars) */
-    readonly hbarResult?: number;
+    hbarResult?: number;
     /** Contract ID that was called */
-    readonly contractId: string;
+    contractId: string;
     /** Raw result bytes (hex encoded) */
-    readonly resultBytes?: string;
+    resultBytes?: string;
     /** Error message if the call failed */
-    readonly errorMessage?: string;
+    errorMessage?: string;
 }

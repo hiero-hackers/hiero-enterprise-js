@@ -3,11 +3,11 @@
  */
 export interface ExchangeRate {
     /** HBAR equivalent */
-    readonly hbarEquivalent: number;
+    hbarEquivalent: number;
     /** Cent equivalent (USD) */
-    readonly centEquivalent: number;
+    centEquivalent: number;
     /** Expiration timestamp */
-    readonly expirationTime: string;
+    expirationTime: string;
 }
 
 /**
@@ -15,9 +15,9 @@ export interface ExchangeRate {
  */
 export interface ExchangeRates {
     /** Current exchange rate */
-    readonly currentRate: ExchangeRate;
+    currentRate: ExchangeRate;
     /** Next exchange rate */
-    readonly nextRate: ExchangeRate;
+    nextRate: ExchangeRate;
 }
 
 /**
@@ -25,27 +25,27 @@ export interface ExchangeRates {
  */
 export interface NetworkStake {
     /** Maximum stake rewarded in tinybars */
-    readonly maxStakeRewarded: number;
+    maxStakeRewarded: number;
     /** Maximum staking reward rate per HBAR */
-    readonly maxStakingRewardRatePerHbar: number;
+    maxStakingRewardRatePerHbar: number;
     /** Maximum total reward in tinybars */
-    readonly maxTotalReward: number;
+    maxTotalReward: number;
     /** Threshold for minimum node stake */
-    readonly nodeRewardFeeFraction: number;
+    nodeRewardFeeFraction: number;
     /** Reserved staking rewards in tinybars */
-    readonly reservedStakingRewards: number;
+    reservedStakingRewards: number;
     /** Reward balance threshold */
-    readonly rewardBalanceThreshold: number;
+    rewardBalanceThreshold: number;
     /** Total stake rewarded */
-    readonly stakeTotal: number;
+    stakeTotal: number;
     /** Staking period start */
-    readonly stakingPeriod: string;
+    stakingPeriod: string;
     /** Staking period duration in minutes */
-    readonly stakingPeriodDuration: number;
+    stakingPeriodDuration: number;
     /** Staking periods stored */
-    readonly stakingPeriodsStored: number;
+    stakingPeriodsStored: number;
     /** Unreserved staking reward balance */
-    readonly unreservedStakingRewardBalance: number;
+    unreservedStakingRewardBalance: number;
 }
 
 /**
@@ -53,9 +53,9 @@ export interface NetworkStake {
  */
 export interface NetworkSupplies {
     /** Released supply in tinybars */
-    readonly releasedSupply: string;
+    releasedSupply: string;
     /** Total supply in tinybars */
-    readonly totalSupply: string;
+    totalSupply: string;
     /** Timestamp */
-    readonly timestamp: string;
+    timestamp: string;
 }

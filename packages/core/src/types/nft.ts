@@ -3,21 +3,21 @@
  */
 export interface Nft {
     /** Token ID of the NFT collection */
-    readonly tokenId: string;
+    tokenId: string;
     /** Serial number within the collection */
-    readonly serialNumber: number;
+    serialNumber: number;
     /** Current owner account ID */
-    readonly accountId: string;
+    accountId: string;
     /** Metadata (base64 encoded or raw bytes) */
-    readonly metadata: string;
+    metadata: string;
     /** Creation timestamp */
-    readonly createdTimestamp?: string;
+    createdTimestamp?: string;
     /** Whether this NFT has been deleted */
-    readonly deleted: boolean;
+    deleted: boolean;
     /** Account ID that approved a delegate spender */
-    readonly delegatingSpender?: string;
+    delegatingSpender?: string;
     /** Account ID of the approved spender */
-    readonly spender?: string;
+    spender?: string;
 }
 
 /**
@@ -25,9 +25,9 @@ export interface Nft {
  */
 export interface NftMetadata {
     /** Collection name */
-    readonly name: string;
+    name: string;
     /** Collection symbol */
-    readonly symbol: string;
+    symbol: string;
     /** Maximum supply (0 = infinite) */
-    readonly maxSupply?: number;
+    maxSupply?: number;
 }
