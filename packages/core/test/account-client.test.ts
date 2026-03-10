@@ -5,7 +5,11 @@ import {
     AccountCreateTransaction,
     AccountDeleteTransaction,
     AccountBalanceQuery,
+    TransferTransaction,
+    AccountId, // required for mocking or type matching
+    PublicKey,
 } from "@hashgraph/sdk";
+import { AccountType } from "../src/types/index.js";
 
 // Mock the SDK
 vi.mock("@hashgraph/sdk", async (importOriginal) => {
@@ -19,6 +23,8 @@ vi.mock("@hashgraph/sdk", async (importOriginal) => {
         setAccountMemo: vi.fn().mockReturnThis(),
         setAccountId: vi.fn().mockReturnThis(),
         setTransferAccountId: vi.fn().mockReturnThis(),
+        setAlias: vi.fn().mockReturnThis(),
+        addHbarTransfer: vi.fn().mockReturnThis(),
         freezeWith: vi.fn().mockReturnThis(),
         sign: vi.fn().mockResolvedValue({
             execute: vi.fn().mockResolvedValue({
@@ -55,6 +61,7 @@ vi.mock("@hashgraph/sdk", async (importOriginal) => {
         AccountCreateTransaction: vi.fn(() => mockTx),
         AccountDeleteTransaction: vi.fn(() => mockTx),
         AccountBalanceQuery: vi.fn(() => mockQuery),
+        TransferTransaction: vi.fn(() => mockTx),
     };
 });
 
@@ -75,7 +82,7 @@ describe("AccountClient", () => {
     });
 
     describe("createAccount", () => {
-        it("creates an account with default options", async () => {
+        it("creates an account with default options (EVM ECDSA)", async () => {
             const account = await client.createAccount();
 
             // Check response mapping
@@ -89,6 +96,7 @@ describe("AccountClient", () => {
                 .results[0].value;
             expect(mockInstance.setInitialBalance).toHaveBeenCalled();
             expect(mockInstance.setKeyWithoutAlias).toHaveBeenCalled();
+            expect(mockInstance.setAlias).toHaveBeenCalled(); // EVM default must set alias
             expect(mockInstance.execute).toHaveBeenCalledWith(context.client);
             expect(
                 mockInstance.setMaxAutomaticTokenAssociations,
@@ -96,11 +104,12 @@ describe("AccountClient", () => {
             expect(mockInstance.setAccountMemo).not.toHaveBeenCalled();
         });
 
-        it("creates an account with custom options", async () => {
-            await client.createAccount({
+        it("creates an account with custom options and NATIVE type", async () => {
+            const account = await client.createAccount({
                 initialBalance: 5,
                 maxAutomaticTokenAssociations: 10,
                 memo: "test memo",
+                accountType: AccountType.NATIVE,
             });
 
             const mockInstance = vi.mocked(AccountCreateTransaction).mock
@@ -111,6 +120,60 @@ describe("AccountClient", () => {
             expect(mockInstance.setAccountMemo).toHaveBeenCalledWith(
                 "test memo",
             );
+            expect(mockInstance.setAlias).not.toHaveBeenCalled(); // NATIVE does not get EVM alias explicitly
+            expect(account.evmAddress).toBeUndefined(); // Should omit evm mapping
+            expect(mockInstance.execute).toHaveBeenCalledWith(context.client);
+        });
+    });
+
+    describe("createAccountWithPublicKey", () => {
+        it("creates an EVM account using a provided public key string", async () => {
+            const validEcdsa =
+                "302d300706052b8104000a0322000216c48e37d8284b7eb4fb8af9ed602c7a567ae0cd3d91b6ab302ac850a1ba6d8f"; // Valid mathematically generated ECDSA key
+            const result = await client.createAccountWithPublicKey(
+                validEcdsa,
+                AccountType.EVM,
+                10,
+            );
+
+            const mockInstance = vi.mocked(AccountCreateTransaction).mock
+                .results[0].value;
+            expect(mockInstance.setInitialBalance).toHaveBeenCalled();
+            expect(mockInstance.setKeyWithoutAlias).toHaveBeenCalled();
+            expect(mockInstance.setAlias).toHaveBeenCalled(); // Should call setAlias because it derived the EVM address
+
+            expect(result.accountId).toBe("0.0.999");
+            expect(result.evmAddress).toBeDefined(); // Derived from the valid hex key
+        });
+
+        it("creates a NATIVE account using a provided public key string", async () => {
+            const validEd25519 =
+                "3b054ddd0c62d577ce0fbb0e92dcce0d5bea42a98a5c9663271939881ce19208"; // 32 bytes RAW
+            const result = await client.createAccountWithPublicKey(
+                validEd25519,
+                AccountType.NATIVE,
+                10,
+            );
+
+            const mockInstance = vi.mocked(AccountCreateTransaction).mock
+                .results[0].value;
+            expect(mockInstance.setInitialBalance).toHaveBeenCalled();
+            expect(mockInstance.setKeyWithoutAlias).toHaveBeenCalled();
+            expect(mockInstance.setAlias).not.toHaveBeenCalled();
+
+            expect(result.accountId).toBe("0.0.999");
+            expect(result.evmAddress).toBeUndefined();
+        });
+    });
+
+    describe("autoCreateEvmAccount", () => {
+        it("transfers hbar to an EVM address to trigger lazy creation", async () => {
+            const validAddress = "0x1111111111111111111111111111111111111111"; // 20 bytes
+            await client.autoCreateEvmAccount(validAddress, 50);
+
+            const mockInstance =
+                vi.mocked(TransferTransaction).mock.results[0].value;
+            expect(mockInstance.addHbarTransfer).toHaveBeenCalledTimes(2);
             expect(mockInstance.execute).toHaveBeenCalledWith(context.client);
         });
     });

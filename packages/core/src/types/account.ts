@@ -1,4 +1,12 @@
 /**
+ * The type of account (and underlying key) to generate.
+ */
+export enum AccountType {
+    NATIVE = "ED25519",
+    EVM = "ECDSA",
+}
+
+/**
  * Represents a Hiero network account.
  */
 export interface Account {

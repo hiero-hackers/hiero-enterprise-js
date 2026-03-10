@@ -1,5 +1,6 @@
 // Data model barrel export
 export type { Account, AccountInfo } from "./account.js";
+export { AccountType } from "./account.js";
 export type { Balance, TokenBalance } from "./balance.js";
 export type {
     TokenInfo,

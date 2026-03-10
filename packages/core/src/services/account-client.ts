@@ -2,9 +2,13 @@ import {
     AccountCreateTransaction,
     AccountDeleteTransaction,
     AccountBalanceQuery,
+    TransferTransaction,
+    AccountId,
+    PublicKey,
     Hbar,
     PrivateKey,
 } from "@hashgraph/sdk";
+import { AccountType } from "../types/index.js";
 import type { Account, Balance } from "../types/index.js";
 import type { HieroContext } from "../context/index.js";
 import type { TransactionEvent } from "../listeners/index.js";
@@ -20,6 +24,8 @@ export interface CreateAccountOptions {
     maxAutomaticTokenAssociations?: number;
     /** Account memo */
     memo?: string;
+    /** The type of account (and underlying key) to generate. Defaults to EVM (ECDSA). */
+    accountType?: AccountType;
 }
 
 /**
@@ -49,11 +55,19 @@ export class AccountClient {
         const start = Date.now();
 
         try {
-            const newKey = PrivateKey.generateECDSA();
+            const type = options.accountType ?? AccountType.EVM;
+            const newKey =
+                type === AccountType.EVM
+                    ? PrivateKey.generateECDSA()
+                    : PrivateKey.generateED25519();
 
             const tx = new AccountCreateTransaction()
                 .setKeyWithoutAlias(newKey.publicKey)
                 .setInitialBalance(new Hbar(options.initialBalance ?? 0));
+
+            if (type === AccountType.EVM) {
+                tx.setAlias(newKey.publicKey.toEvmAddress());
+            }
 
             if (options.maxAutomaticTokenAssociations !== undefined) {
                 tx.setMaxAutomaticTokenAssociations(
@@ -71,8 +85,11 @@ export class AccountClient {
                 accountId: receipt.accountId!.toString(),
                 publicKey: newKey.publicKey.toString(),
                 privateKey: newKey.toString(),
-                evmAddress: newKey.publicKey.toEvmAddress(),
             };
+
+            if (type === AccountType.EVM) {
+                result.evmAddress = newKey.publicKey.toEvmAddress();
+            }
 
             await this.context.emitAfterTransaction({
                 ...event,
@@ -90,6 +107,132 @@ export class AccountClient {
                 durationMs: Date.now() - start,
             });
             throw normalizeError(error, "AccountClient.createAccount");
+        }
+    }
+
+    /**
+     * Creates a new account using a provided public key string.
+     * Supports both Ed25519 (Native) and ECDSA (EVM-compatible) keys.
+     *
+     * @param publicKeyStr - The public key string (raw or DER formatted)
+     * @param type - The account type (EVM vs NATIVE)
+     * @param initialBalance - The amount of HBAR to fund the account initially
+     * @param memo - Optional memo
+     */
+    async createAccountWithPublicKey(
+        publicKeyStr: string,
+        type: AccountType,
+        initialBalance: number = 0,
+        memo?: string,
+    ): Promise<Account> {
+        const event: TransactionEvent = {
+            type: "AccountCreate",
+            serviceName: "AccountClient",
+            methodName: "createAccountWithPublicKey",
+            timestamp: new Date(),
+        };
+        await this.context.emitBeforeTransaction(event);
+        const start = Date.now();
+
+        try {
+            const publicKey =
+                type === AccountType.EVM
+                    ? PublicKey.fromStringECDSA(publicKeyStr)
+                    : PublicKey.fromStringED25519(publicKeyStr);
+
+            const tx = new AccountCreateTransaction()
+                .setKeyWithoutAlias(publicKey)
+                .setInitialBalance(new Hbar(initialBalance));
+
+            if (type === AccountType.EVM) {
+                tx.setAlias(publicKey.toEvmAddress());
+            }
+            if (memo) {
+                tx.setAccountMemo(memo);
+            }
+
+            const response = await tx.execute(this.context.client);
+            const receipt = await response.getReceipt(this.context.client);
+
+            const result: Account = {
+                accountId: receipt.accountId!.toString(),
+                publicKey: publicKey.toString(),
+            };
+
+            if (type === AccountType.EVM) {
+                result.evmAddress = publicKey.toEvmAddress();
+            }
+
+            await this.context.emitAfterTransaction({
+                ...event,
+                transactionId: response.transactionId.toString(),
+                status: receipt.status.toString(),
+                durationMs: Date.now() - start,
+            });
+
+            return result;
+        } catch (error) {
+            await this.context.emitAfterTransaction({
+                ...event,
+                error:
+                    error instanceof Error ? error : new Error(String(error)),
+                durationMs: Date.now() - start,
+            });
+            throw normalizeError(
+                error,
+                "AccountClient.createAccountWithPublicKey",
+            );
+        }
+    }
+
+    /**
+     * Auto-creates a "Hollow Account" by transferring HBAR to an EVM address.
+     * Useful for onboarding MetaMask users who don't have a Hedera ID yet.
+     *
+     * @param evmAddress - The EVM address (e.g., 0x...)
+     * @param amount - The amount of HBAR to transfer
+     */
+    async autoCreateEvmAccount(
+        evmAddress: string,
+        amount: number,
+    ): Promise<void> {
+        const event: TransactionEvent = {
+            type: "TokenTransfer", // Reusing TokenTransfer event type for HBAR transfer
+            serviceName: "AccountClient",
+            methodName: "autoCreateEvmAccount",
+            timestamp: new Date(),
+        };
+        await this.context.emitBeforeTransaction(event);
+        const start = Date.now();
+
+        try {
+            const transferTx = new TransferTransaction()
+                .addHbarTransfer(
+                    this.context.operatorAccountId,
+                    new Hbar(amount).negated(),
+                )
+                .addHbarTransfer(
+                    AccountId.fromEvmAddress(0, 0, evmAddress),
+                    new Hbar(amount),
+                );
+
+            const response = await transferTx.execute(this.context.client);
+            const receipt = await response.getReceipt(this.context.client);
+
+            await this.context.emitAfterTransaction({
+                ...event,
+                transactionId: response.transactionId.toString(),
+                status: receipt.status.toString(),
+                durationMs: Date.now() - start,
+            });
+        } catch (error) {
+            await this.context.emitAfterTransaction({
+                ...event,
+                error:
+                    error instanceof Error ? error : new Error(String(error)),
+                durationMs: Date.now() - start,
+            });
+            throw normalizeError(error, "AccountClient.autoCreateEvmAccount");
         }
     }
 
