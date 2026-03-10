@@ -6,8 +6,6 @@ import {
     AccountDeleteTransaction,
     AccountBalanceQuery,
     TransferTransaction,
-    AccountId, // required for mocking or type matching
-    PublicKey,
 } from "@hashgraph/sdk";
 import { AccountType } from "../src/types/index.js";
 
