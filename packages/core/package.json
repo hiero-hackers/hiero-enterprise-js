@@ -26,10 +26,10 @@
         "test:watch": "vitest test/unit"
     },
     "dependencies": {
-        "@hashgraph/sdk": "^2.55.0"
+        "@hashgraph/sdk": "^2.81.0"
     },
     "devDependencies": {
-        "vitest": "^3.0.0"
+        "vitest": "^4.1.7"
     },
     "engines": {
         "node": ">=20.12.0"
