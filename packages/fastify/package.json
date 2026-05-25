@@ -19,7 +19,7 @@
     },
     "dependencies": {
         "@hiero-enterprise/core": "workspace:*",
-        "fastify-plugin": "^4.5.1"
+        "fastify-plugin": "^5.1.0"
     },
     "peerDependencies": {
         "fastify": ">=4"
