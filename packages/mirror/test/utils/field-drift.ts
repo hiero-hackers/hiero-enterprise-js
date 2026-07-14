@@ -46,7 +46,7 @@ export function assertNoSilentDrops(
 ): void {
     const out = leafValues(converted);
     const dropped = [...leafValues(raw)].filter(
-        (val) => !out.has(val) && !(val in known),
+        (val) => !out.has(val) && !Object.prototype.hasOwnProperty.call(known, val),
     );
     expect(dropped, "wire fields dropped without a documented reason").toEqual(
         [],

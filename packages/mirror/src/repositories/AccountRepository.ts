@@ -83,7 +83,7 @@ export class AccountRepository {
      * isn't base32 (e.g. an account ID or EVM address); use
      * {@link findByAccountId} / {@link findByEvmAddress} for those.
      *
-     * @param alias - A base32 account alias (charset `A–Z`, `2–7`)
+     * @param alias - A base32 account alias (RFC4648, no padding; charset `A–Z`/`2–7`, case-insensitive)
      */
     findByAlias(
         alias: string,

@@ -592,10 +592,11 @@ export function convertTopicInfo(raw: MirrorTopicResponse): MirrorTopicInfo {
         autoRenewPeriod: raw.auto_renew_period,
         createdTimestamp: raw.created_timestamp,
         deleted: raw.deleted,
-        feeExemptKeyList: raw.fee_exempt_key_list?.map((k) => ({
-            key: k.key,
-            type: k._type,
-        })),
+        feeExemptKeyList: raw.fee_exempt_key_list?.map((k) =>
+            k._type === undefined
+                ? { key: k.key }
+                : { key: k.key, type: k._type },
+        ),
         feeScheduleKey: convertKey(raw.fee_schedule_key),
         customFeesCreatedTimestamp: raw.custom_fees?.created_timestamp,
         fixedFees: raw.custom_fees?.fixed_fees?.map((fee) => ({
