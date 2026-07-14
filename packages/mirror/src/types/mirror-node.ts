@@ -24,7 +24,7 @@ export interface MirrorAccountResponse {
      * spec/check-fixtures.mjs.
      */
     delegation_address?: string | null;
-    key?: { key: string };
+    key?: { key: string; _type?: string };
     balance?: {
         timestamp?: string | null;
         balance: number;
@@ -75,7 +75,7 @@ export interface MirrorNetworkNode {
     max_stake: number;
     stake_rewarded: number;
     stake_not_rewarded: number;
-    admin_key?: { key: string } | null;
+    admin_key?: { key: string; _type?: string } | null;
     associated_registered_nodes?: number[];
     decline_reward?: boolean | null;
     file_id?: string | null;
@@ -121,13 +121,13 @@ export interface MirrorTokenResponse {
     total_supply: string;
     max_supply: string;
     treasury_account_id: string;
-    admin_key?: { key: string };
-    supply_key?: { key: string };
-    freeze_key?: { key: string };
-    wipe_key?: { key: string };
-    kyc_key?: { key: string };
-    pause_key?: { key: string };
-    fee_schedule_key?: { key: string };
+    admin_key?: { key: string; _type?: string };
+    supply_key?: { key: string; _type?: string };
+    freeze_key?: { key: string; _type?: string };
+    wipe_key?: { key: string; _type?: string };
+    kyc_key?: { key: string; _type?: string };
+    pause_key?: { key: string; _type?: string };
+    fee_schedule_key?: { key: string; _type?: string };
     deleted: boolean;
     pause_status?: string;
     custom_fees?: {
@@ -151,7 +151,7 @@ export interface MirrorTokenResponse {
     freeze_default?: boolean;
     initial_supply?: string;
     metadata?: string;
-    metadata_key?: { key: string } | null;
+    metadata_key?: { key: string; _type?: string } | null;
     modified_timestamp?: string;
     supply_type?: string;
 }
@@ -233,7 +233,7 @@ export interface MirrorTransaction {
     token_transfers: MirrorTokenTransfer[];
     nft_transfers: MirrorNftTransfer[];
     staking_reward_transfers: MirrorStakingRewardTransfer[];
-    batch_key?: { key: string } | null;
+    batch_key?: { key: string; _type?: string } | null;
     bytes?: string | null;
     entity_id?: string | null;
     high_volume?: boolean;
@@ -282,6 +282,7 @@ export interface MirrorTransactionListResponse {
 export interface MirrorExchangeRatesResponse {
     current_rate: MirrorExchangeRate;
     next_rate: MirrorExchangeRate;
+    timestamp?: string;
 }
 
 export interface MirrorExchangeRate {
@@ -369,7 +370,7 @@ export interface MirrorScheduleSignature {
 
 /** Raw `/api/v1/schedules/{id}` response (and list entries). */
 export interface MirrorScheduleResponse {
-    admin_key?: { key: string } | null;
+    admin_key?: { key: string; _type?: string } | null;
     consensus_timestamp: string;
     creator_account_id: string;
     deleted: boolean;
@@ -385,7 +386,7 @@ export interface MirrorScheduleResponse {
 
 /** Raw `/api/v1/topics/{id}` response. */
 export interface MirrorTopicResponse {
-    admin_key?: { key: string } | null;
+    admin_key?: { key: string; _type?: string } | null;
     auto_renew_account: string | null;
     auto_renew_period: number | null;
     created_timestamp: string | null;
@@ -398,10 +399,10 @@ export interface MirrorTopicResponse {
         }>;
     };
     deleted: boolean | null;
-    fee_exempt_key_list?: Array<{ key: string }>;
-    fee_schedule_key?: { key: string } | null;
+    fee_exempt_key_list?: Array<{ key: string; _type?: string }>;
+    fee_schedule_key?: { key: string; _type?: string } | null;
     memo: string;
-    submit_key?: { key: string } | null;
+    submit_key?: { key: string; _type?: string } | null;
     timestamp?: MirrorTimestampRange;
     topic_id: string;
 }
@@ -439,7 +440,7 @@ export interface MirrorBlock {
 
 /** A single entry in the raw `/api/v1/accounts/{id}/hooks` response. */
 export interface MirrorHook {
-    admin_key?: { key: string } | null;
+    admin_key?: { key: string; _type?: string } | null;
     contract_id: string | null;
     created_timestamp: string | null;
     deleted: boolean;
@@ -477,7 +478,7 @@ export interface MirrorRegisteredServiceEndpoint {
 
 /** A single entry in the raw `/api/v1/network/registered-nodes` response. */
 export interface MirrorRegisteredNode {
-    admin_key?: { key: string } | null;
+    admin_key?: { key: string; _type?: string } | null;
     created_timestamp: string | null;
     description: string | null;
     registered_node_id: number;
@@ -487,7 +488,7 @@ export interface MirrorRegisteredNode {
 
 /** A contract entity in the raw `/api/v1/contracts` response. */
 export interface MirrorContractRaw {
-    admin_key?: { key: string } | null;
+    admin_key?: { key: string; _type?: string } | null;
     auto_renew_account: string | null;
     auto_renew_period: number | null;
     contract_id: string;

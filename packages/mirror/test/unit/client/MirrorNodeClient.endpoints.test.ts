@@ -128,6 +128,7 @@ describe("MirrorNodeClient remaining endpoints", () => {
                         hbar_equivalent: 1,
                         expiration_time: 2,
                     },
+                    timestamp: "1700000000.000000000",
                 }),
             )
             .mockResolvedValueOnce(
@@ -148,6 +149,7 @@ describe("MirrorNodeClient remaining endpoints", () => {
 
         const rates = await client.queryExchangeRates();
         expect(rates.nextRate.centEquivalent).toBe(13);
+        expect(rates.timestamp).toBe("1700000000.000000000");
 
         const stake = await client.queryNetworkStake();
         expect(stake.stakingPeriod).toBeNull();

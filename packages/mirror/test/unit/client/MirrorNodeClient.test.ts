@@ -54,7 +54,7 @@ describe("MirrorNodeClient", () => {
                     JSON.stringify({
                         account: "0.0.12345",
                         evm_address: "0x123abc",
-                        key: { key: "pubkey123" },
+                        key: { key: "pubkey123", _type: "ECDSA_SECP256K1" },
                         balance: { balance: 500000, tokens: [] },
                         deleted: false,
                         auto_renew_period: 7776000,
@@ -70,7 +70,10 @@ describe("MirrorNodeClient", () => {
             const info = await client.queryAccount("0.0.12345");
             expect(info.accountId).toBe("0.0.12345");
             expect(info.evmAddress).toBe("0x123abc");
-            expect(info.key).toBe("pubkey123");
+            expect(info.key).toEqual({
+                key: "pubkey123",
+                type: "ECDSA_SECP256K1",
+            });
             expect(info.balance).toBe(500000);
             expect(info.deleted).toBe(false);
             expect(info.memo).toBe("test account");
@@ -126,6 +129,7 @@ describe("MirrorNodeClient", () => {
                         deleted: false,
                         pause_status: "NOT_APPLICABLE",
                         custom_fees: {
+                            created_timestamp: "1699999999.000000000",
                             fixed_fees: [
                                 {
                                     amount: 100,
@@ -148,6 +152,9 @@ describe("MirrorNodeClient", () => {
             expect(token.decimals).toBe(8);
             expect(token.customFees).toHaveLength(1);
             expect(token.customFees[0].type).toBe("fixed");
+            expect(token.customFeesCreatedTimestamp).toBe(
+                "1699999999.000000000",
+            );
         });
     });
 

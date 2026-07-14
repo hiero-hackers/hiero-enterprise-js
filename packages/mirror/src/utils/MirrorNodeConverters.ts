@@ -86,7 +86,22 @@ import type {
     FeeEstimateComponent,
     MirrorFeeEstimateComponent,
     MirrorFeeEstimateResponse,
+    MirrorKey,
 } from "../types/index.js";
+
+// ─── Keys ────────────────────────────────────────────────────────
+
+/**
+ * Convert a raw mirror-node key object (`{ _type, key }`) to a
+ * {@link MirrorKey}, preserving the key algorithm. Returns `undefined` when
+ * the key is absent/null, matching the optional key fields on the domain
+ * types.
+ */
+export function convertKey(
+    raw: { key: string; _type?: string } | null | undefined,
+): MirrorKey | undefined {
+    return raw ? { key: raw.key, type: raw._type } : undefined;
+}
 
 // ─── Page ────────────────────────────────────────────────────────
 
@@ -119,8 +134,9 @@ export function convertAccountInfo(
     return {
         accountId: raw.account,
         evmAddress: raw.evm_address,
+        alias: raw.alias,
         delegationAddress: raw.delegation_address ?? undefined,
-        key: raw.key?.key,
+        key: convertKey(raw.key),
         balance: raw.balance?.balance ?? 0,
         deleted: raw.deleted ?? false,
         autoRenewPeriod: raw.auto_renew_period,
@@ -181,7 +197,7 @@ export function convertNetworkNode(raw: MirrorNetworkNode): NetworkNode {
         maxStake: raw.max_stake,
         stakeRewarded: raw.stake_rewarded,
         stakeNotRewarded: raw.stake_not_rewarded,
-        adminKey: raw.admin_key?.key,
+        adminKey: convertKey(raw.admin_key),
         associatedRegisteredNodes: raw.associated_registered_nodes,
         declineReward: raw.decline_reward,
         fileId: raw.file_id,
@@ -298,16 +314,17 @@ export function convertTokenInfo(raw: MirrorTokenResponse): MirrorTokenInfo {
         totalSupply: raw.total_supply,
         maxSupply: raw.max_supply,
         treasuryAccountId: raw.treasury_account_id,
-        adminKey: raw.admin_key?.key,
-        supplyKey: raw.supply_key?.key,
-        freezeKey: raw.freeze_key?.key,
-        wipeKey: raw.wipe_key?.key,
-        kycKey: raw.kyc_key?.key,
-        pauseKey: raw.pause_key?.key,
-        feeScheduleKey: raw.fee_schedule_key?.key,
+        adminKey: convertKey(raw.admin_key),
+        supplyKey: convertKey(raw.supply_key),
+        freezeKey: convertKey(raw.freeze_key),
+        wipeKey: convertKey(raw.wipe_key),
+        kycKey: convertKey(raw.kyc_key),
+        pauseKey: convertKey(raw.pause_key),
+        feeScheduleKey: convertKey(raw.fee_schedule_key),
         deleted: raw.deleted,
         paused: raw.pause_status === "PAUSED",
         customFees,
+        customFeesCreatedTimestamp: raw.custom_fees?.created_timestamp,
         createdTimestamp: raw.created_timestamp,
         // Normalize the tokens-only numeric-nanoseconds form to the
         // canonical "seconds.nanoseconds" string used everywhere else.
@@ -321,7 +338,7 @@ export function convertTokenInfo(raw: MirrorTokenResponse): MirrorTokenInfo {
         freezeDefault: raw.freeze_default,
         initialSupply: raw.initial_supply,
         metadata: raw.metadata,
-        metadataKey: raw.metadata_key?.key,
+        metadataKey: convertKey(raw.metadata_key),
         modifiedTimestamp: raw.modified_timestamp,
         supplyType: raw.supply_type,
     };
@@ -387,7 +404,7 @@ export function convertTransactionInfo(
         stakingRewardTransfers: (raw.staking_reward_transfers ?? []).map(
             convertStakingRewardTransfer,
         ),
-        batchKey: raw.batch_key === null ? null : raw.batch_key?.key,
+        batchKey: convertKey(raw.batch_key) ?? null,
         bytes: raw.bytes,
         entityId: raw.entity_id,
         highVolume: raw.high_volume,
@@ -537,7 +554,7 @@ export function convertNftAllowance(raw: MirrorNftAllowance): NftAllowance {
 
 export function convertSchedule(raw: MirrorScheduleResponse): MirrorSchedule {
     return {
-        adminKey: raw.admin_key?.key,
+        adminKey: convertKey(raw.admin_key),
         consensusTimestamp: raw.consensus_timestamp,
         creatorAccountId: raw.creator_account_id,
         deleted: raw.deleted,
@@ -559,20 +576,24 @@ export function convertSchedule(raw: MirrorScheduleResponse): MirrorSchedule {
 
 export function convertTopicInfo(raw: MirrorTopicResponse): MirrorTopicInfo {
     return {
-        adminKey: raw.admin_key?.key,
+        adminKey: convertKey(raw.admin_key),
         autoRenewAccount: raw.auto_renew_account,
         autoRenewPeriod: raw.auto_renew_period,
         createdTimestamp: raw.created_timestamp,
         deleted: raw.deleted,
-        feeExemptKeyList: raw.fee_exempt_key_list?.map((key) => key.key),
-        feeScheduleKey: raw.fee_schedule_key?.key,
+        feeExemptKeyList: raw.fee_exempt_key_list?.map((k) => ({
+            key: k.key,
+            type: k._type,
+        })),
+        feeScheduleKey: convertKey(raw.fee_schedule_key),
+        customFeesCreatedTimestamp: raw.custom_fees?.created_timestamp,
         fixedFees: raw.custom_fees?.fixed_fees?.map((fee) => ({
             amount: fee.amount,
             collectorAccountId: fee.collector_account_id,
             denominatingTokenId: fee.denominating_token_id,
         })),
         memo: raw.memo,
-        submitKey: raw.submit_key?.key,
+        submitKey: convertKey(raw.submit_key),
         timestamp: raw.timestamp,
         topicId: raw.topic_id,
     };
@@ -625,7 +646,7 @@ export function convertBlock(raw: MirrorBlock): Block {
 
 export function convertHook(raw: MirrorHook): Hook {
     return {
-        adminKey: raw.admin_key?.key,
+        adminKey: convertKey(raw.admin_key),
         contractId: raw.contract_id,
         createdTimestamp: raw.created_timestamp,
         deleted: raw.deleted,
@@ -653,7 +674,7 @@ export function convertRegisteredNode(
     raw: MirrorRegisteredNode,
 ): RegisteredNode {
     return {
-        adminKey: raw.admin_key?.key,
+        adminKey: convertKey(raw.admin_key),
         createdTimestamp: raw.created_timestamp,
         description: raw.description,
         registeredNodeId: raw.registered_node_id,
@@ -678,7 +699,7 @@ export function convertRegisteredNode(
 
 export function convertContract(raw: MirrorContractRaw): MirrorContract {
     return {
-        adminKey: raw.admin_key?.key,
+        adminKey: convertKey(raw.admin_key),
         autoRenewAccount: raw.auto_renew_account,
         autoRenewPeriod: raw.auto_renew_period,
         contractId: raw.contract_id,
@@ -691,6 +712,7 @@ export function convertContract(raw: MirrorContractRaw): MirrorContract {
         memo: raw.memo,
         nonce: raw.nonce,
         obtainerId: raw.obtainer_id,
+        proxyAccountId: raw.proxy_account_id ?? null,
         permanentRemoval: raw.permanent_removal,
         timestamp: raw.timestamp,
     };

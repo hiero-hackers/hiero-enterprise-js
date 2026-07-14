@@ -1,4 +1,4 @@
-import type { EffectiveTimestampRange } from "./common.js";
+import type { EffectiveTimestampRange, MirrorKey } from "./common.js";
 
 /**
  * A signature collected on a scheduled transaction.
@@ -20,7 +20,7 @@ export interface ScheduleSignature {
  */
 export interface MirrorSchedule {
     /** Admin key, when the schedule is cancellable */
-    adminKey?: string;
+    adminKey?: MirrorKey;
     /** When the schedule was created */
     consensusTimestamp: string;
     /** Account that created the schedule */

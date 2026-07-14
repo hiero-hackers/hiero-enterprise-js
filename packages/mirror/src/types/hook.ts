@@ -1,4 +1,4 @@
-import type { EffectiveTimestampRange } from "./common.js";
+import type { EffectiveTimestampRange, MirrorKey } from "./common.js";
 
 /**
  * A hook attached to an account (`/api/v1/accounts/{id}/hooks`) — an
@@ -6,7 +6,7 @@ import type { EffectiveTimestampRange } from "./common.js";
  */
 export interface Hook {
     /** The hook's admin key, if readable */
-    adminKey?: string;
+    adminKey?: MirrorKey;
     /** The contract entity holding the hook's executing bytecode */
     contractId: string | null;
     /** When the hook was created */

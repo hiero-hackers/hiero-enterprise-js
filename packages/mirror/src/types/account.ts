@@ -1,3 +1,5 @@
+import type { MirrorKey } from "./common.js";
+
 /**
  * Extended account information from the mirror node.
  */
@@ -6,10 +8,12 @@ export interface MirrorAccountInfo {
     accountId: string;
     /** The EVM address */
     evmAddress?: string;
+    /** RFC4648 no-padding base32 account alias, if the account has one */
+    alias?: string;
     /** EIP-7702 delegation indicator ("0x" when none) */
     delegationAddress?: string;
-    /** The public key */
-    key?: string;
+    /** The account's key (material + algorithm) */
+    key?: MirrorKey;
     /** Account balance in tinybars */
     balance: number;
     /** Whether the account has been deleted */

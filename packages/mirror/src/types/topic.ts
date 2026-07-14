@@ -1,4 +1,4 @@
-import type { EffectiveTimestampRange } from "./common.js";
+import type { EffectiveTimestampRange, MirrorKey } from "./common.js";
 
 /**
  * Represents a topic on the Hiero consensus service (mirror node data).
@@ -9,9 +9,9 @@ export interface MirrorTopic {
     /** Topic memo */
     memo?: string;
     /** Admin key (can update/delete the topic) */
-    adminKey?: string;
+    adminKey?: MirrorKey;
     /** Submit key (required to submit messages if set) */
-    submitKey?: string;
+    submitKey?: MirrorKey;
     /** Auto-renew account ID */
     autoRenewAccount?: string;
     /** Auto-renew period in seconds */
@@ -67,7 +67,7 @@ export interface ChunkInfo {
  */
 export interface MirrorTopicInfo {
     /** Admin key, when the topic is mutable */
-    adminKey?: string;
+    adminKey?: MirrorKey;
     /** Auto-renew account, or null */
     autoRenewAccount: string | null;
     /** Auto-renew period in seconds, or null */
@@ -77,9 +77,11 @@ export interface MirrorTopicInfo {
     /** Whether the topic is deleted, or null when unknown */
     deleted: boolean | null;
     /** Keys exempt from custom fees (HIP-991) */
-    feeExemptKeyList?: string[];
+    feeExemptKeyList?: MirrorKey[];
     /** Fee schedule key (HIP-991) */
-    feeScheduleKey?: string;
+    feeScheduleKey?: MirrorKey;
+    /** When the custom-fee schedule was last set (HIP-991), if fees are configured */
+    customFeesCreatedTimestamp?: string;
     /** Fixed custom fees for message submission (HIP-991) */
     fixedFees?: Array<{
         amount: number;
@@ -89,7 +91,7 @@ export interface MirrorTopicInfo {
     /** Topic memo */
     memo: string;
     /** Submit key, when the topic is private */
-    submitKey?: string;
+    submitKey?: MirrorKey;
     /** Entity validity range; `to` is null while the topic is current */
     timestamp?: EffectiveTimestampRange;
     /** The topic's ID */

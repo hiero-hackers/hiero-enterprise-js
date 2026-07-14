@@ -221,7 +221,7 @@ describe("MirrorNodeClient parity endpoints", () => {
             const schedule = await client.querySchedule("0.0.777");
             expect(url()).toBe("https://x/api/v1/schedules/0.0.777");
             expect(schedule).toEqual({
-                adminKey: "adminkey",
+                adminKey: { key: "adminkey" },
                 consensusTimestamp: "1.0",
                 creatorAccountId: "0.0.11",
                 deleted: false,
@@ -254,11 +254,12 @@ describe("MirrorNodeClient parity endpoints", () => {
     describe("topic info", () => {
         it("converts a full topic incl. HIP-991 fees", async () => {
             mockJson({
-                admin_key: { key: "ak" },
+                admin_key: { key: "ak", _type: "ED25519" },
                 auto_renew_account: "0.0.2",
                 auto_renew_period: 7776000,
                 created_timestamp: "1.0",
                 custom_fees: {
+                    created_timestamp: "0.5",
                     fixed_fees: [
                         {
                             amount: 100,
@@ -268,22 +269,23 @@ describe("MirrorNodeClient parity endpoints", () => {
                     ],
                 },
                 deleted: false,
-                fee_exempt_key_list: [{ key: "fk" }],
-                fee_schedule_key: { key: "fsk" },
+                fee_exempt_key_list: [{ key: "fk", _type: "ECDSA_SECP256K1" }],
+                fee_schedule_key: { key: "fsk", _type: "ED25519" },
                 memo: "topic memo",
-                submit_key: { key: "sk" },
+                submit_key: { key: "sk", _type: "ED25519" },
                 topic_id: "0.0.7",
             });
             const topic = await client.queryTopic("0.0.7");
             expect(url()).toBe("https://x/api/v1/topics/0.0.7");
             expect(topic).toEqual({
-                adminKey: "ak",
+                adminKey: { key: "ak", type: "ED25519" },
                 autoRenewAccount: "0.0.2",
                 autoRenewPeriod: 7776000,
                 createdTimestamp: "1.0",
                 deleted: false,
-                feeExemptKeyList: ["fk"],
-                feeScheduleKey: "fsk",
+                feeExemptKeyList: [{ key: "fk", type: "ECDSA_SECP256K1" }],
+                feeScheduleKey: { key: "fsk", type: "ED25519" },
+                customFeesCreatedTimestamp: "0.5",
                 fixedFees: [
                     {
                         amount: 100,
@@ -292,7 +294,7 @@ describe("MirrorNodeClient parity endpoints", () => {
                     },
                 ],
                 memo: "topic memo",
-                submitKey: "sk",
+                submitKey: { key: "sk", type: "ED25519" },
                 topicId: "0.0.7",
             });
         });

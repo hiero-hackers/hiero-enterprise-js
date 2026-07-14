@@ -6,7 +6,11 @@ export type {
     TokenHolder,
     AccountBalanceSnapshot,
 } from "./balance.js";
-export type { EffectiveTimestampRange } from "./common.js";
+export type {
+    EffectiveTimestampRange,
+    MirrorKey,
+    MirrorKeyType,
+} from "./common.js";
 export type {
     Airdrop,
     CryptoAllowance,

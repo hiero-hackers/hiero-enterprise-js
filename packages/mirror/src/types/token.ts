@@ -1,3 +1,5 @@
+import type { MirrorKey } from "./common.js";
+
 /**
  * Full token information from the mirror node.
  */
@@ -19,25 +21,27 @@ export interface MirrorTokenInfo {
     /** Treasury account receiving minted tokens */
     treasuryAccountId: string;
     /** Admin key (can modify token properties) */
-    adminKey?: string;
+    adminKey?: MirrorKey;
     /** Supply key (can mint/burn) */
-    supplyKey?: string;
+    supplyKey?: MirrorKey;
     /** Freeze key */
-    freezeKey?: string;
+    freezeKey?: MirrorKey;
     /** Wipe key */
-    wipeKey?: string;
+    wipeKey?: MirrorKey;
     /** KYC key */
-    kycKey?: string;
+    kycKey?: MirrorKey;
     /** Pause key */
-    pauseKey?: string;
+    pauseKey?: MirrorKey;
     /** Fee schedule key */
-    feeScheduleKey?: string;
+    feeScheduleKey?: MirrorKey;
     /** Whether the token is deleted */
     deleted: boolean;
     /** Whether the token is paused */
     paused: boolean;
     /** Custom fees */
     customFees: MirrorCustomFee[];
+    /** When the custom-fee schedule was last set, if fees are configured */
+    customFeesCreatedTimestamp?: string;
     /** Creation timestamp */
     createdTimestamp?: string;
     /** Expiration timestamp */
@@ -55,7 +59,7 @@ export interface MirrorTokenInfo {
     /** HIP-646 token-class metadata, base64 */
     metadata?: string;
     /** HIP-646 metadata key, if readable */
-    metadataKey?: string;
+    metadataKey?: MirrorKey;
     /** When the token was last modified */
     modifiedTimestamp?: string;
     /** Supply type: FINITE or INFINITE */

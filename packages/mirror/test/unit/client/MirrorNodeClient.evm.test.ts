@@ -115,7 +115,7 @@ describe("MirrorNodeClient EVM + spec-completion endpoints", () => {
                 "https://x/api/v1/accounts/0.0.15/hooks?hook.id=gte:1&limit=10",
             );
             expect(page.data[0]).toEqual({
-                adminKey: "ak",
+                adminKey: { key: "ak" },
                 contractId: "0.0.5001",
                 createdTimestamp: "1.0",
                 deleted: false,
@@ -180,7 +180,7 @@ describe("MirrorNodeClient EVM + spec-completion endpoints", () => {
                     "?registerednode.id=1&type=BLOCK_NODE",
             );
             expect(page.data[0]).toEqual({
-                adminKey: "nk",
+                adminKey: { key: "nk" },
                 createdTimestamp: "1.0",
                 description: "alpha",
                 registeredNodeId: 1,
@@ -246,7 +246,7 @@ describe("MirrorNodeClient EVM + spec-completion endpoints", () => {
                 "https://x/api/v1/contracts?contract.id=gte:0.0.5000&limit=2",
             );
             expect(page.data[0]).toEqual({
-                adminKey: "ck",
+                adminKey: { key: "ck" },
                 autoRenewAccount: "0.0.2",
                 autoRenewPeriod: 7776000,
                 contractId: "0.0.5001",
@@ -259,6 +259,7 @@ describe("MirrorNodeClient EVM + spec-completion endpoints", () => {
                 memo: "contract memo",
                 nonce: 1,
                 obtainerId: null,
+                proxyAccountId: null,
                 permanentRemoval: null,
                 timestamp: { from: "1.0", to: null },
             });

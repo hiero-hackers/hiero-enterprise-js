@@ -12,7 +12,31 @@ import {
     convertTokenHolder,
     convertAccountTokenBalance,
     convertNetworkNode,
+    convertKey,
 } from "../../../src/utils/MirrorNodeConverters.js";
+
+describe("convertKey", () => {
+    it("carries the algorithm on a simple key", () => {
+        expect(convertKey({ key: "abcd", _type: "ED25519" })).toEqual({
+            key: "abcd",
+            type: "ED25519",
+        });
+    });
+
+    it("passes a ProtobufEncoded complex key through untouched", () => {
+        // Threshold key / key list: `key` is protobuf, not a public key.
+        const raw = { key: "0a05...", _type: "ProtobufEncoded" };
+        expect(convertKey(raw)).toEqual({
+            key: "0a05...",
+            type: "ProtobufEncoded",
+        });
+    });
+
+    it("returns undefined for an absent key", () => {
+        expect(convertKey(null)).toBeUndefined();
+        expect(convertKey(undefined)).toBeUndefined();
+    });
+});
 
 describe("convertPage", () => {
     it("finds the data array under any key and preserves links", () => {
@@ -38,7 +62,8 @@ describe("account converters", () => {
         const full = convertAccountInfo({
             account: "0.0.2",
             evm_address: "0xabc",
-            key: { key: "k" },
+            alias: "HIQQ...",
+            key: { key: "k", _type: "ED25519" },
             balance: { balance: 5, tokens: [] },
             deleted: true,
             staked_node_id: 3,
@@ -46,7 +71,8 @@ describe("account converters", () => {
         expect(full).toMatchObject({
             accountId: "0.0.2",
             evmAddress: "0xabc",
-            key: "k",
+            alias: "HIQQ...",
+            key: { key: "k", type: "ED25519" },
             balance: 5,
             deleted: true,
             stakedNodeId: 3,

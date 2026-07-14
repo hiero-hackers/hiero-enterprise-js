@@ -781,6 +781,7 @@ export class MirrorNodeClient {
         return {
             currentRate: convertExchangeRate(raw.current_rate),
             nextRate: convertExchangeRate(raw.next_rate),
+            timestamp: raw.timestamp,
         };
     }
 

@@ -1,4 +1,5 @@
 import type { PageQuery, TimestampFilter } from "./query.js";
+import type { MirrorKey } from "./common.js";
 
 /**
  * Transaction information from the mirror node.
@@ -31,7 +32,7 @@ export interface TransactionInfo {
     /** Staking reward transfers */
     stakingRewardTransfers: StakingRewardTransfer[];
     /** Batch key for atomic batch transactions, if readable */
-    batchKey?: string | null;
+    batchKey?: MirrorKey | null;
     /** The transaction bytes, base64 (usually null) */
     bytes?: string | null;
     /** The entity the transaction created or touched (account/token/…) */

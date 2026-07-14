@@ -1,4 +1,4 @@
-import type { EffectiveTimestampRange } from "./common.js";
+import type { EffectiveTimestampRange, MirrorKey } from "./common.js";
 
 /**
  * Exchange rate between HBAR and USD cents.
@@ -20,6 +20,8 @@ export interface ExchangeRates {
     currentRate: ExchangeRate;
     /** Next exchange rate */
     nextRate: ExchangeRate;
+    /** Consensus timestamp the rate set was published at, when reported */
+    timestamp?: string;
 }
 
 /**
@@ -53,7 +55,7 @@ export interface NetworkNode {
     /** Stake that declines rewards, in tinybars */
     stakeNotRewarded: number;
     /** The node's admin key, if readable */
-    adminKey?: string;
+    adminKey?: MirrorKey;
     /** Registered node IDs associated with this consensus node */
     associatedRegisteredNodes?: number[];
     /** Whether the node declines staking rewards */
@@ -123,7 +125,7 @@ export interface RegisteredServiceEndpoint {
  */
 export interface RegisteredNode {
     /** The node's admin key, if readable */
-    adminKey?: string;
+    adminKey?: MirrorKey;
     /** When the node registered */
     createdTimestamp: string | null;
     /** A short description of the node */

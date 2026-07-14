@@ -1,4 +1,4 @@
-import type { EffectiveTimestampRange } from "./common.js";
+import type { EffectiveTimestampRange, MirrorKey } from "./common.js";
 
 /**
  * Contract-family types (`/api/v1/contracts/**`) — the EVM read surface.
@@ -9,7 +9,7 @@ import type { EffectiveTimestampRange } from "./common.js";
 /** A contract entity, from `/api/v1/contracts`. */
 export interface MirrorContract {
     /** The contract's admin key, if readable */
-    adminKey?: string;
+    adminKey?: MirrorKey;
     /** Auto-renew payer account, if any */
     autoRenewAccount: string | null;
     /** Auto-renew period in seconds */
@@ -34,6 +34,8 @@ export interface MirrorContract {
     nonce: number | null;
     /** The account to receive remaining balance on deletion */
     obtainerId: string | null;
+    /** The proxy account the contract stakes through, if any (deprecated on-chain, still surfaced by the mirror node) */
+    proxyAccountId: string | null;
     /** Whether the contract was removed by system expiry */
     permanentRemoval: boolean | null;
     /** Validity range; `to` is null while the entity is current */

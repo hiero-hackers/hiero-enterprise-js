@@ -68,7 +68,7 @@ describe("response-field completeness", () => {
             transaction_hash: "aGFzaA==",
             valid_duration_seconds: "120",
         });
-        expect(transaction.batchKey).toBe("bk");
+        expect(transaction.batchKey).toEqual({ key: "bk" });
         expect(transaction.bytes).toBeNull();
         expect(transaction.entityId).toBe("0.0.7");
         expect(transaction.highVolume).toBe(true);
@@ -160,7 +160,7 @@ describe("response-field completeness", () => {
         expect(token.freezeDefault).toBe(false);
         expect(token.initialSupply).toBe("100");
         expect(token.metadata).toBe("bWV0YQ==");
-        expect(token.metadataKey).toBe("mk");
+        expect(token.metadataKey).toEqual({ key: "mk" });
         expect(token.modifiedTimestamp).toBe("2.0");
         expect(token.supplyType).toBe("INFINITE");
     });
@@ -269,7 +269,7 @@ describe("response-field completeness", () => {
             staking_period: { from: "1.0", to: null },
             timestamp: { from: "0.1", to: null },
         });
-        expect(node.adminKey).toBe("ak");
+        expect(node.adminKey).toEqual({ key: "ak" });
         expect(node.associatedRegisteredNodes).toEqual([1, 2]);
         expect(node.declineReward).toBe(false);
         expect(node.fileId).toBe("0.0.102");
