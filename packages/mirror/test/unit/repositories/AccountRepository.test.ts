@@ -18,22 +18,46 @@ describe("AccountRepository", () => {
         expect(spy).toHaveBeenCalledWith("0.0.123", undefined);
     });
 
-    it("findByAlias accepts a valid EVM address and delegates", async () => {
+    it("findAccount is permissive — delegates any form unchanged", async () => {
         const spy = vi.spyOn(mockClient, "queryAccount");
-        const alias = `0x${"ab".repeat(20)}`;
+        for (const v of ["0.0.123", `0x${"ab".repeat(20)}`, "HIQQEXWK"]) {
+            await repo.findAccount(v);
+            expect(spy).toHaveBeenCalledWith(v, undefined);
+        }
+    });
+
+    it("findByEvmAddress accepts a valid EVM address and delegates", async () => {
+        const spy = vi.spyOn(mockClient, "queryAccount");
+        const address = `0x${"ab".repeat(20)}`;
+        await repo.findByEvmAddress(address);
+        expect(spy).toHaveBeenCalledWith(address, undefined);
+    });
+
+    it("findByEvmAddress rejects non-EVM input", async () => {
+        await expect(repo.findByEvmAddress("0.0.123")).rejects.toThrow(
+            /Invalid EVM address/,
+        );
+        await expect(repo.findByEvmAddress("0x1234")).rejects.toThrow(
+            /Invalid EVM address/,
+        );
+        await expect(
+            repo.findByEvmAddress(`0x${"zz".repeat(20)}`),
+        ).rejects.toThrow(/Invalid EVM address/);
+    });
+
+    it("findByAlias accepts a base32 alias and delegates", async () => {
+        const spy = vi.spyOn(mockClient, "queryAccount");
+        const alias = "HIQQEXWKW6ZC7VMR2X";
         await repo.findByAlias(alias);
         expect(spy).toHaveBeenCalledWith(alias, undefined);
     });
 
-    it("findByAlias rejects malformed aliases", async () => {
+    it("findByAlias rejects non-base32 input (IDs, EVM addresses)", async () => {
         await expect(repo.findByAlias("0.0.123")).rejects.toThrow(
-            /Invalid EVM alias/,
+            /Invalid account alias/,
         );
-        await expect(repo.findByAlias("0x1234")).rejects.toThrow(
-            /Invalid EVM alias/,
-        );
-        await expect(repo.findByAlias(`0x${"zz".repeat(20)}`)).rejects.toThrow(
-            /Invalid EVM alias/,
+        await expect(repo.findByAlias(`0x${"ab".repeat(20)}`)).rejects.toThrow(
+            /Invalid account alias/,
         );
     });
 

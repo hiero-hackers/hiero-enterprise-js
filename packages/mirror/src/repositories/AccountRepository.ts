@@ -32,8 +32,39 @@ export class AccountRepository {
     constructor(private readonly mirrorNodeClient: MirrorNodeClient) {}
 
     /**
-     * Find account information by account ID. Pass `{ timestamp }` to read
-     * the account's state — including its balance — as of a point in time.
+     * Find an account by any of the three forms the mirror node's
+     * `/accounts/{idOrAliasOrEvmAddress}` endpoint accepts — an account ID
+     * (`0.0.x`), an RFC4648 base32 alias, or a `0x`-prefixed EVM address.
+     *
+     * This is the permissive resolver: it does not classify or validate the
+     * input, so use it when you already know the value is well-formed (or want
+     * the mirror node to be the authority). For an early, typed error on
+     * malformed input, use the form-specific {@link findByAccountId} /
+     * {@link findByAlias} / {@link findByEvmAddress} wrappers.
+     *
+     * @example
+     * repo.findAccount("0.0.98");
+     * repo.findAccount("0x1234…abcd");
+     * repo.findAccount("HIQQEXWK…"); // base32 alias
+     */
+    findAccount(
+        idOrAliasOrEvmAddress: string,
+        options?: AccountQuery,
+    ): Promise<MirrorAccountInfo> {
+        return this.mirrorNodeClient.queryAccount(
+            idOrAliasOrEvmAddress,
+            options,
+        );
+    }
+
+    /**
+     * Find account information by account ID (`0.0.x`). Pass `{ timestamp }` to
+     * read the account's state — including its balance — as of a point in time.
+     *
+     * A thin, intent-revealing wrapper over {@link findAccount}; it does not
+     * reject non-ID input (the endpoint accepts aliases and EVM addresses at
+     * the same path), so a caller can still pass either — prefer
+     * {@link findByAlias} / {@link findByEvmAddress} when you want that checked.
      *
      * @example
      * // Balance snapshot at a past moment (balance-over-time series):
@@ -43,34 +74,63 @@ export class AccountRepository {
         accountId: string,
         options?: AccountQuery,
     ): Promise<MirrorAccountInfo> {
-        return this.mirrorNodeClient.queryAccount(accountId, options);
+        return this.findAccount(accountId, options);
     }
 
     /**
-     * Find account information by EVM alias (0x-prefixed address).
+     * Find account information by its RFC4648 **base32 alias** (no padding) —
+     * the alias the mirror node reports as `account.alias`. Rejects input that
+     * isn't base32 (e.g. an account ID or EVM address); use
+     * {@link findByAccountId} / {@link findByEvmAddress} for those.
      *
-     * @param alias - An EVM address (e.g. `0x1234...abcd`)
+     * @param alias - A base32 account alias (charset `A–Z`, `2–7`)
      */
     findByAlias(
         alias: string,
         options?: AccountQuery,
     ): Promise<MirrorAccountInfo> {
-        const isValidEvmAddress =
-            alias.startsWith("0x") &&
-            alias.length === 42 &&
-            /^[0-9a-fA-F]+$/.test(alias.slice(2));
-
-        if (!isValidEvmAddress) {
+        // RFC4648 base32 (no padding). This naturally excludes account IDs
+        // ('.', '0'/'1') and EVM addresses ('0x'), so it doubles as a form check.
+        const isBase32 = /^[A-Za-z2-7]+$/.test(alias);
+        if (!isBase32) {
             // Reject rather than throw so callers see a consistent
             // promise-based failure mode from every repository method.
             return Promise.reject(
                 new MirrorError(
-                    `Invalid EVM alias: expected a 0x-prefixed 20-byte hex address, got "${alias}".`,
+                    `Invalid account alias: expected an RFC4648 base32 alias (no padding), got "${alias}". ` +
+                        `For an EVM address use findByEvmAddress; for an account ID use findByAccountId.`,
                     { code: MirrorErrorCodes.ConfigInvalid },
                 ),
             );
         }
-        return this.mirrorNodeClient.queryAccount(alias, options);
+        return this.findAccount(alias, options);
+    }
+
+    /**
+     * Find account information by its `0x`-prefixed 20-byte **EVM address**.
+     * Rejects anything that isn't a valid EVM address; use {@link findByAlias}
+     * for a base32 alias or {@link findByAccountId} for an account ID.
+     *
+     * @param address - An EVM address (e.g. `0x1234…abcd`)
+     */
+    findByEvmAddress(
+        address: string,
+        options?: AccountQuery,
+    ): Promise<MirrorAccountInfo> {
+        const isValidEvmAddress =
+            address.startsWith("0x") &&
+            address.length === 42 &&
+            /^[0-9a-fA-F]+$/.test(address.slice(2));
+
+        if (!isValidEvmAddress) {
+            return Promise.reject(
+                new MirrorError(
+                    `Invalid EVM address: expected a 0x-prefixed 20-byte hex address, got "${address}".`,
+                    { code: MirrorErrorCodes.ConfigInvalid },
+                ),
+            );
+        }
+        return this.findAccount(address, options);
     }
 
     /**
