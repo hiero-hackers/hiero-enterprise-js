@@ -100,7 +100,13 @@ import type {
 export function convertKey(
     raw: { key: string; _type?: string } | null | undefined,
 ): MirrorKey | undefined {
-    return raw ? { key: raw.key, type: raw._type } : undefined;
+    if (!raw) return undefined;
+    // Omit `type` entirely when the wire carries no `_type`, rather than
+    // emitting `type: undefined` — keeps the object shape honest for
+    // property-presence checks and strict deep-equality.
+    return raw._type === undefined
+        ? { key: raw.key }
+        : { key: raw.key, type: raw._type };
 }
 
 // ─── Page ────────────────────────────────────────────────────────
@@ -404,7 +410,12 @@ export function convertTransactionInfo(
         stakingRewardTransfers: (raw.staking_reward_transfers ?? []).map(
             convertStakingRewardTransfer,
         ),
-        batchKey: convertKey(raw.batch_key) ?? null,
+        // Preserve the absent (undefined) vs explicit-null distinction the
+        // wire draws — only a present-but-null batch_key becomes `null`.
+        batchKey:
+            raw.batch_key === undefined
+                ? undefined
+                : (convertKey(raw.batch_key) ?? null),
         bytes: raw.bytes,
         entityId: raw.entity_id,
         highVolume: raw.high_volume,

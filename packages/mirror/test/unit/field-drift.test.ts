@@ -80,6 +80,10 @@ import { assertNoSilentDrops } from "../utils/field-drift.js";
  * that are legitimately reshaped or knowingly deferred are allow-listed inline
  * with a reason, so an omission is always documented, never silent.
  *
+ * `Required<Raw>` forces **top-level** wire fields to be present (a new one
+ * won't compile until the fixture grows); it is shallow, so nested optional
+ * fields must be populated by hand — do so fully, and the value-diff checks them.
+ *
  * Complements `response-field-completeness.test.ts`, which exercises the
  * null/absent-value branches this all-populated guard does not.
  */

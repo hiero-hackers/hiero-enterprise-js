@@ -135,6 +135,12 @@ describe("response-field completeness", () => {
         expect(transaction.batchKey).toBeNull();
     });
 
+    it("leaves an absent batch key undefined (distinct from null)", () => {
+        // baseTransaction omits batch_key entirely.
+        const transaction = convertTransactionInfo(baseTransaction);
+        expect(transaction.batchKey).toBeUndefined();
+    });
+
     it("carries the token supply/metadata fields", () => {
         const token = convertTokenInfo({
             token_id: "0.0.5",

@@ -32,6 +32,12 @@ describe("convertKey", () => {
         });
     });
 
+    it("omits `type` entirely when the wire carries no _type", () => {
+        const result = convertKey({ key: "abcd" });
+        expect(result).toStrictEqual({ key: "abcd" });
+        expect(result).not.toHaveProperty("type");
+    });
+
     it("returns undefined for an absent key", () => {
         expect(convertKey(null)).toBeUndefined();
         expect(convertKey(undefined)).toBeUndefined();

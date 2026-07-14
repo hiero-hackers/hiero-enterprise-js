@@ -4,10 +4,15 @@ import { expect } from "vitest";
  * Shared helper for the field-drift completeness guard (WS5). Rationale and the
  * fixtures live in `test/unit/field-drift.test.ts`.
  *
- * The guard feeds a converter a maximal fixture (typed `Required<RawType>`, so a
- * newly-added wire field forces the fixture to grow) whose every leaf is a
+ * The guard feeds a converter a maximal fixture (typed `Required<RawType>`,
+ * which forces every **top-level** wire field to be present — a newly-added
+ * top-level field won't compile until the fixture grows) whose every leaf is a
  * unique sentinel, then asserts every sentinel survives into the converted
  * output. A dropped field = a missing sentinel = a failing test.
+ *
+ * Caveat: `Required<T>` is shallow, so a newly-added *nested* optional field is
+ * not auto-forced — nested completeness relies on the fixture author populating
+ * nested objects/arrays, which the value-diff then checks. Populate them fully.
  */
 
 /** Every primitive leaf in an object graph, stringified, collected into a set. */
