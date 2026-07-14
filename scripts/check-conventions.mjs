@@ -22,6 +22,7 @@ const fail = (msg) => failures.push(msg);
 const CROSS_CUTTING = new Set([
     "spec-coverage",
     "response-field-completeness",
+    "field-drift",
     "security",
     "stress",
 ]);
