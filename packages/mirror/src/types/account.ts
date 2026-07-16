@@ -15,8 +15,8 @@ export interface MirrorAccountInfo {
     delegationAddress?: string;
     /** The account's key (material + algorithm) */
     key?: MirrorKey;
-    /** Account balance in tinybars */
-    balance: number;
+    /** Account balance in tinybars, as a string — live values exceed 2^53 */
+    balance: string;
     /**
      * When the mirror node snapshotted `balance` and `tokenBalances`.
      *
@@ -53,7 +53,7 @@ export interface MirrorAccountInfo {
     /** The account's ethereum transaction nonce */
     ethereumNonce?: number | null;
     /** Pending staking reward in tinybars (updates at period end) */
-    pendingReward?: number;
+    pendingReward?: string;
     /** Whether transfers into the account require its signature */
     receiverSigRequired?: boolean | null;
 }

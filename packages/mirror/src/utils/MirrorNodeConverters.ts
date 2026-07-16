@@ -88,6 +88,27 @@ import type {
     MirrorFeeEstimateResponse,
     MirrorKey,
 } from "../types/index.js";
+import type { MirrorAmount } from "../types/index.js";
+
+/**
+ * Normalise a wire amount to the public `string` representation.
+ *
+ * After the lossless parse (`utils/LosslessJson.ts`) a tinybar or token
+ * amount arrives as a `number` when small and a `string` when it exceeded
+ * 2^53 on the wire; both arms stringify exactly. `null`/`undefined` pass
+ * through so optional fields keep their absence semantics.
+ */
+function amountString(value: MirrorAmount): string;
+function amountString(value: MirrorAmount | undefined): string | undefined;
+function amountString(value: MirrorAmount | null): string | null;
+function amountString(
+    value: MirrorAmount | null | undefined,
+): string | null | undefined;
+function amountString(
+    value: MirrorAmount | null | undefined,
+): string | null | undefined {
+    return value == null ? value : String(value);
+}
 
 // ─── Keys ────────────────────────────────────────────────────────
 
@@ -143,7 +164,7 @@ export function convertAccountInfo(
         alias: raw.alias,
         delegationAddress: raw.delegation_address ?? undefined,
         key: convertKey(raw.key),
-        balance: raw.balance?.balance ?? 0,
+        balance: amountString(raw.balance?.balance ?? 0),
         // `/accounts/{id}` reports balance as { balance, timestamp, tokens }.
         // Carry the other two through rather than dropping them: `timestamp` is
         // what makes `balance` meaningful (it is a snapshot), and without
@@ -162,7 +183,7 @@ export function convertAccountInfo(
         expirationTimestamp: raw.expiry_timestamp,
         declineReward: raw.decline_reward,
         ethereumNonce: raw.ethereum_nonce,
-        pendingReward: raw.pending_reward,
+        pendingReward: amountString(raw.pending_reward),
         receiverSigRequired: raw.receiver_sig_required,
     };
 }
@@ -211,11 +232,11 @@ export function convertNetworkNode(raw: MirrorNetworkNode): NetworkNode {
         nodeId: raw.node_id,
         nodeAccountId: raw.node_account_id,
         description: raw.description,
-        stake: raw.stake,
-        minStake: raw.min_stake,
-        maxStake: raw.max_stake,
-        stakeRewarded: raw.stake_rewarded,
-        stakeNotRewarded: raw.stake_not_rewarded,
+        stake: amountString(raw.stake),
+        minStake: amountString(raw.min_stake),
+        maxStake: amountString(raw.max_stake),
+        stakeRewarded: amountString(raw.stake_rewarded),
+        stakeNotRewarded: amountString(raw.stake_not_rewarded),
         adminKey: convertKey(raw.admin_key),
         associatedRegisteredNodes: raw.associated_registered_nodes,
         declineReward: raw.decline_reward,
@@ -228,7 +249,7 @@ export function convertNetworkNode(raw: MirrorNetworkNode): NetworkNode {
         memo: raw.memo,
         nodeCertHash: raw.node_cert_hash,
         publicKey: raw.public_key,
-        rewardRateStart: raw.reward_rate_start,
+        rewardRateStart: amountString(raw.reward_rate_start),
         serviceEndpoints: raw.service_endpoints?.map(convertServiceEndpoint),
         stakingPeriod: raw.staking_period,
         timestamp: raw.timestamp,
@@ -280,7 +301,7 @@ export function convertTokenInfo(raw: MirrorTokenResponse): MirrorTokenInfo {
         for (const f of raw.custom_fees.fixed_fees ?? []) {
             const fee: MirrorFixedFee = {
                 type: "fixed",
-                amount: f.amount,
+                amount: amountString(f.amount),
                 collectorAccountId: f.collector_account_id,
                 allCollectorsAreExempt: f.all_collectors_are_exempt ?? false,
                 denominatingTokenId: f.denominating_token_id,
@@ -293,8 +314,8 @@ export function convertTokenInfo(raw: MirrorTokenResponse): MirrorTokenInfo {
                 // The mirror node nests the fraction under `amount`.
                 numerator: f.amount?.numerator,
                 denominator: f.amount?.denominator,
-                min: f.minimum,
-                max: f.maximum,
+                min: amountString(f.minimum),
+                max: amountString(f.maximum),
                 netOfTransfers: f.net_of_transfers,
                 collectorAccountId: f.collector_account_id,
                 denominatingTokenId: f.denominating_token_id,
@@ -309,7 +330,7 @@ export function convertTokenInfo(raw: MirrorTokenResponse): MirrorTokenInfo {
                 denominator: f.amount?.denominator,
                 fallbackFee: f.fallback_fee
                     ? {
-                          amount: f.fallback_fee.amount,
+                          amount: amountString(f.fallback_fee.amount),
                           denominatingTokenId:
                               f.fallback_fee.denominating_token_id ?? undefined,
                       }
@@ -459,7 +480,7 @@ export function convertTransactionInfo(
         highVolumePricingMultiplier: raw.high_volume_pricing_multiplier,
         maxCustomFees: raw.max_custom_fees?.map((limit) => ({
             accountId: limit.account_id,
-            amount: limit.amount,
+            amount: amountString(limit.amount),
             denominatingTokenId: limit.denominating_token_id,
         })),
         maxFee: raw.max_fee,
@@ -470,7 +491,7 @@ export function convertTransactionInfo(
         transactionHash: raw.transaction_hash,
         validDurationSeconds: raw.valid_duration_seconds,
         assessedCustomFees: raw.assessed_custom_fees?.map((fee) => ({
-            amount: fee.amount,
+            amount: amountString(fee.amount),
             collectorAccountId: fee.collector_account_id,
             effectivePayerAccountIds: fee.effective_payer_account_ids ?? [],
             tokenId: fee.token_id,
@@ -481,7 +502,7 @@ export function convertTransactionInfo(
 function convertTransfer(raw: MirrorTransfer): Transfer {
     return {
         accountId: raw.account,
-        amount: raw.amount,
+        amount: amountString(raw.amount),
         isApproval: raw.is_approval,
     };
 }
@@ -490,7 +511,7 @@ function convertTokenTransfer(raw: MirrorTokenTransfer): TokenTransferInfo {
     return {
         tokenId: raw.token_id,
         accountId: raw.account,
-        amount: raw.amount,
+        amount: amountString(raw.amount),
         isApproval: raw.is_approval,
     };
 }
@@ -510,7 +531,7 @@ function convertStakingRewardTransfer(
 ): StakingRewardTransfer {
     return {
         accountId: raw.account,
-        amount: raw.amount,
+        amount: amountString(raw.amount),
     };
 }
 
@@ -528,20 +549,24 @@ export function convertNetworkStake(
     raw: MirrorNetworkStakeResponse,
 ): NetworkStake {
     return {
-        maxStakeRewarded: raw.max_stake_rewarded,
-        maxStakingRewardRatePerHbar: raw.max_staking_reward_rate_per_hbar,
-        maxTotalReward: raw.max_total_reward,
+        maxStakeRewarded: amountString(raw.max_stake_rewarded),
+        maxStakingRewardRatePerHbar: amountString(
+            raw.max_staking_reward_rate_per_hbar,
+        ),
+        maxTotalReward: amountString(raw.max_total_reward),
         nodeRewardFeeFraction: raw.node_reward_fee_fraction,
-        reservedStakingRewards: raw.reserved_staking_rewards,
-        rewardBalanceThreshold: raw.reward_balance_threshold,
-        stakeTotal: raw.stake_total,
+        reservedStakingRewards: amountString(raw.reserved_staking_rewards),
+        rewardBalanceThreshold: amountString(raw.reward_balance_threshold),
+        stakeTotal: amountString(raw.stake_total),
         stakingPeriod: raw.staking_period,
         stakingPeriodDuration: raw.staking_period_duration,
         stakingPeriodsStored: raw.staking_periods_stored,
         stakingRewardFeeFraction: raw.staking_reward_fee_fraction,
-        stakingRewardRate: raw.staking_reward_rate,
-        stakingStartThreshold: raw.staking_start_threshold,
-        unreservedStakingRewardBalance: raw.unreserved_staking_reward_balance,
+        stakingRewardRate: amountString(raw.staking_reward_rate),
+        stakingStartThreshold: amountString(raw.staking_start_threshold),
+        unreservedStakingRewardBalance: amountString(
+            raw.unreserved_staking_reward_balance,
+        ),
     };
 }
 
@@ -550,17 +575,17 @@ export function convertAccountBalanceSnapshot(
 ): AccountBalanceSnapshot {
     return {
         accountId: raw.account,
-        balance: raw.balance,
+        balance: amountString(raw.balance),
         tokens: (raw.tokens ?? []).map((token) => ({
             tokenId: token.token_id,
-            balance: token.balance,
+            balance: amountString(token.balance),
         })),
     };
 }
 
 export function convertAirdrop(raw: MirrorAirdrop): Airdrop {
     return {
-        amount: raw.amount,
+        amount: amountString(raw.amount),
         receiverId: raw.receiver_id,
         senderId: raw.sender_id,
         serialNumber: raw.serial_number,
@@ -573,8 +598,8 @@ export function convertCryptoAllowance(
     raw: MirrorCryptoAllowance,
 ): CryptoAllowance {
     return {
-        amount: raw.amount,
-        amountGranted: raw.amount_granted,
+        amount: amountString(raw.amount),
+        amountGranted: amountString(raw.amount_granted),
         owner: raw.owner,
         spender: raw.spender,
         timestamp: raw.timestamp,
@@ -635,7 +660,7 @@ export function convertTopicInfo(raw: MirrorTopicResponse): MirrorTopicInfo {
         feeScheduleKey: convertKey(raw.fee_schedule_key),
         customFeesCreatedTimestamp: raw.custom_fees?.created_timestamp,
         fixedFees: raw.custom_fees?.fixed_fees?.map((fee) => ({
-            amount: fee.amount,
+            amount: amountString(fee.amount),
             collectorAccountId: fee.collector_account_id,
             denominatingTokenId: fee.denominating_token_id,
         })),
@@ -798,7 +823,7 @@ export function convertContractResult(
                       s: entry.s,
                       yParity: entry.y_parity,
                   })),
-        amount: raw.amount,
+        amount: amountString(raw.amount),
         blockGasUsed: raw.block_gas_used,
         blockHash: raw.block_hash,
         blockNumber: raw.block_number,
@@ -925,7 +950,7 @@ export function convertContractAction(
 export function convertStakingReward(raw: MirrorStakingReward): StakingReward {
     return {
         accountId: raw.account_id,
-        amount: raw.amount,
+        amount: amountString(raw.amount),
         timestamp: raw.timestamp,
     };
 }

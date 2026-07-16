@@ -182,6 +182,7 @@ export type {
     MirrorCustomFeeLimit,
     MirrorAssessedCustomFee,
     MirrorChunkInfo,
+    MirrorAmount,
     MirrorServiceEndpoint,
     MirrorRegisteredServiceEndpoint,
     MirrorAccessListEntry,

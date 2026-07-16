@@ -196,7 +196,7 @@ describe("MirrorNodeClient remaining endpoints", () => {
             );
 
         const info = await client.queryAccount("0.0.1");
-        expect(info.balance).toBe(1);
+        expect(info.balance).toBe("1");
         expect(spy).toHaveBeenCalledTimes(3);
     });
 

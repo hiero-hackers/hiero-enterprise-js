@@ -72,7 +72,7 @@ export interface ContractResult {
     /** EIP-7702 authorizations of a wrapped ethereum transaction */
     authorizationList?: AuthorizationListEntry[] | null;
     /** Amount sent to the function, in tinybars */
-    amount: number | null;
+    amount: string | null;
     /** Total gas used in the block (detail responses only) */
     blockGasUsed?: number | null;
     /** The block's hash (detail responses only) */

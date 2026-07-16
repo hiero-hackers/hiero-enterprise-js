@@ -63,7 +63,7 @@ describe("convertPage", () => {
 
 describe("account converters", () => {
     it("converts a full account and defaults balance/deleted", () => {
-        expect(convertAccountInfo({ account: "0.0.1" }).balance).toBe(0);
+        expect(convertAccountInfo({ account: "0.0.1" }).balance).toBe("0");
         expect(convertAccountInfo({ account: "0.0.1" }).deleted).toBe(false);
         const full = convertAccountInfo({
             account: "0.0.2",
@@ -79,7 +79,7 @@ describe("account converters", () => {
             evmAddress: "0xabc",
             alias: "HIQQ...",
             key: { key: "k", type: "ED25519" },
-            balance: 5,
+            balance: "5",
             deleted: true,
             stakedNodeId: 3,
         });
@@ -230,7 +230,7 @@ describe("misc converters", () => {
         expect(tx.transfers).toHaveLength(1);
         expect(tx.tokenTransfers[0].tokenId).toBe("0.0.5");
         expect(tx.nftTransfers[0].serialNumber).toBe(1);
-        expect(tx.stakingRewardTransfers[0].amount).toBe(1);
+        expect(tx.stakingRewardTransfers[0].amount).toBe("1");
     });
 
     it("converts exchange rates and network stake", () => {
@@ -257,7 +257,7 @@ describe("misc converters", () => {
             staking_start_threshold: 25000000000000000,
             unreserved_staking_reward_balance: 0,
         });
-        expect(stake.stakeTotal).toBe(9);
+        expect(stake.stakeTotal).toBe("9");
         expect(stake.stakingPeriod).toEqual({ from: "1.0", to: "2.0" });
     });
 
@@ -438,7 +438,7 @@ describe("convertAccountInfo — balance snapshot fields", () => {
 
     it("tolerates an account with no balance object at all", () => {
         const none = convertAccountInfo({ account: "0.0.3" });
-        expect(none.balance).toBe(0);
+        expect(none.balance).toBe("0");
         expect(none.balanceTimestamp).toBeUndefined();
         expect(none.tokenBalances).toEqual([]);
     });

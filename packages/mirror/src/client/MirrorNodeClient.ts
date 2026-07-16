@@ -152,6 +152,7 @@ import {
 } from "../utils/MirrorNodeValidators.js";
 import { RequestGate } from "./RequestGate.js";
 import { appendQuery, segment } from "../utils/MirrorNodeQuery.js";
+import { parseLossless } from "../utils/LosslessJson.js";
 
 /** Default per-request timeout, in milliseconds. */
 export const DEFAULT_TIMEOUT_MS = 10_000;
@@ -452,7 +453,10 @@ export class MirrorNodeClient {
                     },
                 );
             }
-            return (await response.json()) as T;
+            // .text() + parseLossless rather than .json(): JSON.parse rounds
+            // integers past 2^53 (large tinybar balances, token amounts)
+            // before any converter can intervene — see utils/LosslessJson.ts.
+            return parseLossless(await response.text()) as T;
         } catch (err) {
             if (
                 err instanceof Error &&

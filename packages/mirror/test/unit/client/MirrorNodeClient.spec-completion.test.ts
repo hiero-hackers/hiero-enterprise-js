@@ -52,7 +52,7 @@ describe("MirrorNodeClient spec-completion", () => {
             );
             expect(page.data[0]).toEqual({
                 accountId: "0.0.1000",
-                amount: 10,
+                amount: "10",
                 timestamp: "1234567890.000000001",
             });
         });

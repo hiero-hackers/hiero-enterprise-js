@@ -278,6 +278,16 @@ HIERO_MIRROR_NODE_TIMEOUT_MS=10000
 HIERO_MIRROR_NODE_MAX_RETRIES=3
 ```
 
+## Amounts are strings
+
+Every tinybar and token-amount field on the public types is a decimal
+`string`, not a `number`. This is a correctness requirement, not a style
+choice: live mainnet balances exceed `Number.MAX_SAFE_INTEGER` (2^53 ≈
+90.07M ℏ in tinybars), and `JSON.parse` silently rounds such values.
+The client parses responses losslessly (`utils/LosslessJson.ts`), so the
+strings are digit-exact copies of what the mirror node sent. Convert with
+`BigInt(value)` for arithmetic, or the unit helpers below for display.
+
 ## Unit & timestamp helpers
 
 ```ts

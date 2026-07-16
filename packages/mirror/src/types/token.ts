@@ -80,7 +80,7 @@ export interface TokenTransfer {
     /** Account ID */
     accountId: string;
     /** Amount transferred (negative = sent, positive = received) */
-    amount: number;
+    amount: string;
 }
 
 /**
@@ -101,7 +101,7 @@ export interface MirrorCustomFee {
 export interface MirrorFixedFee extends MirrorCustomFee {
     type: "fixed";
     /** Amount of the fee */
-    amount: number;
+    amount: string;
     /** Token ID for the fee (null = HBAR) */
     denominatingTokenId?: string;
 }
@@ -116,9 +116,9 @@ export interface MirrorFractionalFee extends MirrorCustomFee {
     /** Denominator of the fraction */
     denominator?: number;
     /** Minimum fee amount */
-    min?: number;
+    min?: string;
     /** Maximum fee amount */
-    max?: number | null;
+    max?: string | null;
     /** Whether the fee is deducted from the transferred amount */
     netOfTransfers?: boolean;
     /** Denominating token, or null for HBAR */
@@ -136,7 +136,7 @@ export interface MirrorRoyaltyFee extends MirrorCustomFee {
     denominator?: number;
     /** Fallback fixed fee if no value is exchanged */
     fallbackFee?: {
-        amount: number;
+        amount: string;
         denominatingTokenId?: string;
     };
 }

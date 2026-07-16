@@ -28,7 +28,7 @@ describe("response-field completeness", () => {
         });
         expect(account.declineReward).toBe(true);
         expect(account.ethereumNonce).toBe(5);
-        expect(account.pendingReward).toBe(123);
+        expect(account.pendingReward).toBe("123");
         expect(account.receiverSigRequired).toBe(false);
     });
 
@@ -74,7 +74,7 @@ describe("response-field completeness", () => {
         expect(transaction.highVolume).toBe(true);
         expect(transaction.highVolumePricingMultiplier).toBe(2000);
         expect(transaction.maxCustomFees).toEqual([
-            { accountId: "0.0.9", amount: 100, denominatingTokenId: null },
+            { accountId: "0.0.9", amount: "100", denominatingTokenId: null },
         ]);
         expect(transaction.maxFee).toBe("100000000");
         expect(transaction.node).toBe("0.0.3");
@@ -119,7 +119,7 @@ describe("response-field completeness", () => {
         expect(transaction.nftTransfers[0].isApproval).toBe(true);
         expect(transaction.assessedCustomFees).toEqual([
             {
-                amount: 7,
+                amount: "7",
                 collectorAccountId: "0.0.11",
                 effectivePayerAccountIds: ["0.0.9"],
                 tokenId: null,
@@ -287,7 +287,7 @@ describe("response-field completeness", () => {
         expect(node.memo).toBe("m");
         expect(node.nodeCertHash).toBe("0xcert");
         expect(node.publicKey).toBe("0xkey");
-        expect(node.rewardRateStart).toBe(7);
+        expect(node.rewardRateStart).toBe("7");
         expect(node.serviceEndpoints).toEqual([
             { ipAddressV4: "10.0.0.1", port: 50211, domainName: undefined },
         ]);
@@ -320,8 +320,8 @@ describe("response-field completeness", () => {
             unreserved_staking_reward_balance: 0,
         });
         expect(stake.stakingRewardFeeFraction).toBe(0.1);
-        expect(stake.stakingRewardRate).toBe(100000000000);
-        expect(stake.stakingStartThreshold).toBe(25);
+        expect(stake.stakingRewardRate).toBe("100000000000");
+        expect(stake.stakingStartThreshold).toBe("25");
     });
 
     const baseResult = {

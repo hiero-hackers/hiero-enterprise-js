@@ -7,7 +7,7 @@ import type { EffectiveTimestampRange } from "./common.js";
  */
 export interface Airdrop {
     /** Fungible amount (0 for NFTs) */
-    amount: number;
+    amount: string;
     /** Receiving account */
     receiverId: string;
     /** Sending account */
@@ -26,9 +26,9 @@ export interface Airdrop {
  */
 export interface CryptoAllowance {
     /** Remaining allowance in tinybars */
-    amount: number;
+    amount: string;
     /** Originally granted allowance in tinybars */
-    amountGranted: number;
+    amountGranted: string;
     /** Granting account */
     owner: string;
     /** Approved spender */

@@ -96,7 +96,7 @@ function emptyPage<T>(): Page<T> {
 function accountInfo(): MirrorAccountInfo {
     return {
         accountId: "0.0.12345",
-        balance: 100_000_000,
+        balance: "100000000",
         deleted: false,
     };
 }
@@ -187,20 +187,20 @@ function networkSupplies(): NetworkSupplies {
 
 function networkStake(): NetworkStake {
     return {
-        maxStakeRewarded: 0,
-        maxStakingRewardRatePerHbar: 0,
-        maxTotalReward: 0,
+        maxStakeRewarded: "0",
+        maxStakingRewardRatePerHbar: "0",
+        maxTotalReward: "0",
         nodeRewardFeeFraction: 0,
-        reservedStakingRewards: 0,
-        rewardBalanceThreshold: 0,
-        stakeTotal: 0,
+        reservedStakingRewards: "0",
+        rewardBalanceThreshold: "0",
+        stakeTotal: "0",
         stakingPeriod: null,
         stakingPeriodDuration: 0,
         stakingPeriodsStored: 0,
         stakingRewardFeeFraction: 0,
-        stakingRewardRate: 0,
-        stakingStartThreshold: 0,
-        unreservedStakingRewardBalance: 0,
+        stakingRewardRate: "0",
+        stakingStartThreshold: "0",
+        unreservedStakingRewardBalance: "0",
     };
 }
 

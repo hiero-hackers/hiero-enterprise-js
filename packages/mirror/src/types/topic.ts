@@ -84,7 +84,7 @@ export interface MirrorTopicInfo {
     customFeesCreatedTimestamp?: string;
     /** Fixed custom fees for message submission (HIP-991) */
     fixedFees?: Array<{
-        amount: number;
+        amount: string;
         collectorAccountId: string;
         denominatingTokenId: string | null;
     }>;

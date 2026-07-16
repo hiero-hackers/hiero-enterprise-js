@@ -59,7 +59,7 @@ export interface AccountBalanceSnapshot {
     /** Account ID */
     accountId: string;
     /** HBAR balance in tinybars at the snapshot time */
-    balance: number;
+    balance: string;
     /** Token balances at the snapshot time */
-    tokens: Array<{ tokenId: string; balance: number }>;
+    tokens: Array<{ tokenId: string; balance: string }>;
 }
