@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AccountService } from "../../../../../src/services/account/index.js";
+import {
+    HieroError,
+    HieroErrorCodes,
+} from "../../../../../src/errors/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
 import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
 import type { IHieroContext } from "../../../../../src/context/index.js";
@@ -69,6 +73,27 @@ describe("AutoCreateEvmAccountOperation (via AccountService)", () => {
                 status: "SUCCESS",
             });
             expect(result.accountId).toBeNull();
+        });
+
+        it("a failed child-receipt lookup throws the post-consensus error — never a silent accountId: null", async () => {
+            // The transfer reached consensus, then the follow-up child
+            // receipt query fails (network blip). That is NOT the same as
+            // "warm address, nothing created": the caller must learn the
+            // check failed, keep the transaction id, and not resubmit.
+            mocks.response.receiptQueryExecute.mockRejectedValueOnce(
+                new Error("network blip"),
+            );
+
+            const attempt = service.autoCreateEvmAccount({
+                evmAddress: "0x" + "a".repeat(40),
+                amount: 5,
+            });
+
+            await expect(attempt).rejects.toBeInstanceOf(HieroError);
+            const error = await attempt.catch((e: HieroError) => e);
+            expect(error.code).toBe(HieroErrorCodes.ResultMappingFailed);
+            expect(error.transactionId).toBe("0.0.123@1234567890.000000000");
+            expect(error.message).toContain("Do not resubmit");
         });
     });
 

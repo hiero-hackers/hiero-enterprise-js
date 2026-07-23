@@ -8,7 +8,14 @@ import {
 } from "@hiero-ledger/sdk";
 import { ContractService } from "../../../../../src/services/contract/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
+import {
+    reattachMockChain,
+    buildMockRecord,
+} from "../../../../utils/sdk-mocks.js";
+import {
+    HieroError,
+    HieroErrorCodes,
+} from "../../../../../src/errors/index.js";
 import type { IHieroContext } from "../../../../../src/context/index.js";
 
 const mocks = await vi.hoisted(async () => {
@@ -77,6 +84,99 @@ describe("ContractExecuteOperation (via ContractService)", () => {
             });
 
             expect(mocks.response.recordExecute).not.toHaveBeenCalled();
+        });
+
+        it("returns functionResult: null when not requested — the field is always present", async () => {
+            const result = await service.executeContract({
+                contractId: "0.0.12345",
+                gas: 100_000,
+                functionName: "increment",
+            });
+
+            expect(result.functionResult).toBeNull();
+        });
+
+        it("withFunctionResult: true fetches the record once and distills the EVM outcome", async () => {
+            mocks.response.recordExecute.mockResolvedValueOnce(
+                buildMockRecord({
+                    contractFunctionResult: {
+                        bytes: new Uint8Array([0xde, 0xad, 0xbe, 0xef]),
+                        gasUsed: { toNumber: () => 21_000 },
+                        errorMessage: null,
+                    },
+                }),
+            );
+
+            const result = await service.executeContract({
+                contractId: "0.0.12345",
+                gas: 100_000,
+                functionName: "increment",
+                withFunctionResult: true,
+            });
+
+            expect(mocks.response.recordExecute).toHaveBeenCalledTimes(1);
+            expect(result.functionResult).toEqual({
+                returnDataHex: "0xdeadbeef",
+                gasUsed: 21_000,
+                errorMessage: null,
+            });
+        });
+
+        it("surfaces the EVM revert message on functionResult.errorMessage", async () => {
+            mocks.response.recordExecute.mockResolvedValueOnce(
+                buildMockRecord({
+                    contractFunctionResult: {
+                        bytes: new Uint8Array([]),
+                        gasUsed: { toNumber: () => 50_000 },
+                        errorMessage: "execution reverted: not owner",
+                    },
+                }),
+            );
+
+            const result = await service.executeContract({
+                contractId: "0.0.12345",
+                gas: 100_000,
+                functionName: "restricted",
+                withFunctionResult: true,
+            });
+
+            expect(result.functionResult?.errorMessage).toBe(
+                "execution reverted: not owner",
+            );
+        });
+
+        it("returns functionResult: null when the record carries no contract function result", async () => {
+            mocks.response.recordExecute.mockResolvedValueOnce(
+                buildMockRecord({ contractFunctionResult: null }),
+            );
+
+            const result = await service.executeContract({
+                contractId: "0.0.12345",
+                gas: 100_000,
+                functionName: "increment",
+                withFunctionResult: true,
+            });
+
+            expect(result.functionResult).toBeNull();
+        });
+
+        it("a failed opt-in record fetch throws the post-consensus error — the call landed, do not resubmit", async () => {
+            mocks.response.recordExecute.mockRejectedValueOnce(
+                new Error("network blip"),
+            );
+
+            const attempt = service.executeContract({
+                contractId: "0.0.12345",
+                gas: 100_000,
+                functionName: "increment",
+                withFunctionResult: true,
+            });
+
+            await expect(attempt).rejects.toBeInstanceOf(HieroError);
+            const error = await attempt.catch((e: HieroError) => e);
+            expect(error.code).toBe(HieroErrorCodes.ResultMappingFailed);
+            expect(error.transactionId).toBe("0.0.123@1234567890.000000000");
+            expect(error.message).toContain("Do not resubmit");
         });
 
         it("forwards ABI-typed function parameters", async () => {

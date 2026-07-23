@@ -7,6 +7,7 @@ import type {
 } from "@hiero-ledger/sdk";
 import { ContractExecuteTransaction } from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../../context/index.js";
+import { HieroError, HieroErrorCodes } from "../../../errors/index.js";
 import { TransactionExecutor } from "../../transaction/index.js";
 import type {
     TransactionOptions,
@@ -57,6 +58,13 @@ export interface ContractExecuteOperationOptions extends TransactionOptions {
      * functions). Defaults to `0` when omitted.
      */
     payableAmount?: number | string | Long | BigNumber | Hbar | bigint;
+    /**
+     * Also return the function's EVM outcome (return data, gas used,
+     * error message) on `result.functionResult`. **Costs one extra paid
+     * query**: the outcome lives on the transaction *record*, not the
+     * receipt, so it is only fetched when this is set.
+     */
+    withFunctionResult?: boolean;
 }
 
 export class ContractExecuteOperation {
@@ -70,18 +78,79 @@ export class ContractExecuteOperation {
 
     /**
      * Submit a `ContractExecuteTransaction`.
+     *
+     * @returns The executor's shared fields plus `functionResult` — the
+     *   EVM outcome (return data hex, gas used, revert message) when the
+     *   call opts in via `withFunctionResult: true`; `null` otherwise
+     *   (and when the record carries no function result).
+     * @throws HieroError with code `RESULT_MAPPING_FAILED` when the
+     *   transaction reached consensus but the opt-in record fetch failed —
+     *   the caller must NOT resubmit; the error carries the transaction id
+     *   to recover the outcome with.
      */
     async execute(options: ContractExecuteOperationOptions) {
         this.validator.validate(options);
 
         const tx = this.build(options);
 
-        return await this.executor.run(tx, options, {
+        const results = await this.executor.run(tx, options, {
             type: "ContractExecute",
             serviceName: "ContractService",
             methodName: "executeContract",
             timestamp: new Date(),
         });
+
+        if (!options.withFunctionResult) {
+            return { ...results, functionResult: null };
+        }
+
+        // The EVM outcome lives on the transaction *record* — a separate,
+        // paid query, which is why it is opt-in. Query it directly rather
+        // than via response.getRecord(): the SDK method first re-fetches
+        // the receipt to await consensus, which the executor has already
+        // done — skipping it saves a pointless round-trip before the paid
+        // query.
+        let record;
+        try {
+            record = await results.response
+                .getRecordQuery(this.context.client)
+                .execute(this.context.client);
+        } catch (error) {
+            // The call reached consensus — only fetching its record
+            // failed. A plain rethrow would read as a failed transaction
+            // and invite a resubmit; say what actually happened and hand
+            // back the transaction id to recover the outcome with.
+            const cause =
+                error instanceof Error ? error : new Error(String(error));
+            throw new HieroError(
+                `Transaction ${results.transactionId} reached consensus ` +
+                    `with status ${results.status}, but fetching its record ` +
+                    `for the function result failed: ${cause.message}. Do ` +
+                    `not resubmit — look up the outcome via the transaction id.`,
+                {
+                    code: HieroErrorCodes.ResultMappingFailed,
+                    context: "ContractService.executeContract",
+                    transactionId: results.transactionId,
+                    cause,
+                },
+            );
+        }
+
+        const fn = record.contractFunctionResult;
+
+        return {
+            ...results,
+            functionResult: fn
+                ? {
+                      returnDataHex: `0x${Buffer.from(fn.bytes).toString("hex")}`,
+                      gasUsed: fn.gasUsed.toNumber(),
+                      errorMessage:
+                          fn.errorMessage != null && fn.errorMessage !== ""
+                              ? fn.errorMessage
+                              : null,
+                  }
+                : null,
+        };
     }
 
     /** Schedule a `ContractExecuteTransaction` for deferred multi-sig execution. */
