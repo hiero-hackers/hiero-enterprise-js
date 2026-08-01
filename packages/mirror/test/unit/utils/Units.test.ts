@@ -76,6 +76,20 @@ describe("token unit conversions", () => {
         expect(parseUnits(0.1, 2)).toBe("10");
     });
 
+    it("trims edge whitespace on HUMAN input — deliberately, unlike the wire normalisers", () => {
+        // Builders parse human input (form fields, config); trimming
+        // cannot change a digit, so it carries zero precision risk. The
+        // wire normalisers (amountString/amountNumber) reject the same
+        // whitespace because THEIR input is machine-generated, where
+        // whitespace can only mean a corrupted payload.
+        expect(parseUnits(" 2.5 ", 6)).toBe("2500000");
+        expect(hbarToTinybar("\t1\n")).toBe("100000000");
+        expect(formatUnitsExact(" 25 ", 1)).toBe("2.5");
+        // Interior whitespace could hide a malformed amount — typed error.
+        expect(() => parseUnits("2 .5", 6)).toThrow(MirrorError);
+        expect(() => formatUnitsExact("2 5", 1)).toThrow(MirrorError);
+    });
+
     it("rejects malformed amounts and invalid decimals", () => {
         expect(() => parseUnits("1,5", 6)).toThrow(MirrorError);
         expect(() => parseUnits("abc", 6)).toThrow(MirrorError);

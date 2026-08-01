@@ -20,6 +20,19 @@ import {
  * *display* helpers (`tinybarToHbar`, `formatUnits`) return `number` and
  * are approximate above 2^53 smallest units (relative error ~1e-16) —
  * fine for rendering, not for arithmetic on whale-sized amounts.
+ *
+ * Input strictness — two trust domains, DELIBERATELY different:
+ *
+ * - The wire normalisers (`amountString`, `amountNumber`) and validators
+ *   consume machine-generated values (lossless-parse products,
+ *   source-quoted amounts). Whitespace or any non-canonical shape there
+ *   can only mean a corrupted payload, so they reject it.
+ * - The builders and exact formatters (`hbarToTinybar`, `parseUnits`,
+ *   `formatUnitsExact`) parse HUMAN input — form fields, config, CLI
+ *   args. They trim leading/trailing whitespace as ordinary parser
+ *   ergonomics: trimming cannot change a digit, so it carries zero
+ *   precision risk, while interior whitespace (which could hide a
+ *   malformed amount) still throws the typed error.
  */
 
 /** Tinybars per HBAR. */
