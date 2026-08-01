@@ -576,8 +576,10 @@ export class MirrorNodeClient {
             clearTimeout(timer);
             // Release the unread body so undici can reuse the connection
             // instead of holding it open across the backoff (no-op when the
-            // response has no body).
-            await response.body?.cancel();
+            // response has no body). Best-effort: a stream whose cancel()
+            // rejects must not abort the retry loop — the connection just
+            // isn't reused.
+            await response.body?.cancel().catch(() => {});
             // A 404 carries no `Retry-After`, so parseRetryAfter returns
             // null and the eventual-consistency case just backs off.
             const retryAfter = parseRetryAfter(
@@ -652,7 +654,20 @@ export class MirrorNodeClient {
                     { code: MirrorErrorCodes.TimedOut, context: path },
                 );
             }
-            throw err;
+            if (err instanceof MirrorError) throw err;
+            // A connection dropped mid-body (`response.text()` rejecting
+            // with e.g. undici's "terminated") must surface typed, the
+            // same way the identical failure before the body does — no
+            // raw error leaves the transport.
+            throw new MirrorError(
+                `Mirror node response body failed to arrive: ${url}`,
+                {
+                    code: MirrorErrorCodes.MirrorNodeError,
+                    context: path,
+                    status: response.status,
+                    cause: err instanceof Error ? err : undefined,
+                },
+            );
         } finally {
             clearTimeout(timer);
         }

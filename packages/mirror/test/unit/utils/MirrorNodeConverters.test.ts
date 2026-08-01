@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { MirrorError } from "../../../src/errors/MirrorError.js";
 import {
     convertPage,
     convertAccountInfo,
@@ -363,11 +364,16 @@ describe("converter default branches", () => {
         );
     });
 
-    it("still normalizes the legacy numeric expiry_timestamp form", () => {
-        // Exactly representable as a double (2^11 × odd), so safe as a literal.
-        expect(expiryToken(1632175380000000000).expirationTimestamp).toBe(
-            "1632175380.000000000",
+    it("normalizes a safe-integer numeric expiry, rejects an unprovable one", () => {
+        // Below 2^53 the number arm is provably exact and converts.
+        expect(expiryToken(1_500_000_000).expirationTimestamp).toBe(
+            "1.500000000",
         );
+        // A real nanos-scale expiry (~1.6e18) can only reach the number
+        // arm through a form JSON.parse already rounded (the lossless
+        // parse quotes the bare-integer form) — the converter refuses to
+        // mint a timestamp from a value that is not provably exact.
+        expect(() => expiryToken(1632175380000000000)).toThrow(MirrorError);
     });
 
     it("passes a canonical seconds.nanoseconds expiry through unchanged", () => {
@@ -381,6 +387,33 @@ describe("converter default branches", () => {
         // this would emit the malformed "-1.-500000000".
         expect(expiryToken(-1_500_000_000).expirationTimestamp).toBe(
             "-2.500000000",
+        );
+    });
+
+    it("does not misread a NEGATIVE quoted string as nanoseconds", () => {
+        // An expiry is never negative, so a signed quoted string cannot
+        // be a real expiry — it passes through as foreign data instead
+        // of converting to a nonsense pre-1970 timestamp.
+        expect(expiryToken("-1234567890123456789").expirationTimestamp).toBe(
+            "-1234567890123456789",
+        );
+    });
+
+    it("rejects a number-arm expiry that is not provably exact", () => {
+        // A number ≥2^53 can only arrive via a form the quoter cannot
+        // protect (exponent notation) — already rounded at JSON.parse,
+        // so minting a timestamp from it would be silently wrong.
+        expect(() => expiryToken(1e18)).toThrow(MirrorError);
+    });
+
+    it("does not misread a leading-zero digit string as nanoseconds", () => {
+        // The quoter refuses leading-zero tokens (invalid JSON), so a
+        // 19-digit string starting with 0 cannot be a lossless-parse
+        // product — it could only come from upstream quoting its own
+        // (zero-padded) value. It must pass through untouched, not be
+        // reinterpreted as epoch nanos.
+        expect(expiryToken("0001632175380000000").expirationTimestamp).toBe(
+            "0001632175380000000",
         );
     });
 

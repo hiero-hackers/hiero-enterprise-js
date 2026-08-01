@@ -65,6 +65,11 @@ const parsed = new Map(
                 name[1],
                 {
                     parent: parent?.[1],
+                    // Raw body text, for interface-SCOPED regex checks:
+                    // a whole-source regex can be satisfied by a match in
+                    // a *different* interface (aliasing), silently
+                    // blessing a regression in the one it names.
+                    body,
                     own: new Set(
                         [...body.matchAll(/^\s{4}([a-z_0-9]+)\??:/gm)].map(
                             (key) => key[1],
@@ -419,47 +424,74 @@ for (const [label, items, iface] of INLINE_ITEMS)
 
 // ── 4b · nested int64s ──────────────────────────────────────────
 // The flat check reads one interface's direct fields, so an int64 inside
-// an inline object (`fallback_fee.amount`) or a $ref the PAIRS table
-// doesn't cover (AccountInfo.balance → Balance) is invisible to it. This
-// walk DISCOVERS every such nested int64 from the spec; each discovered
-// path must be classified in NESTED — either a source regex proving the
-// raw type is MirrorAmount, or a counter reason. An unclassified path
-// fails the run, so a future nested spec field cannot slip through.
+// an inline object (`fallback_fee.amount`), a $ref the PAIRS table
+// doesn't cover (AccountInfo.balance → Balance), or a bare int64 array
+// item is invisible to it. This walk DISCOVERS every such nested int64
+// from the spec; each discovered path must be classified in NESTED —
+// either `{ iface, pattern }`, a regex proving the raw type inside THAT
+// interface's body (scoped, because a whole-source regex can be
+// satisfied by a different interface and silently bless a regression),
+// or a counter reason string. An unclassified path fails the run, so a
+// future nested spec field cannot slip through.
 const NESTED = new Map([
     [
         "AccountInfo.balance.balance",
-        /balance\?: \{[\s\S]{0,200}?balance: MirrorAmount/,
+        {
+            iface: "MirrorAccountResponse",
+            pattern: /balance\?: \{[\s\S]{0,200}?balance: MirrorAmount/,
+        },
     ],
     [
         "FractionalFee.amount.numerator",
-        /numerator: MirrorAmount; denominator: MirrorAmount/,
+        {
+            iface: "MirrorFractionalFeeRaw",
+            pattern: /numerator: MirrorAmount; denominator: MirrorAmount/,
+        },
     ],
     [
         "FractionalFee.amount.denominator",
-        /numerator: MirrorAmount; denominator: MirrorAmount/,
+        {
+            iface: "MirrorFractionalFeeRaw",
+            pattern: /numerator: MirrorAmount; denominator: MirrorAmount/,
+        },
     ],
     [
         "RoyaltyFee.amount.numerator",
-        /numerator: MirrorAmount; denominator: MirrorAmount/,
+        {
+            iface: "MirrorRoyaltyFeeRaw",
+            pattern: /numerator: MirrorAmount; denominator: MirrorAmount/,
+        },
     ],
     [
         "RoyaltyFee.amount.denominator",
-        /numerator: MirrorAmount; denominator: MirrorAmount/,
+        {
+            iface: "MirrorRoyaltyFeeRaw",
+            pattern: /numerator: MirrorAmount; denominator: MirrorAmount/,
+        },
     ],
     [
         "RoyaltyFee.fallback_fee.amount",
-        /fallback_fee\?: \{\s*amount: MirrorAmount/,
+        {
+            iface: "MirrorRoyaltyFeeRaw",
+            pattern: /fallback_fee\?: \{\s*amount: MirrorAmount/,
+        },
     ],
     [
         // The array is typed by MirrorTokenBalance, whose `balance` the
         // flat check already enforces via the TokenBalance pair — this
         // regex pins the linkage so retyping the array breaks the run.
         "AccountInfo.balance.tokens[].balance",
-        /tokens: MirrorTokenBalance\[\]/,
+        {
+            iface: "MirrorAccountResponse",
+            pattern: /tokens: MirrorTokenBalance\[\]/,
+        },
     ],
     [
         "Topic.custom_fees.fixed_fees[].amount",
-        /fixed_fees\?: Array<\{\s*amount: MirrorAmount/,
+        {
+            iface: "MirrorTopicResponse",
+            pattern: /fixed_fees\?: Array<\{\s*amount: MirrorAmount/,
+        },
     ],
     // Counters, with reasons — same bar as COUNTERS above.
     [
@@ -470,7 +502,22 @@ const NESTED = new Map([
         "FeeEstimateResponse.network.subtotal",
         "network-computed fee quote, tinycents — bounded",
     ],
+    [
+        "NetworkNode.associated_registered_nodes[]",
+        "small node identifiers — network config",
+    ],
 ]);
+
+const interfaceText = new Map(
+    [...parsed].map(([name, info]) => [name, info.body]),
+);
+
+/** True when `label.path` has a satisfied NESTED classification. */
+const classifiedNested = (label, path) => {
+    const rule = NESTED.get(`${label}.${path}`);
+    if (typeof rule === "string") return true; // counter, with reason
+    return Boolean(rule?.pattern.test(interfaceText.get(rule.iface) ?? ""));
+};
 const flatChecked = new Set([
     ...PAIRS.map(([schema]) => schema),
     "TokenDistribution",
@@ -485,6 +532,19 @@ const findNestedInt64 = (label, node, path, depth, seenRefs) => {
         seenRefs.add(name);
         return findNestedInt64(label, schemas.get(name), path, depth, seenRefs);
     }
+    // A bare scalar int64 reached through structure rather than as a
+    // property key — an array of int64s (`path` ends "[]") or a $ref
+    // chain. Property-keyed int64s are handled in the loop below; this
+    // arm is what keeps `amounts: [int64]`-shaped fields from escaping.
+    if (isInt64(node)) {
+        if (path !== "" && !classifiedNested(label, path)) {
+            unclassified += 1;
+            console.log(
+                `✖ nested int64 ${label}.${path}: classify it in NESTED — an interface-scoped MirrorAmount regex, or a counter reason`,
+            );
+        }
+        return;
+    }
     for (const sub of node.allOf ?? [])
         findNestedInt64(label, sub, path, depth, seenRefs);
     // INLINE_ITEMS subtrees get their own flat check under their own
@@ -493,14 +553,17 @@ const findNestedInt64 = (label, node, path, depth, seenRefs) => {
         findNestedInt64(label, node.items, `${path}[]`, depth, seenRefs);
     for (const [key, prop] of Object.entries(node.properties ?? {})) {
         const at = path === "" ? key : `${path}.${key}`;
-        if (isInt64(prop) && depth > 0) {
-            const rule = NESTED.get(`${label}.${at}`);
-            if (rule instanceof RegExp && rule.test(source)) continue;
-            if (typeof rule === "string") continue; // counter, with reason
-            unclassified += 1;
-            console.log(
-                `✖ nested int64 ${label}.${at}: classify it in NESTED — a MirrorAmount source regex, or a counter reason`,
-            );
+        // Property-keyed int64s terminate HERE, never via the head
+        // check: at depth 0 they are the flat check's job, deeper they
+        // classify as nested. Recursing into them would re-report every
+        // flat-checked field through the scalar head arm.
+        if (isInt64(prop)) {
+            if (depth > 0 && !classifiedNested(label, at)) {
+                unclassified += 1;
+                console.log(
+                    `✖ nested int64 ${label}.${at}: classify it in NESTED — an interface-scoped MirrorAmount regex, or a counter reason`,
+                );
+            }
             continue;
         }
         findNestedInt64(label, prop, at, depth + 1, seenRefs);

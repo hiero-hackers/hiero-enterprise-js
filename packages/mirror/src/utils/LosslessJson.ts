@@ -30,8 +30,11 @@
 /**
  * Quote threshold, in digits. 2^53 is 16 digits, so 15-digit integers are
  * always exact and 16-digit ones may not be. Quoting *all* 16+-digit
- * integers over-quotes some exactly-representable values, which is harmless:
- * the affected fields are normalised to strings anyway.
+ * integers over-quotes some exactly-representable values. For amount
+ * fields that is free (they are normalised to strings anyway); for
+ * counter-classified fields (serial numbers, sequence numbers) a quoted
+ * value surfaces as a typed schema error — deliberately loud, because a
+ * 16-digit counter would mean a broken upstream, not a real counter.
  *
  * Exported because it IS the quoting contract: consumers that need to
  * recognise "a string this parser produced" (e.g. the token-expiry
@@ -39,6 +42,21 @@
  * re-encoding the number 16.
  */
 export const QUOTE_DIGITS = 16;
+
+/**
+ * The exact shape of every string {@link quoteLargeIntegers} can emit:
+ * optionally signed, {@link QUOTE_DIGITS}+ digits, first digit nonzero.
+ * The leading digit matters — the quoter refuses leading-zero tokens
+ * (they are invalid JSON, left bare so `JSON.parse` rejects them), so a
+ * recogniser that accepted them would treat strings the quoter cannot
+ * produce as parse products.
+ *
+ * This lives HERE, beside the quoter, as the single source of truth:
+ * consumers (the token-expiry normaliser) import it rather than
+ * re-deriving the shape — a re-derived copy is exactly how recogniser
+ * and quoter drift apart when one of them changes.
+ */
+export const QUOTED_INTEGER = new RegExp(`^-?[1-9]\\d{${QUOTE_DIGITS - 1},}$`);
 
 /**
  * Wrap every bare integer literal of {@link QUOTE_DIGITS}+ digits in quotes.

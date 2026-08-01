@@ -98,17 +98,14 @@ import {
     amountString,
     formatConsensusTimestamp,
 } from "./Units.js";
-import { QUOTE_DIGITS } from "./LosslessJson.js";
-
-/**
- * Matches exactly the digit-only strings the lossless parse can produce —
- * derived from its threshold so the two can never drift apart.
- */
-// Sign included: the parse quotes negative integers with their `-`, so
-// the recogniser must accept what the quoter can emit — the two arms
-// must never disagree on shape.
-// eslint-disable-next-line security/detect-non-literal-regexp -- built once from a compile-time integer constant, no user input
-const QUOTED_INTEGER = new RegExp(`^-?\\d{${QUOTE_DIGITS},}$`);
+// The recogniser for "a string the lossless parse produced" is defined
+// beside the quoter itself — one definition, no drift.
+import { QUOTED_INTEGER } from "./LosslessJson.js";
+import {
+    MirrorError,
+    MirrorErrorCodes,
+    describeValue,
+} from "../errors/MirrorError.js";
 
 // ─── Keys ────────────────────────────────────────────────────────
 
@@ -314,12 +311,26 @@ function nanosToTimestamp(nanos: number | string): string {
 }
 
 /**
+ * The unsigned subset of the quoter's output shape, for slots where a
+ * negative value is meaningless: derived from {@link QUOTED_INTEGER}
+ * (single source of truth) by stripping its sign arm, so a threshold or
+ * shape change upstream propagates here automatically.
+ */
+// eslint-disable-next-line security/detect-non-literal-regexp -- derived once from the compile-time QUOTED_INTEGER source, no user input
+const UNSIGNED_QUOTED_INTEGER = new RegExp(
+    `^${QUOTED_INTEGER.source.replace("^-?", "")}`,
+);
+
+/**
  * Normalize the tokens-only expiry forms — epoch nanoseconds as a JSON
  * number, or as a digit-only string once the lossless parse quotes 19-digit
- * values (the quoting contract lives in utils/LosslessJson.ts; unsigned
- * here, since an expiry is never negative) — to the canonical
- * `"seconds.nanoseconds"` used everywhere else. A value already in
- * canonical form (it contains a `.`) passes through.
+ * values — to the canonical `"seconds.nanoseconds"` used everywhere else.
+ * A value already in canonical form (it contains a `.`) passes through.
+ *
+ * The nanos reinterpretation applies only to UNSIGNED quoted strings
+ * ({@link UNSIGNED_QUOTED_INTEGER}): an expiry is never negative, so a
+ * signed quoted string cannot be a real expiry and passes through as
+ * foreign data instead of converting to a nonsense pre-1970 timestamp.
  */
 function normalizeTokenExpiry(
     value: number | string | null | undefined,
@@ -328,13 +339,25 @@ function normalizeTokenExpiry(
     // field's absence arm rather than leaking it through the `string`
     // type.
     if (value == null) return undefined;
+    if (typeof value === "number") {
+        // Same exactness bar as the amount normalisers: the quoter only
+        // protects bare integer literals, so a number at/past 2^53 here
+        // arrived through a form JSON.parse already rounded — reject it
+        // rather than mint a silently-wrong timestamp from it.
+        if (!Number.isSafeInteger(value)) {
+            throw new MirrorError(
+                `token expiry_timestamp ${describeValue(value)} is not a safe integer — not provably exact.`,
+                { code: MirrorErrorCodes.MirrorNodeSchemaMismatch },
+            );
+        }
+        return nanosToTimestamp(value);
+    }
     // A digit-only string is treated as nanos ONLY when it is long enough
-    // to have come from the lossless parse (QUOTED_INTEGER, derived from
-    // QUOTE_DIGITS). A shorter digit string could only come from an
-    // upstream format change (e.g. seconds-scale values quoted at the
-    // source) and passes through untouched rather than being misread as
-    // nanos and shifted ~1e9×.
-    if (typeof value === "number" || QUOTED_INTEGER.test(value)) {
+    // to have come from the lossless parse. A shorter digit string could
+    // only come from an upstream format change (e.g. seconds-scale values
+    // quoted at the source) and passes through untouched rather than
+    // being misread as nanos and shifted ~1e9×.
+    if (UNSIGNED_QUOTED_INTEGER.test(value)) {
         return nanosToTimestamp(value);
     }
     return value;

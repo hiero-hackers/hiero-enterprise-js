@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
     parseLossless,
     quoteLargeIntegers,
+    QUOTED_INTEGER,
 } from "../../../src/utils/LosslessJson.js";
 
 describe("quoteLargeIntegers", () => {
@@ -65,6 +66,25 @@ describe("quoteLargeIntegers", () => {
                 '{"a":[12345678901234567,{"b":98765432109876543}]}',
             ),
         ).toBe('{"a":["12345678901234567",{"b":"98765432109876543"}]}');
+    });
+});
+
+describe("QUOTED_INTEGER (the recogniser must match the quoter exactly)", () => {
+    it("accepts precisely the shapes quoteLargeIntegers can emit", () => {
+        expect(QUOTED_INTEGER.test("31869085891081369")).toBe(true);
+        expect(QUOTED_INTEGER.test("-31869085891081369")).toBe(true);
+        expect(QUOTED_INTEGER.test("1000000000000000")).toBe(true); // 16 digits
+    });
+
+    it("rejects shapes the quoter cannot produce", () => {
+        // Below the threshold: never quoted.
+        expect(QUOTED_INTEGER.test("999999999999999")).toBe(false);
+        // Leading zeros: the quoter refuses these (invalid JSON, left
+        // bare for JSON.parse to reject) — a recogniser accepting them
+        // would treat foreign strings as parse products.
+        expect(QUOTED_INTEGER.test("0000000000000001")).toBe(false);
+        expect(QUOTED_INTEGER.test("-0000000000000001")).toBe(false);
+        expect(QUOTED_INTEGER.test("1.6321753800000000e18")).toBe(false);
     });
 });
 

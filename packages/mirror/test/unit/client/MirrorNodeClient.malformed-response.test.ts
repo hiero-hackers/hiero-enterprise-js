@@ -63,6 +63,56 @@ describe("MirrorNodeClient malformed response body", () => {
         expect(fetchSpy).toHaveBeenCalledTimes(1);
     });
 
+    it("wraps a mid-body connection drop as a typed MirrorError", async () => {
+        // undici surfaces a connection terminated during the body read as
+        // `TypeError: terminated` from response.text() — it must leave
+        // the transport typed, exactly like the same failure pre-body.
+        const dropped = new ReadableStream({
+            start(controller) {
+                controller.error(new TypeError("terminated"));
+            },
+        });
+        vi.spyOn(globalThis, "fetch").mockResolvedValue(
+            new Response(dropped, { status: 200 }),
+        );
+
+        const rejection = client.queryAccount("0.0.2");
+        await expect(rejection).rejects.toBeInstanceOf(MirrorError);
+        await expect(rejection).rejects.toMatchObject({
+            code: MirrorErrorCodes.MirrorNodeError,
+            status: 200,
+            context: expect.stringContaining("/api/v1/accounts/0.0.2"),
+            cause: expect.any(TypeError),
+        });
+    });
+
+    it("keeps retrying when releasing a retryable response's body fails", async () => {
+        // body.cancel() is a best-effort connection-reuse optimisation —
+        // a stream that refuses to cancel must not abort the retry loop.
+        const uncancelable = new ReadableStream({
+            cancel() {
+                throw new Error("cancel-boom");
+            },
+        });
+        const fetchSpy = vi
+            .spyOn(globalThis, "fetch")
+            // First attempt: 500 whose body refuses to cancel. Second
+            // attempt: ordinary 500 (readable body), so the final
+            // error-detail read terminates.
+            .mockResolvedValueOnce(new Response(uncancelable, { status: 500 }))
+            .mockResolvedValueOnce(new Response("oops", { status: 500 }));
+        const retrying = new MirrorNodeClient(
+            "https://testnet.mirrornode.hedera.com",
+            { maxRetries: 1 },
+        );
+
+        await expect(retrying.queryAccount("0.0.2")).rejects.toMatchObject({
+            code: MirrorErrorCodes.MirrorNodeHttpError,
+        });
+        // Both attempts happened: the cancel failure did not short-circuit.
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
     it("reports the specific errorCode through the observer", async () => {
         respondHtml();
         const ends: MirrorRequestEndEvent[] = [];

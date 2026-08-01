@@ -36,6 +36,18 @@ describe("MirrorNodeClient balance threshold queries", () => {
             );
         });
 
+        it("accepts exact string thresholds past 2^53 — composing with the builders", async () => {
+            // A whale threshold cannot be expressed as a number without
+            // rounding; the string arm carries the builders' exact output.
+            await client.queryAccounts({
+                balance: { gte: "31869085891081369" },
+            });
+            expect(url()).toBe(
+                "https://x/api/v1/accounts" +
+                    "?account.balance=gte:31869085891081369",
+            );
+        });
+
         it("supports an exact balance as a plain number", async () => {
             await client.queryAccounts({ balance: 5_000_000_000 });
             expect(url()).toBe(

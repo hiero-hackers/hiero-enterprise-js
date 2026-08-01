@@ -363,7 +363,7 @@ silently rounds such values. The client parses responses losslessly
 mirror node sent.
 
 ```ts
-const balance = await client.getAccountBalance("0.0.2");
+const balance = await client.queryAccountBalance("0.0.2");
 BigInt(balance.tinybars) + 1n;        // arithmetic: one wrapper call
 tinybarToHbar(balance.tinybars);      // display: unit helpers below
 console.log(balance.tinybars);        // logs, JSON, React — just works
