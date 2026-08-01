@@ -258,10 +258,14 @@ describe("misc converters", () => {
             staking_periods_stored: 365,
             staking_reward_fee_fraction: 0,
             staking_reward_rate: 100,
-            staking_start_threshold: 25000000000000000,
+            // 17 digits arrive as a STRING from the lossless parse — a
+            // bare number of this size can never reach a converter, and
+            // amountString now rejects one as unprovably exact.
+            staking_start_threshold: "25000000000000000",
             unreserved_staking_reward_balance: 0,
         });
         expect(stake.stakeTotal).toBe("9");
+        expect(stake.stakingStartThreshold).toBe("25000000000000000");
         expect(stake.stakingPeriod).toEqual({ from: "1.0", to: "2.0" });
     });
 

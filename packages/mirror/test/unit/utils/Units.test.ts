@@ -198,18 +198,52 @@ describe("exact display formatting", () => {
 describe("wire amount normalisers", () => {
     it("folds both arms of the lossless-parse union to strings", () => {
         expect(amountString(42)).toBe("42");
+        expect(amountString(-42)).toBe("-42");
+        expect(amountString(Number.MAX_SAFE_INTEGER)).toBe("9007199254740991");
         expect(amountString("31869085891081369")).toBe("31869085891081369");
+        expect(amountString("-31869085891081369")).toBe("-31869085891081369");
         expect(amountString(null)).toBeNull();
         expect(amountString(undefined)).toBeUndefined();
     });
 
+    it("validates BOTH arms — nothing unprovably exact becomes a 'decimal string'", () => {
+        // Number arm: the quoter only protects bare integer literals, so
+        // a fractional, non-finite, or ≥2^53 number reaching here is
+        // either already rounded (exponent/fraction JSON forms) or a
+        // direct caller's malformed input. Stringifying it would smuggle
+        // "1.5"/"NaN"/a rounded double into the decimal-string contract.
+        expect(() => amountString(1.5)).toThrow(MirrorError);
+        expect(() => amountString(NaN)).toThrow(MirrorError);
+        expect(() => amountString(Infinity)).toThrow(MirrorError);
+        expect(() => amountString(2 ** 53)).toThrow(MirrorError);
+        // String arm: only the quoter's own shape (optionally signed,
+        // digit-only) is a lossless-parse product.
+        expect(() => amountString("1e3")).toThrow(MirrorError);
+        expect(() => amountString("12.0")).toThrow(MirrorError);
+        expect(() => amountString(" 42 ")).toThrow(MirrorError);
+        expect(() => amountString("abc")).toThrow(MirrorError);
+    });
+
     it("narrows protocol-bounded amounts back to numbers", () => {
         expect(amountNumber(400000)).toBe(400000);
+        expect(amountNumber("-42")).toBe(-42);
         // A quoted 16-digit gas value sits below 2^53, so the narrowing
         // is exact — the whole point of the QUOTE_DIGITS < 2^53 margin.
         expect(amountNumber("9007199254740991")).toBe(9007199254740991);
         expect(amountNumber(null)).toBeNull();
         expect(amountNumber(undefined)).toBeUndefined();
+    });
+
+    it("validates the number arm too — no fractional/non-finite/unsafe pass-through", () => {
+        expect(() => amountNumber(1.5)).toThrow(MirrorError);
+        expect(() => amountNumber(NaN)).toThrow(MirrorError);
+        expect(() => amountNumber(Infinity)).toThrow(MirrorError);
+        expect(() => amountNumber(2 ** 53)).toThrow(MirrorError);
+        // String arm holds the quoter's digit-only shape: "1e3" narrows
+        // to a safe 1000, but it is not a lossless-parse product and
+        // must not be blessed as one.
+        expect(() => amountNumber("1e3")).toThrow(MirrorError);
+        expect(() => amountNumber("12.0")).toThrow(MirrorError);
     });
 
     it("refuses to narrow past the safe-integer range — loud, never lossy", () => {

@@ -221,14 +221,45 @@ export function tinybarToHbarExact(tinybar: number | string): string {
 }
 
 /**
+ * The only shapes a lossless-parsed amount can legitimately take:
+ * a digit-only (optionally signed) string — exactly what the quoter
+ * emits — or a number the parse provably did NOT round. A number is
+ * provably exact only when it is a safe integer: the quoter protects
+ * bare integer literals, so an amount arriving as a non-integer or as a
+ * number at/past 2^53 means either a form the quoter cannot protect
+ * (fraction/exponent notation, already rounded at JSON.parse) or a
+ * direct caller's malformed input. Both normalisers reject those with a
+ * typed error — they exist to end silent precision loss and must never
+ * pass along a value whose exactness cannot be proven.
+ */
+const AMOUNT_DIGITS = /^-?\d+$/;
+
+function assertAmountArms(value: number | string): void {
+    const valid =
+        typeof value === "string"
+            ? AMOUNT_DIGITS.test(value)
+            : Number.isSafeInteger(value);
+    if (!valid) {
+        throw new MirrorError(
+            `expected a whole amount (digit string, or integer within ±(2^53−1)), got ${describeValue(value)}.`,
+            { code: MirrorErrorCodes.MirrorNodeSchemaMismatch },
+        );
+    }
+}
+
+/**
  * Normalise a wire amount to the public `string` representation.
  *
  * After the lossless parse (`utils/LosslessJson.ts`) a tinybar or token
  * amount arrives as a `number` when it was left unquoted and as a decimal
  * `string` when the parse quoted it to preserve precision (all bare
  * integers of 16+ digits — a conservative bound, since 2^53 is 16 digits).
- * Both arms stringify digit-exact. `null`/`undefined` pass through so
- * optional fields keep their absence semantics.
+ * Both arms stringify digit-exact, and both arms are *validated*: a
+ * non-integer or unsafe number, or a non-digit string, throws a typed
+ * `MirrorError` rather than smuggling `"1.5"`, `"NaN"`, or a
+ * silently-rounded double into the "decimal string" contract.
+ * `null`/`undefined` pass through so optional fields keep their absence
+ * semantics.
  *
  * Exported for consumers of the raw `client.get<T>()` escape hatch, whose
  * bodies obey the same quoting contract the typed converters normalise
@@ -251,7 +282,9 @@ export function amountString(
 export function amountString(
     value: MirrorAmount | null | undefined,
 ): string | null | undefined {
-    return value == null ? value : String(value);
+    if (value == null) return value;
+    assertAmountArms(value);
+    return typeof value === "string" ? value : String(value);
 }
 
 /**
@@ -264,12 +297,14 @@ export function amountString(
  * magnitude lower). A 16-digit value *above* 2^53 would round, so it is
  * refused instead — see below.
  *
- * That plausibility argument is *enforced*, not assumed: a string that
- * does not narrow to a safe integer throws a typed `MirrorError` instead
- * of silently rounding — this helper exists to end silent precision
- * loss, so it must never be a new source of it. Hitting the error means
- * the field is not protocol-bounded after all: keep it as a string via
- * {@link amountString}.
+ * That plausibility argument is *enforced* on BOTH arms, not assumed: a
+ * digit string that does not narrow to a safe integer, a non-digit
+ * string, or a number that is fractional, non-finite, or at/past 2^53
+ * throws a typed `MirrorError` instead of silently rounding (or passing
+ * a `NaN`/`1.5` along) — this helper exists to end silent precision
+ * loss, so it must never be a new source of it. Hitting the error on an
+ * oversized value means the field is not protocol-bounded after all:
+ * keep it as a string via {@link amountString}.
  */
 export function amountNumber(value: MirrorAmount): number;
 export function amountNumber(
@@ -282,11 +317,12 @@ export function amountNumber(
 export function amountNumber(
     value: MirrorAmount | null | undefined,
 ): number | null | undefined {
+    if (value == null) return value;
+    assertAmountArms(value);
     if (typeof value !== "string") return value;
     const narrowed = Number(value);
-    // isSafeInteger also rejects NaN, so a malformed string (impossible
-    // from the lossless parse, reachable for direct callers) gets the
-    // same typed error rather than a silent NaN.
+    // Digit-valid but too many digits to survive the trip back to a
+    // double — the one arm-valid case that would still round.
     if (!Number.isSafeInteger(narrowed)) {
         throw new MirrorError(
             `amount ${describeValue(value)} does not fit a safe integer — ` +
