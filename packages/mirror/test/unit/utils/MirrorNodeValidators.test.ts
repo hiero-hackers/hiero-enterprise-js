@@ -70,15 +70,33 @@ describe("mirror node response validators", () => {
         expect(() =>
             assertNetworkStakeResponse({ max_stake_rewarded: "1.5" }, "/p"),
         ).toThrow(MirrorError);
-        // The number arm enforces the same whole-integer invariant: 1.5 is
-        // valid JSON and must not pass. (NaN/Infinity cannot arrive via
-        // JSON.parse at all; Number.isInteger rejects them for free.)
+        // The number arm enforces the same provably-exact invariant as the
+        // normalisers: 1.5 is valid JSON and must not pass. (NaN/Infinity
+        // cannot arrive via JSON.parse at all; isSafeInteger rejects them
+        // for free.)
         expect(() =>
             assertNetworkStakeResponse({ max_stake_rewarded: 1.5 }, "/p"),
         ).toThrow(MirrorError);
         expect(() =>
             assertNetworkStakeResponse({ max_stake_rewarded: NaN }, "/p"),
         ).toThrow(MirrorError);
+        // An integer-valued number at/past 2^53 (`1e20` is valid JSON) can
+        // only have arrived through a form the lossless quoter cannot
+        // protect — already rounded, so not provably exact. Same rule as
+        // amountString/amountNumber: reject at the schema boundary.
+        expect(() =>
+            assertNetworkStakeResponse({ max_stake_rewarded: 1e20 }, "/p"),
+        ).toThrow(MirrorError);
+        expect(() =>
+            assertNetworkStakeResponse({ max_stake_rewarded: 2 ** 53 }, "/p"),
+        ).toThrow(MirrorError);
+        // The exact boundary still passes.
+        expect(() =>
+            assertNetworkStakeResponse(
+                { max_stake_rewarded: Number.MAX_SAFE_INTEGER },
+                "/p",
+            ),
+        ).not.toThrow();
         // …and the diagnostic names the culprit: JSON.stringify would
         // report NaN as "null".
         expect(() =>
@@ -95,7 +113,7 @@ describe("mirror node response validators", () => {
         } catch (error) {
             message = (error as Error).message;
         }
-        expect(message).toMatch(/expected an integer amount/);
+        expect(message).toMatch(/expected a whole amount/);
         expect(message.length).toBeLessThan(200);
     });
 

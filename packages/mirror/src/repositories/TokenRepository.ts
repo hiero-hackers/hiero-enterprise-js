@@ -31,6 +31,10 @@ export class TokenRepository {
      * List tokens network-wide — filter by partial name match, public
      * key, ID range, or type.
      *
+     * Rows are {@link TokenSummary} — the seven-field summary the list
+     * endpoint serves. Supplies, treasury, custom fees, and timestamps
+     * are NOT present; fetch them per token with {@link findById}.
+     *
      * @example
      * // Find fungible tokens whose name contains "USD":
      * repo.list({ name: "USD", type: "FUNGIBLE_COMMON" });
@@ -41,6 +45,9 @@ export class TokenRepository {
 
     /**
      * Find all tokens associated with an account.
+     *
+     * Rows are {@link TokenSummary} — the seven-field summary; see
+     * {@link list}. Use {@link findById} for the full token detail.
      */
     findByAccountId(
         accountId: string,
