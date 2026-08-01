@@ -39,6 +39,7 @@ export type {
 } from "./contract.js";
 export type {
     MirrorTokenInfo,
+    TokenSummary,
     MirrorTokenType,
     TokenTransfer,
     MirrorCustomFee,
@@ -133,6 +134,7 @@ export type {
     MirrorAccountTokenBalance,
     MirrorNetworkNode,
     MirrorNft,
+    MirrorTokenListRow,
     MirrorTokenResponse,
     MirrorFixedFeeRaw,
     MirrorFractionalFeeRaw,
@@ -182,6 +184,7 @@ export type {
     MirrorCustomFeeLimit,
     MirrorAssessedCustomFee,
     MirrorChunkInfo,
+    MirrorAmount,
     MirrorServiceEndpoint,
     MirrorRegisteredServiceEndpoint,
     MirrorAccessListEntry,

@@ -150,10 +150,10 @@ describe("MirrorNodeClient observer (#145)", () => {
     });
 
     it("reports the wire status even when the failure comes after the response", async () => {
-        // A 200 whose body is not JSON: the transport promise rejects with
-        // a non-MirrorError throw. The end event must still carry the wire
-        // status the response DID have, and must mark the failure — no
-        // rejection may masquerade as success.
+        // A 200 whose body is not JSON: the transport rejects with the
+        // typed MalformedResponse error. The end event must still carry
+        // the wire status the response DID have, and must mark the
+        // failure — no rejection may masquerade as success.
         vi.spyOn(globalThis, "fetch").mockResolvedValue(ok("not json at all"));
         const rec = recordingObserver();
 
@@ -163,7 +163,7 @@ describe("MirrorNodeClient observer (#145)", () => {
 
         expect(rec.ends).toHaveLength(1);
         expect(rec.ends[0].status).toBe(200);
-        expect(rec.ends[0].errorCode).toBe("MIRROR_NODE_ERROR");
+        expect(rec.ends[0].errorCode).toBe("MALFORMED_RESPONSE");
     });
 
     it("scopes the bracket to transport — schema mismatch after a 200 ends as success", async () => {

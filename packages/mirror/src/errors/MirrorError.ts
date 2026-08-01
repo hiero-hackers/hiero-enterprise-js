@@ -3,6 +3,15 @@
  */
 export const MirrorErrorCodes = {
     ConfigInvalid: "CONFIG_INVALID",
+    /**
+     * The body arrived but is not JSON at all — distinct from
+     * `MirrorNodeSchemaMismatch` (valid JSON, wrong shape) because the
+     * usual culprit is different: a proxy or gateway answering with an
+     * HTML error page. The error's `status` carries the HTTP status the
+     * body came with, so a 200-with-HTML misconfiguration is diagnosable
+     * from the error object alone.
+     */
+    MalformedResponse: "MALFORMED_RESPONSE",
     MirrorNodeError: "MIRROR_NODE_ERROR",
     MirrorNodeHttpError: "MIRROR_NODE_HTTP_ERROR",
     MirrorNodeSchemaMismatch: "MIRROR_NODE_SCHEMA_MISMATCH",
@@ -54,6 +63,36 @@ export class MirrorError extends Error {
         this.status = options.status;
         this.cause = options.cause;
     }
+}
+
+/**
+ * Render a value for an error message, honestly and boundedly.
+ *
+ * - Strings keep their quotes (`JSON.stringify`), so `"42"` and `42` stay
+ *   distinguishable in diagnostics, and are truncated at `maxLength` —
+ *   a huge invalid input must never become a huge error message.
+ * - Numbers go through `String()`: `JSON.stringify` would report
+ *   `NaN`/`Infinity` as `"null"`, which sends readers hunting the wrong bug.
+ * - `null` is reported as "null" — `typeof null` would claim "object".
+ * - Everything else is described by its `typeof` — error messages never
+ *   need (or want) the contents of an object or function.
+ */
+export function describeValue(value: unknown, maxLength = 40): string {
+    if (typeof value === "string") {
+        return value.length > maxLength
+            ? `${JSON.stringify(value.slice(0, maxLength))}…`
+            : JSON.stringify(value);
+    }
+    if (typeof value === "number") {
+        return String(value);
+    }
+    // `typeof null` is the famously wrong "object" — a field that is
+    // explicitly null must say so, or the diagnostic points at the
+    // wrong shape entirely.
+    if (value === null) {
+        return "null";
+    }
+    return typeof value;
 }
 
 /**

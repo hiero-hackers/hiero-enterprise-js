@@ -1,6 +1,29 @@
 import type { MirrorKey } from "./common.js";
 
 /**
+ * A row from the network-wide token listing (`/api/v1/tokens`) — the
+ * seven-field summary that endpoint actually serves. For supplies,
+ * treasury, fees, and timestamps, fetch the full {@link MirrorTokenInfo}
+ * by id.
+ */
+export interface TokenSummary {
+    /** Token ID */
+    tokenId: string;
+    /** Token name */
+    name: string;
+    /** Token symbol */
+    symbol: string;
+    /** Token type: FUNGIBLE_COMMON or NON_FUNGIBLE_UNIQUE */
+    type: MirrorTokenType;
+    /** Decimal places (fungible tokens only) */
+    decimals: number;
+    /** Admin key (can modify token properties) */
+    adminKey?: MirrorKey;
+    /** Arbitrary token-class metadata, base64 */
+    metadata?: string;
+}
+
+/**
  * Full token information from the mirror node.
  */
 export interface MirrorTokenInfo {
@@ -80,7 +103,7 @@ export interface TokenTransfer {
     /** Account ID */
     accountId: string;
     /** Amount transferred (negative = sent, positive = received) */
-    amount: number;
+    amount: string;
 }
 
 /**
@@ -101,7 +124,7 @@ export interface MirrorCustomFee {
 export interface MirrorFixedFee extends MirrorCustomFee {
     type: "fixed";
     /** Amount of the fee */
-    amount: number;
+    amount: string;
     /** Token ID for the fee (null = HBAR) */
     denominatingTokenId?: string;
 }
@@ -111,14 +134,14 @@ export interface MirrorFixedFee extends MirrorCustomFee {
  */
 export interface MirrorFractionalFee extends MirrorCustomFee {
     type: "fractional";
-    /** Numerator of the fraction */
-    numerator?: number;
-    /** Denominator of the fraction */
-    denominator?: number;
+    /** Numerator of the fraction — decimal string (creator-chosen int64) */
+    numerator?: string;
+    /** Denominator of the fraction — decimal string (creator-chosen int64) */
+    denominator?: string;
     /** Minimum fee amount */
-    min?: number;
+    min?: string;
     /** Maximum fee amount */
-    max?: number | null;
+    max?: string | null;
     /** Whether the fee is deducted from the transferred amount */
     netOfTransfers?: boolean;
     /** Denominating token, or null for HBAR */
@@ -130,13 +153,13 @@ export interface MirrorFractionalFee extends MirrorCustomFee {
  */
 export interface MirrorRoyaltyFee extends MirrorCustomFee {
     type: "royalty";
-    /** Numerator of the fraction */
-    numerator?: number;
-    /** Denominator of the fraction */
-    denominator?: number;
+    /** Numerator of the fraction — decimal string (creator-chosen int64) */
+    numerator?: string;
+    /** Denominator of the fraction — decimal string (creator-chosen int64) */
+    denominator?: string;
     /** Fallback fixed fee if no value is exchanged */
     fallbackFee?: {
-        amount: number;
+        amount: string;
         denominatingTokenId?: string;
     };
 }

@@ -99,7 +99,7 @@ function emptyPage<T>(): Page<T> {
 function accountInfo(): MirrorAccountInfo {
     return {
         accountId: "0.0.12345",
-        balance: 100_000_000,
+        balance: "100000000",
         deleted: false,
     };
 }
@@ -107,7 +107,7 @@ function accountInfo(): MirrorAccountInfo {
 function balance(): Balance {
     return {
         accountId: "0.0.12345",
-        hbars: "100000000",
+        tinybars: "100000000",
         tokens: [],
     };
 }
@@ -157,7 +157,7 @@ function transactionInfo(): TransactionInfo {
         consensusTimestamp: "1234567890.000000001",
         validStartTimestamp: "1234567890.000000000",
         successful: true,
-        chargedTxFee: 100000,
+        chargedTxFee: "100000",
         transfers: [],
         tokenTransfers: [],
         nftTransfers: [],
@@ -190,20 +190,20 @@ function networkSupplies(): NetworkSupplies {
 
 function networkStake(): NetworkStake {
     return {
-        maxStakeRewarded: 0,
-        maxStakingRewardRatePerHbar: 0,
-        maxTotalReward: 0,
+        maxStakeRewarded: "0",
+        maxStakingRewardRatePerHbar: "0",
+        maxTotalReward: "0",
         nodeRewardFeeFraction: 0,
-        reservedStakingRewards: 0,
-        rewardBalanceThreshold: 0,
-        stakeTotal: 0,
+        reservedStakingRewards: "0",
+        rewardBalanceThreshold: "0",
+        stakeTotal: "0",
         stakingPeriod: null,
         stakingPeriodDuration: 0,
         stakingPeriodsStored: 0,
         stakingRewardFeeFraction: 0,
-        stakingRewardRate: 0,
-        stakingStartThreshold: 0,
-        unreservedStakingRewardBalance: 0,
+        stakingRewardRate: "0",
+        stakingStartThreshold: "0",
+        unreservedStakingRewardBalance: "0",
     };
 }
 

@@ -120,7 +120,8 @@ describe("MirrorNodeClient EVM + spec-completion endpoints", () => {
                 createdTimestamp: "1.0",
                 deleted: false,
                 extensionPoint: "ACCOUNT_ALLOWANCE_HOOK",
-                hookId: 1,
+                // Decimal string — hook ids are owner-chosen int64s.
+                hookId: "1",
                 ownerId: "0.0.15",
                 timestampRange: { from: "1.0", to: null },
                 type: "EVM",
@@ -467,7 +468,7 @@ describe("MirrorNodeClient EVM + spec-completion endpoints", () => {
                 resultDataType: "OUTPUT",
                 timestamp: "12.0",
                 to: "0x0000000000000000000000000000000000001389",
-                value: 0,
+                value: "0",
             });
         });
 

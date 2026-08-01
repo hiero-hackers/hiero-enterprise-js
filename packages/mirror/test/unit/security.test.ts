@@ -89,7 +89,8 @@ describe("security", () => {
                     statusText: "OK",
                     headers: new Headers(),
                     // Body that never settles until the request is aborted.
-                    json: () =>
+                    // The client reads bodies via .text() (lossless parse).
+                    text: () =>
                         new Promise((_, reject) => {
                             init?.signal?.addEventListener("abort", () =>
                                 reject(

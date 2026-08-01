@@ -26,7 +26,7 @@ describe("AccountService.createAccount [Integration]", () => {
         expect(account.evmAddress).toBeUndefined();
 
         const balance = await client.getAccountBalance(account.accountId);
-        expect(balance.hbars).toBe(String(15 * 100_000_000));
+        expect(balance.tinybars).toBe(String(15 * 100_000_000));
     });
 
     it("creates an ECDSA account with derived EVM alias", async () => {
@@ -44,6 +44,6 @@ describe("AccountService.createAccount [Integration]", () => {
         expect(account.evmAddress).toBeDefined();
 
         const balance = await client.getAccountBalance(account.accountId);
-        expect(balance.hbars).toBe(String(5 * 100_000_000));
+        expect(balance.tinybars).toBe(String(5 * 100_000_000));
     });
 });

@@ -26,7 +26,7 @@ describe("AccountBalanceQuery (via AccountService) [Integration]", () => {
         const balance = await client.getAccountBalance(account.accountId);
 
         expect(balance.accountId).toBe(account.accountId.toString());
-        expect(balance.hbars).toBe(String(7 * 100_000_000));
+        expect(balance.tinybars).toBe(String(7 * 100_000_000));
         // Newly created account has no associated tokens
         expect(balance.tokens).toEqual([]);
     });
@@ -37,7 +37,7 @@ describe("AccountBalanceQuery (via AccountService) [Integration]", () => {
         expect(balance.accountId).toBeDefined();
         // Operator balance is opaque to the test (depends on Solo state) but
         // must be a numeric string of tinybars
-        expect(typeof balance.hbars).toBe("string");
-        expect(Number(balance.hbars)).toBeGreaterThan(0);
+        expect(typeof balance.tinybars).toBe("string");
+        expect(Number(balance.tinybars)).toBeGreaterThan(0);
     });
 });

@@ -3,6 +3,7 @@ import type {
     Balance,
     Nft,
     MirrorTokenInfo,
+    TokenSummary,
     MirrorTopicMessage,
     TransactionInfo,
     ExchangeRates,
@@ -98,6 +99,7 @@ import {
     convertBalance,
     convertNft,
     convertTokenInfo,
+    convertTokenSummary,
     convertTopicMessage,
     convertTransactionInfo,
     convertExchangeRate,
@@ -157,6 +159,7 @@ import type {
     RequestTelemetry,
 } from "./MirrorClientObserver.js";
 import { appendQuery, segment } from "../utils/MirrorNodeQuery.js";
+import { parseLossless } from "../utils/LosslessJson.js";
 
 /** Default per-request timeout, in milliseconds. */
 export const DEFAULT_TIMEOUT_MS = 10_000;
@@ -464,6 +467,13 @@ export class MirrorNodeClient {
      * also makes this client a drop-in transport for such tools). The
      * caller is responsible for percent-encoding anything interpolated
      * into `pathAndQuery`.
+     *
+     * Bodies are parsed losslessly (`utils/LosslessJson.ts`): any bare
+     * integer of 16+ digits arrives as a decimal `string`, not a
+     * (rounded) `number`. Type such fields `MirrorAmount`
+     * (`number | string`) and fold them with the exported
+     * `amountString`/`amountNumber` helpers — the same normalisation the
+     * typed converters use, so hand-rolled parsing cannot drift from it.
      */
     get<T = unknown>(pathAndQuery: string): Promise<T> {
         return this.request<T>(pathAndQuery);
@@ -610,7 +620,28 @@ export class MirrorNodeClient {
                 );
             }
             if (telemetry) telemetry.status = response.status;
-            return (await response.json()) as T;
+            // .text() + parseLossless rather than .json(): JSON.parse rounds
+            // integers past 2^53 (large tinybar balances, token amounts)
+            // before any converter can intervene — see utils/LosslessJson.ts.
+            // The read stays outside the parse guard so a body timeout is
+            // still classified as TimedOut by the outer catch.
+            const text = await response.text();
+            try {
+                return parseLossless(text) as T;
+            } catch (err) {
+                throw new MirrorError(
+                    `Mirror node returned a non-JSON body for ${path}`,
+                    {
+                        code: MirrorErrorCodes.MalformedResponse,
+                        context: path,
+                        // The wire status the non-JSON body arrived with:
+                        // a 200 here is the classic misconfigured-gateway
+                        // (HTML error page) signature.
+                        status: response.status,
+                        cause: err instanceof Error ? err : undefined,
+                    },
+                );
+            }
         } catch (err) {
             if (
                 err instanceof Error &&
@@ -784,8 +815,12 @@ export class MirrorNodeClient {
     /**
      * List tokens network-wide — filter by associated account, partial
      * name match, public key, ID range, or type.
+     *
+     * Rows are {@link TokenSummary}: the list endpoint serves a
+     * seven-field summary, not the detail shape — fetch
+     * `queryTokenById` for supplies, fees, and timestamps.
      */
-    queryTokens(options?: TokensQuery): Promise<Page<MirrorTokenInfo>> {
+    queryTokens(options?: TokensQuery): Promise<Page<TokenSummary>> {
         return this.getPage(
             appendQuery("/api/v1/tokens", {
                 "account.id": options?.accountId,
@@ -796,14 +831,14 @@ export class MirrorNodeClient {
                 limit: options?.limit,
                 order: options?.order,
             }),
-            convertTokenInfo,
+            convertTokenSummary,
         );
     }
 
     queryTokensByAccountId(
         accountId: string,
         options?: TokensQuery,
-    ): Promise<Page<MirrorTokenInfo>> {
+    ): Promise<Page<TokenSummary>> {
         return this.queryTokens({ ...options, accountId });
     }
 

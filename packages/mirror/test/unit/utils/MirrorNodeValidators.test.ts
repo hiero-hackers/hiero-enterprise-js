@@ -52,6 +52,51 @@ describe("mirror node response validators", () => {
         expect(() =>
             assertNetworkStakeResponse({ max_stake_rewarded: 1 }, "/p"),
         ).not.toThrow();
+        // Mainnet's max_stake_rewarded is 18 digits, so the lossless parse
+        // delivers it as a string — the validator must accept that arm too,
+        // or every mainnet /network/stake call throws a schema mismatch.
+        expect(() =>
+            assertNetworkStakeResponse(
+                { max_stake_rewarded: "650000000000000001" },
+                "/p",
+            ),
+        ).not.toThrow();
+        // …but only the integer-string arm the lossless parse can actually
+        // produce — arbitrary strings in an amount slot are a malformed
+        // payload, not a parse artifact.
+        expect(() =>
+            assertNetworkStakeResponse({ max_stake_rewarded: "abc" }, "/p"),
+        ).toThrow(MirrorError);
+        expect(() =>
+            assertNetworkStakeResponse({ max_stake_rewarded: "1.5" }, "/p"),
+        ).toThrow(MirrorError);
+        // The number arm enforces the same whole-integer invariant: 1.5 is
+        // valid JSON and must not pass. (NaN/Infinity cannot arrive via
+        // JSON.parse at all; Number.isInteger rejects them for free.)
+        expect(() =>
+            assertNetworkStakeResponse({ max_stake_rewarded: 1.5 }, "/p"),
+        ).toThrow(MirrorError);
+        expect(() =>
+            assertNetworkStakeResponse({ max_stake_rewarded: NaN }, "/p"),
+        ).toThrow(MirrorError);
+        // …and the diagnostic names the culprit: JSON.stringify would
+        // report NaN as "null".
+        expect(() =>
+            assertNetworkStakeResponse({ max_stake_rewarded: NaN }, "/p"),
+        ).toThrow(/got NaN/);
+        // A huge invalid string is truncated in the diagnostic — a
+        // multi-megabyte payload value must not become the error message.
+        let message = "";
+        try {
+            assertNetworkStakeResponse(
+                { max_stake_rewarded: "x".repeat(1_000_000) },
+                "/p",
+            );
+        } catch (error) {
+            message = (error as Error).message;
+        }
+        expect(message).toMatch(/expected an integer amount/);
+        expect(message.length).toBeLessThan(200);
     });
 
     it("reject malformed payloads with MirrorError schema mismatches", () => {

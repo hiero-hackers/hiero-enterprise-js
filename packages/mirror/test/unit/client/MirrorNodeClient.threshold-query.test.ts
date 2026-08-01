@@ -76,7 +76,7 @@ describe("MirrorNodeClient balance threshold queries", () => {
             });
             expect(page.data).toHaveLength(1);
             expect(page.data[0].accountId).toBe("0.0.5");
-            expect(page.data[0].balance).toBe(200_000_000_000);
+            expect(page.data[0].balance).toBe("200000000000");
             expect(page.next).toBeTypeOf("function");
         });
     });

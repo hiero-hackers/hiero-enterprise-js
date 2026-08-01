@@ -104,7 +104,7 @@ describe("MirrorNodeClient", () => {
                 key: "pubkey123",
                 type: "ECDSA_SECP256K1",
             });
-            expect(info.balance).toBe(500000);
+            expect(info.balance).toBe("500000");
             expect(info.deleted).toBe(false);
             expect(info.memo).toBe("test account");
         });

@@ -9,8 +9,8 @@
 export interface Balance {
     /** Account ID */
     accountId: string;
-    /** HBAR balance in tinybars (string for precision with large values) */
-    hbars: string;
+    /** HBAR balance in tinybars — decimal string; `BigInt(x)` for arithmetic */
+    tinybars: string;
     /** When the balance figures were snapshotted by the mirror node */
     timestamp?: string | null;
     /** Token balances associated with this account */
@@ -23,7 +23,7 @@ export interface Balance {
 export interface TokenBalance {
     /** Token ID */
     tokenId: string;
-    /** Balance amount (string for precision with large values) */
+    /** Balance in the token's smallest unit — decimal string */
     balance: string;
     /** Token decimals */
     decimals: number;
@@ -44,7 +44,7 @@ export interface TokenBalance {
 export interface TokenHolder {
     /** The holding account's ID */
     accountId: string;
-    /** Balance in the token's smallest unit (string for precision) */
+    /** Balance in the token's smallest unit — decimal string */
     balance: string;
     /** Token decimals, when the mirror node reports them */
     decimals?: number;
@@ -58,8 +58,8 @@ export interface TokenHolder {
 export interface AccountBalanceSnapshot {
     /** Account ID */
     accountId: string;
-    /** HBAR balance in tinybars at the snapshot time */
-    balance: number;
-    /** Token balances at the snapshot time */
-    tokens: Array<{ tokenId: string; balance: number }>;
+    /** HBAR balance in tinybars at the snapshot time — decimal string */
+    balance: string;
+    /** Token balances at the snapshot time, in each token's smallest unit — decimal strings */
+    tokens: Array<{ tokenId: string; balance: string }>;
 }

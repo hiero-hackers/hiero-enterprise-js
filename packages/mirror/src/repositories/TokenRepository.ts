@@ -1,5 +1,6 @@
 import type {
     MirrorTokenInfo,
+    TokenSummary,
     TokenHolder,
     Page,
     TokenQuery,
@@ -34,7 +35,7 @@ export class TokenRepository {
      * // Find fungible tokens whose name contains "USD":
      * repo.list({ name: "USD", type: "FUNGIBLE_COMMON" });
      */
-    list(options?: TokensQuery): Promise<Page<MirrorTokenInfo>> {
+    list(options?: TokensQuery): Promise<Page<TokenSummary>> {
         return this.mirrorNodeClient.queryTokens(options);
     }
 
@@ -44,7 +45,7 @@ export class TokenRepository {
     findByAccountId(
         accountId: string,
         options?: TokensQuery,
-    ): Promise<Page<MirrorTokenInfo>> {
+    ): Promise<Page<TokenSummary>> {
         return this.mirrorNodeClient.queryTokensByAccountId(accountId, options);
     }
 

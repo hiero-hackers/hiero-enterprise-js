@@ -4,6 +4,7 @@ import type {
     TokenBalance,
     Nft,
     MirrorTokenInfo,
+    TokenSummary,
     MirrorTopicMessage,
     TransactionInfo,
     Transfer,
@@ -20,6 +21,7 @@ import type {
     MirrorPageResponse,
     MirrorAccountResponse,
     MirrorNft,
+    MirrorTokenListRow,
     MirrorTokenResponse,
     MirrorTopicMessageRaw,
     MirrorTransaction,
@@ -88,6 +90,25 @@ import type {
     MirrorFeeEstimateResponse,
     MirrorKey,
 } from "../types/index.js";
+// amountString/amountNumber live in Units.ts (public surface): the same
+// normalisation the converters apply is the supported way for raw
+// `client.get<T>()` consumers to fold the `MirrorAmount` union.
+import {
+    amountNumber,
+    amountString,
+    formatConsensusTimestamp,
+} from "./Units.js";
+import { QUOTE_DIGITS } from "./LosslessJson.js";
+
+/**
+ * Matches exactly the digit-only strings the lossless parse can produce —
+ * derived from its threshold so the two can never drift apart.
+ */
+// Sign included: the parse quotes negative integers with their `-`, so
+// the recogniser must accept what the quoter can emit — the two arms
+// must never disagree on shape.
+// eslint-disable-next-line security/detect-non-literal-regexp -- built once from a compile-time integer constant, no user input
+const QUOTED_INTEGER = new RegExp(`^-?\\d{${QUOTE_DIGITS},}$`);
 
 // ─── Keys ────────────────────────────────────────────────────────
 
@@ -143,7 +164,7 @@ export function convertAccountInfo(
         alias: raw.alias,
         delegationAddress: raw.delegation_address ?? undefined,
         key: convertKey(raw.key),
-        balance: raw.balance?.balance ?? 0,
+        balance: amountString(raw.balance?.balance ?? 0),
         // `/accounts/{id}` reports balance as { balance, timestamp, tokens }.
         // Carry the other two through rather than dropping them: `timestamp` is
         // what makes `balance` meaningful (it is a snapshot), and without
@@ -162,7 +183,7 @@ export function convertAccountInfo(
         expirationTimestamp: raw.expiry_timestamp,
         declineReward: raw.decline_reward,
         ethereumNonce: raw.ethereum_nonce,
-        pendingReward: raw.pending_reward,
+        pendingReward: amountString(raw.pending_reward),
         receiverSigRequired: raw.receiver_sig_required,
     };
 }
@@ -173,7 +194,7 @@ export function convertAccountInfo(
 function convertTokenBalances(raw: MirrorAccountResponse): TokenBalance[] {
     return (raw.balance?.tokens ?? []).map((t) => ({
         tokenId: t.token_id,
-        balance: String(t.balance),
+        balance: amountString(t.balance),
         decimals: t.decimals,
     }));
 }
@@ -184,7 +205,7 @@ export function convertBalance(
 ): Balance {
     return {
         accountId,
-        hbars: String(raw.balance?.balance ?? 0),
+        tinybars: amountString(raw.balance?.balance ?? 0),
         timestamp: raw.balance?.timestamp,
         tokens: convertTokenBalances(raw),
     };
@@ -193,7 +214,7 @@ export function convertBalance(
 export function convertTokenHolder(raw: MirrorTokenHolderBalance): TokenHolder {
     return {
         accountId: raw.account,
-        balance: String(raw.balance),
+        balance: amountString(raw.balance),
         decimals: raw.decimals ?? undefined,
     };
 }
@@ -211,11 +232,11 @@ export function convertNetworkNode(raw: MirrorNetworkNode): NetworkNode {
         nodeId: raw.node_id,
         nodeAccountId: raw.node_account_id,
         description: raw.description,
-        stake: raw.stake,
-        minStake: raw.min_stake,
-        maxStake: raw.max_stake,
-        stakeRewarded: raw.stake_rewarded,
-        stakeNotRewarded: raw.stake_not_rewarded,
+        stake: amountString(raw.stake),
+        minStake: amountString(raw.min_stake),
+        maxStake: amountString(raw.max_stake),
+        stakeRewarded: amountString(raw.stake_rewarded),
+        stakeNotRewarded: amountString(raw.stake_not_rewarded),
         adminKey: convertKey(raw.admin_key),
         associatedRegisteredNodes: raw.associated_registered_nodes,
         declineReward: raw.decline_reward,
@@ -228,7 +249,7 @@ export function convertNetworkNode(raw: MirrorNetworkNode): NetworkNode {
         memo: raw.memo,
         nodeCertHash: raw.node_cert_hash,
         publicKey: raw.public_key,
-        rewardRateStart: raw.reward_rate_start,
+        rewardRateStart: amountString(raw.reward_rate_start),
         serviceEndpoints: raw.service_endpoints?.map(convertServiceEndpoint),
         stakingPeriod: raw.staking_period,
         timestamp: raw.timestamp,
@@ -240,7 +261,7 @@ export function convertAccountTokenBalance(
 ): TokenBalance {
     return {
         tokenId: raw.token_id,
-        balance: String(raw.balance),
+        balance: amountString(raw.balance),
         decimals: raw.decimals ?? 0,
         automaticAssociation: raw.automatic_association ?? undefined,
         createdTimestamp: raw.created_timestamp ?? undefined,
@@ -267,11 +288,78 @@ export function convertNft(raw: MirrorNft): Nft {
 
 // ─── Tokens ──────────────────────────────────────────────────────
 
-/** Epoch nanoseconds (as a JS number) → "seconds.nnnnnnnnn". */
-function nanosToTimestamp(nanos: number): string {
-    const seconds = Math.floor(nanos / 1e9);
-    const remainder = Math.round(nanos - seconds * 1e9);
-    return `${seconds}.${String(remainder).padStart(9, "0")}`;
+/**
+ * Epoch nanoseconds → canonical `"seconds.nnnnnnnnn"`.
+ *
+ * Accepts both arms of the lossless parse: a `number` when the wire value
+ * stayed unquoted, a digit-only `string` when it was quoted (19-digit token
+ * expiries always are). BigInt arithmetic keeps the quoted arm digit-exact —
+ * routing it through `Number` would re-introduce the ~512ns rounding the
+ * lossless parse exists to prevent.
+ */
+function nanosToTimestamp(nanos: number | string): string {
+    // The number arm is integer-valued in practice (JSON integers); round
+    // defensively since BigInt() throws on non-integers.
+    const value = BigInt(typeof nanos === "number" ? Math.round(nanos) : nanos);
+    let seconds = value / 1_000_000_000n;
+    let remainder = value % 1_000_000_000n;
+    // Floor-divide: BigInt `/` truncates toward zero, so a pre-1970
+    // (negative) epoch value would otherwise emit a signed nanos field
+    // ("-1.-500000000"). Canonical form always has non-negative nanos.
+    if (remainder < 0n) {
+        seconds -= 1n;
+        remainder += 1_000_000_000n;
+    }
+    return formatConsensusTimestamp(seconds, remainder);
+}
+
+/**
+ * Normalize the tokens-only expiry forms — epoch nanoseconds as a JSON
+ * number, or as a digit-only string once the lossless parse quotes 19-digit
+ * values (the quoting contract lives in utils/LosslessJson.ts; unsigned
+ * here, since an expiry is never negative) — to the canonical
+ * `"seconds.nanoseconds"` used everywhere else. A value already in
+ * canonical form (it contains a `.`) passes through.
+ */
+function normalizeTokenExpiry(
+    value: number | string | null | undefined,
+): string | undefined {
+    // The spec types this field nullable — fold `null` into the public
+    // field's absence arm rather than leaking it through the `string`
+    // type.
+    if (value == null) return undefined;
+    // A digit-only string is treated as nanos ONLY when it is long enough
+    // to have come from the lossless parse (QUOTED_INTEGER, derived from
+    // QUOTE_DIGITS). A shorter digit string could only come from an
+    // upstream format change (e.g. seconds-scale values quoted at the
+    // source) and passes through untouched rather than being misread as
+    // nanos and shifted ~1e9×.
+    if (typeof value === "number" || QUOTED_INTEGER.test(value)) {
+        return nanosToTimestamp(value);
+    }
+    return value;
+}
+
+/**
+ * Convert a `/api/v1/tokens` list row — the seven-field summary shape,
+ * distinct from the detail response (`convertTokenInfo`): reusing the
+ * detail converter here would silently `undefined` its required fields
+ * and misread `decimals` (a bare integer on list rows, a string on the
+ * detail endpoint).
+ */
+export function convertTokenSummary(raw: MirrorTokenListRow): TokenSummary {
+    return {
+        tokenId: raw.token_id,
+        name: raw.name,
+        symbol: raw.symbol,
+        type:
+            raw.type === "NON_FUNGIBLE_UNIQUE"
+                ? "NON_FUNGIBLE_UNIQUE"
+                : "FUNGIBLE_COMMON",
+        decimals: raw.decimals,
+        adminKey: convertKey(raw.admin_key),
+        metadata: raw.metadata,
+    };
 }
 
 export function convertTokenInfo(raw: MirrorTokenResponse): MirrorTokenInfo {
@@ -280,7 +368,7 @@ export function convertTokenInfo(raw: MirrorTokenResponse): MirrorTokenInfo {
         for (const f of raw.custom_fees.fixed_fees ?? []) {
             const fee: MirrorFixedFee = {
                 type: "fixed",
-                amount: f.amount,
+                amount: amountString(f.amount),
                 collectorAccountId: f.collector_account_id,
                 allCollectorsAreExempt: f.all_collectors_are_exempt ?? false,
                 denominatingTokenId: f.denominating_token_id,
@@ -291,10 +379,10 @@ export function convertTokenInfo(raw: MirrorTokenResponse): MirrorTokenInfo {
             const fee: MirrorFractionalFee = {
                 type: "fractional",
                 // The mirror node nests the fraction under `amount`.
-                numerator: f.amount?.numerator,
-                denominator: f.amount?.denominator,
-                min: f.minimum,
-                max: f.maximum,
+                numerator: amountString(f.amount?.numerator),
+                denominator: amountString(f.amount?.denominator),
+                min: amountString(f.minimum),
+                max: amountString(f.maximum),
                 netOfTransfers: f.net_of_transfers,
                 collectorAccountId: f.collector_account_id,
                 denominatingTokenId: f.denominating_token_id,
@@ -305,11 +393,11 @@ export function convertTokenInfo(raw: MirrorTokenResponse): MirrorTokenInfo {
         for (const f of raw.custom_fees.royalty_fees ?? []) {
             const fee: MirrorRoyaltyFee = {
                 type: "royalty",
-                numerator: f.amount?.numerator,
-                denominator: f.amount?.denominator,
+                numerator: amountString(f.amount?.numerator),
+                denominator: amountString(f.amount?.denominator),
                 fallbackFee: f.fallback_fee
                     ? {
-                          amount: f.fallback_fee.amount,
+                          amount: amountString(f.fallback_fee.amount),
                           denominatingTokenId:
                               f.fallback_fee.denominating_token_id ?? undefined,
                       }
@@ -345,12 +433,7 @@ export function convertTokenInfo(raw: MirrorTokenResponse): MirrorTokenInfo {
         customFees,
         customFeesCreatedTimestamp: raw.custom_fees?.created_timestamp,
         createdTimestamp: raw.created_timestamp,
-        // Normalize the tokens-only numeric-nanoseconds form to the
-        // canonical "seconds.nanoseconds" string used everywhere else.
-        expirationTimestamp:
-            typeof raw.expiry_timestamp === "number"
-                ? nanosToTimestamp(raw.expiry_timestamp)
-                : raw.expiry_timestamp,
+        expirationTimestamp: normalizeTokenExpiry(raw.expiry_timestamp),
         memo: raw.memo,
         autoRenewAccount: raw.auto_renew_account,
         autoRenewPeriod: raw.auto_renew_period,
@@ -439,7 +522,7 @@ export function convertTransactionInfo(
         consensusTimestamp: raw.consensus_timestamp,
         validStartTimestamp: raw.valid_start_timestamp,
         successful: raw.result === "SUCCESS",
-        chargedTxFee: raw.charged_tx_fee,
+        chargedTxFee: amountString(raw.charged_tx_fee),
         memo: raw.memo_base64 ? decodeMemo(raw.memo_base64) : undefined,
         transfers: (raw.transfers ?? []).map(convertTransfer),
         tokenTransfers: (raw.token_transfers ?? []).map(convertTokenTransfer),
@@ -459,7 +542,7 @@ export function convertTransactionInfo(
         highVolumePricingMultiplier: raw.high_volume_pricing_multiplier,
         maxCustomFees: raw.max_custom_fees?.map((limit) => ({
             accountId: limit.account_id,
-            amount: limit.amount,
+            amount: amountString(limit.amount),
             denominatingTokenId: limit.denominating_token_id,
         })),
         maxFee: raw.max_fee,
@@ -470,7 +553,7 @@ export function convertTransactionInfo(
         transactionHash: raw.transaction_hash,
         validDurationSeconds: raw.valid_duration_seconds,
         assessedCustomFees: raw.assessed_custom_fees?.map((fee) => ({
-            amount: fee.amount,
+            amount: amountString(fee.amount),
             collectorAccountId: fee.collector_account_id,
             effectivePayerAccountIds: fee.effective_payer_account_ids ?? [],
             tokenId: fee.token_id,
@@ -481,7 +564,7 @@ export function convertTransactionInfo(
 function convertTransfer(raw: MirrorTransfer): Transfer {
     return {
         accountId: raw.account,
-        amount: raw.amount,
+        amount: amountString(raw.amount),
         isApproval: raw.is_approval,
     };
 }
@@ -490,7 +573,7 @@ function convertTokenTransfer(raw: MirrorTokenTransfer): TokenTransferInfo {
     return {
         tokenId: raw.token_id,
         accountId: raw.account,
-        amount: raw.amount,
+        amount: amountString(raw.amount),
         isApproval: raw.is_approval,
     };
 }
@@ -510,7 +593,7 @@ function convertStakingRewardTransfer(
 ): StakingRewardTransfer {
     return {
         accountId: raw.account,
-        amount: raw.amount,
+        amount: amountString(raw.amount),
     };
 }
 
@@ -528,20 +611,24 @@ export function convertNetworkStake(
     raw: MirrorNetworkStakeResponse,
 ): NetworkStake {
     return {
-        maxStakeRewarded: raw.max_stake_rewarded,
-        maxStakingRewardRatePerHbar: raw.max_staking_reward_rate_per_hbar,
-        maxTotalReward: raw.max_total_reward,
+        maxStakeRewarded: amountString(raw.max_stake_rewarded),
+        maxStakingRewardRatePerHbar: amountString(
+            raw.max_staking_reward_rate_per_hbar,
+        ),
+        maxTotalReward: amountString(raw.max_total_reward),
         nodeRewardFeeFraction: raw.node_reward_fee_fraction,
-        reservedStakingRewards: raw.reserved_staking_rewards,
-        rewardBalanceThreshold: raw.reward_balance_threshold,
-        stakeTotal: raw.stake_total,
+        reservedStakingRewards: amountString(raw.reserved_staking_rewards),
+        rewardBalanceThreshold: amountString(raw.reward_balance_threshold),
+        stakeTotal: amountString(raw.stake_total),
         stakingPeriod: raw.staking_period,
         stakingPeriodDuration: raw.staking_period_duration,
         stakingPeriodsStored: raw.staking_periods_stored,
         stakingRewardFeeFraction: raw.staking_reward_fee_fraction,
-        stakingRewardRate: raw.staking_reward_rate,
-        stakingStartThreshold: raw.staking_start_threshold,
-        unreservedStakingRewardBalance: raw.unreserved_staking_reward_balance,
+        stakingRewardRate: amountString(raw.staking_reward_rate),
+        stakingStartThreshold: amountString(raw.staking_start_threshold),
+        unreservedStakingRewardBalance: amountString(
+            raw.unreserved_staking_reward_balance,
+        ),
     };
 }
 
@@ -550,17 +637,17 @@ export function convertAccountBalanceSnapshot(
 ): AccountBalanceSnapshot {
     return {
         accountId: raw.account,
-        balance: raw.balance,
+        balance: amountString(raw.balance),
         tokens: (raw.tokens ?? []).map((token) => ({
             tokenId: token.token_id,
-            balance: token.balance,
+            balance: amountString(token.balance),
         })),
     };
 }
 
 export function convertAirdrop(raw: MirrorAirdrop): Airdrop {
     return {
-        amount: raw.amount,
+        amount: amountString(raw.amount),
         receiverId: raw.receiver_id,
         senderId: raw.sender_id,
         serialNumber: raw.serial_number,
@@ -573,8 +660,8 @@ export function convertCryptoAllowance(
     raw: MirrorCryptoAllowance,
 ): CryptoAllowance {
     return {
-        amount: raw.amount,
-        amountGranted: raw.amount_granted,
+        amount: amountString(raw.amount),
+        amountGranted: amountString(raw.amount_granted),
         owner: raw.owner,
         spender: raw.spender,
         timestamp: raw.timestamp,
@@ -635,7 +722,7 @@ export function convertTopicInfo(raw: MirrorTopicResponse): MirrorTopicInfo {
         feeScheduleKey: convertKey(raw.fee_schedule_key),
         customFeesCreatedTimestamp: raw.custom_fees?.created_timestamp,
         fixedFees: raw.custom_fees?.fixed_fees?.map((fee) => ({
-            amount: fee.amount,
+            amount: amountString(fee.amount),
             collectorAccountId: fee.collector_account_id,
             denominatingTokenId: fee.denominating_token_id,
         })),
@@ -677,7 +764,7 @@ export function convertNftTransaction(
 export function convertBlock(raw: MirrorBlock): Block {
     return {
         count: raw.count,
-        gasUsed: raw.gas_used,
+        gasUsed: amountNumber(raw.gas_used),
         hapiVersion: raw.hapi_version,
         hash: raw.hash,
         logsBloom: raw.logs_bloom,
@@ -698,7 +785,7 @@ export function convertHook(raw: MirrorHook): Hook {
         createdTimestamp: raw.created_timestamp,
         deleted: raw.deleted,
         extensionPoint: raw.extension_point,
-        hookId: raw.hook_id,
+        hookId: amountString(raw.hook_id),
         ownerId: raw.owner_id,
         timestampRange: raw.timestamp_range,
         type: raw.type,
@@ -793,13 +880,13 @@ export function convertContractResult(
                 : raw.authorization_list?.map((entry) => ({
                       address: entry.address,
                       chainId: entry.chain_id,
-                      nonce: entry.nonce,
+                      nonce: amountString(entry.nonce),
                       r: entry.r,
                       s: entry.s,
                       yParity: entry.y_parity,
                   })),
-        amount: raw.amount,
-        blockGasUsed: raw.block_gas_used,
+        amount: amountString(raw.amount),
+        blockGasUsed: amountNumber(raw.block_gas_used),
         blockHash: raw.block_hash,
         blockNumber: raw.block_number,
         bloom: raw.bloom,
@@ -811,10 +898,10 @@ export function convertContractResult(
         failedInitcode: raw.failed_initcode ?? undefined,
         from: raw.from,
         functionParameters: raw.function_parameters,
-        gasConsumed: raw.gas_consumed,
-        gasLimit: raw.gas_limit,
+        gasConsumed: amountNumber(raw.gas_consumed),
+        gasLimit: amountNumber(raw.gas_limit),
         gasPrice: raw.gas_price,
-        gasUsed: raw.gas_used,
+        gasUsed: amountNumber(raw.gas_used),
         hash: raw.hash,
         maxFeePerGas: raw.max_fee_per_gas,
         maxPriorityFeePerGas: raw.max_priority_fee_per_gas,
@@ -851,7 +938,7 @@ export function convertContractResultDetails(
         ...convertContractResult(raw),
         // Present on every detail response (re-required on the detail
         // types; optional on the base because LIST rows omit them).
-        blockGasUsed: raw.block_gas_used,
+        blockGasUsed: amountNumber(raw.block_gas_used),
         blockHash: raw.block_hash,
         blockNumber: raw.block_number,
         chainId: raw.chain_id,
@@ -908,8 +995,8 @@ export function convertContractAction(
         caller: raw.caller,
         callerType: raw.caller_type,
         from: raw.from,
-        gas: raw.gas,
-        gasUsed: raw.gas_used,
+        gas: amountNumber(raw.gas),
+        gasUsed: amountNumber(raw.gas_used),
         index: raw.index,
         input: raw.input,
         recipient: raw.recipient,
@@ -918,14 +1005,14 @@ export function convertContractAction(
         resultDataType: raw.result_data_type,
         timestamp: raw.timestamp,
         to: raw.to,
-        value: raw.value,
+        value: amountString(raw.value),
     };
 }
 
 export function convertStakingReward(raw: MirrorStakingReward): StakingReward {
     return {
         accountId: raw.account_id,
-        amount: raw.amount,
+        amount: amountString(raw.amount),
         timestamp: raw.timestamp,
     };
 }
@@ -966,10 +1053,10 @@ export function convertOpcodeTrace(raw: MirrorOpcodesResponse): OpcodeTrace {
         address: raw.address,
         contractId: raw.contract_id,
         failed: raw.failed,
-        gas: raw.gas,
+        gas: amountNumber(raw.gas),
         opcodes: (raw.opcodes ?? []).map((opcode) => ({
             depth: opcode.depth,
-            gas: opcode.gas,
+            gas: amountNumber(opcode.gas),
             gasCost: opcode.gas_cost,
             memory: opcode.memory,
             op: opcode.op,

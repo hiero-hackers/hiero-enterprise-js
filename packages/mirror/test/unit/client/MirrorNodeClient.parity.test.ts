@@ -52,10 +52,10 @@ describe("MirrorNodeClient parity endpoints", () => {
             expect(page.data).toEqual([
                 {
                     accountId: "0.0.2",
-                    balance: 4_999_999,
-                    tokens: [{ tokenId: "0.0.5", balance: 7 }],
+                    balance: "4999999",
+                    tokens: [{ tokenId: "0.0.5", balance: "7" }],
                 },
-                { accountId: "0.0.3", balance: 100, tokens: [] },
+                { accountId: "0.0.3", balance: "100", tokens: [] },
             ]);
         });
     });
@@ -82,7 +82,7 @@ describe("MirrorNodeClient parity endpoints", () => {
                     "?sender.id=0.0.10&token.id=0.0.99&limit=5",
             );
             expect(page.data[0]).toEqual({
-                amount: 10,
+                amount: "10",
                 receiverId: "0.0.15",
                 senderId: "0.0.10",
                 serialNumber: null,
@@ -125,8 +125,8 @@ describe("MirrorNodeClient parity endpoints", () => {
                 "https://x/api/v1/accounts/0.0.11/allowances/crypto?spender.id=0.0.15",
             );
             expect(page.data[0]).toEqual({
-                amount: 75,
-                amountGranted: 100,
+                amount: "75",
+                amountGranted: "100",
                 owner: "0.0.11",
                 spender: "0.0.15",
                 timestamp: { from: "1.0", to: null },
@@ -288,7 +288,7 @@ describe("MirrorNodeClient parity endpoints", () => {
                 customFeesCreatedTimestamp: "0.5",
                 fixedFees: [
                     {
-                        amount: 100,
+                        amount: "100",
                         collectorAccountId: "0.0.9",
                         denominatingTokenId: null,
                     },

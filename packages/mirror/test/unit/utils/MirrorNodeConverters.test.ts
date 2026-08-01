@@ -3,6 +3,7 @@ import {
     convertPage,
     convertAccountInfo,
     convertBalance,
+    convertContractResult,
     convertNft,
     convertTokenInfo,
     convertTopicMessage,
@@ -63,7 +64,7 @@ describe("convertPage", () => {
 
 describe("account converters", () => {
     it("converts a full account and defaults balance/deleted", () => {
-        expect(convertAccountInfo({ account: "0.0.1" }).balance).toBe(0);
+        expect(convertAccountInfo({ account: "0.0.1" }).balance).toBe("0");
         expect(convertAccountInfo({ account: "0.0.1" }).deleted).toBe(false);
         const full = convertAccountInfo({
             account: "0.0.2",
@@ -79,7 +80,7 @@ describe("account converters", () => {
             evmAddress: "0xabc",
             alias: "HIQQ...",
             key: { key: "k", type: "ED25519" },
-            balance: 5,
+            balance: "5",
             deleted: true,
             stakedNodeId: 3,
         });
@@ -95,7 +96,7 @@ describe("account converters", () => {
         });
         expect(balance).toEqual({
             accountId: "0.0.9",
-            hbars: "100",
+            tinybars: "100",
             tokens: [{ tokenId: "0.0.5", balance: "7", decimals: 2 }],
         });
     });
@@ -158,15 +159,16 @@ describe("token converters", () => {
             "fractional",
             "royalty",
         ]);
-        // The fraction values must survive the nested `amount` shape.
+        // The fraction values must survive the nested `amount` shape —
+        // as decimal strings: fractions are creator-chosen int64s.
         expect(token.customFees[1]).toMatchObject({
-            numerator: 1,
-            denominator: 100,
+            numerator: "1",
+            denominator: "100",
             denominatingTokenId: "0.0.5",
         });
         expect(token.customFees[2]).toMatchObject({
-            numerator: 5,
-            denominator: 100,
+            numerator: "5",
+            denominator: "100",
         });
     });
 
@@ -226,11 +228,13 @@ describe("misc converters", () => {
             staking_reward_transfers: [{ account: "0.0.1", amount: 1 }],
         });
         expect(tx.successful).toBe(true);
+        // Fees follow the same lossless string rule as transfer legs.
+        expect(tx.chargedTxFee).toBe("5");
         expect(tx.memo).toBe("hello");
         expect(tx.transfers).toHaveLength(1);
         expect(tx.tokenTransfers[0].tokenId).toBe("0.0.5");
         expect(tx.nftTransfers[0].serialNumber).toBe(1);
-        expect(tx.stakingRewardTransfers[0].amount).toBe(1);
+        expect(tx.stakingRewardTransfers[0].amount).toBe("1");
     });
 
     it("converts exchange rates and network stake", () => {
@@ -257,7 +261,7 @@ describe("misc converters", () => {
             staking_start_threshold: 25000000000000000,
             unreserved_staking_reward_balance: 0,
         });
-        expect(stake.stakeTotal).toBe(9);
+        expect(stake.stakeTotal).toBe("9");
         expect(stake.stakingPeriod).toEqual({ from: "1.0", to: "2.0" });
     });
 
@@ -331,8 +335,9 @@ describe("converter default branches", () => {
         expect(holder.decimals).toBeUndefined();
     });
 
-    it("normalizes the tokens-only numeric expiry_timestamp to a string", () => {
-        const token = convertTokenInfo({
+    // Minimal valid token; the expiry cases below vary only expiry_timestamp.
+    const expiryToken = (expiry_timestamp: number | string) =>
+        convertTokenInfo({
             token_id: "0.0.5",
             name: "T",
             symbol: "T",
@@ -342,9 +347,46 @@ describe("converter default branches", () => {
             max_supply: "0",
             treasury_account_id: "0.0.2",
             deleted: false,
-            expiry_timestamp: 1632175380000000000,
+            expiry_timestamp,
         });
-        expect(token.expirationTimestamp).toBe("1632175380.000000000");
+
+    it("normalizes a nanoseconds-string expiry_timestamp digit-exactly", () => {
+        // What production delivers since the lossless parse: 19-digit expiries
+        // arrive quoted. The value is odd and above 2^53, so any path through
+        // `Number` would corrupt it — the canonical output proves BigInt math.
+        expect(expiryToken("1632175380000000001").expirationTimestamp).toBe(
+            "1632175380.000000001",
+        );
+    });
+
+    it("still normalizes the legacy numeric expiry_timestamp form", () => {
+        // Exactly representable as a double (2^11 × odd), so safe as a literal.
+        expect(expiryToken(1632175380000000000).expirationTimestamp).toBe(
+            "1632175380.000000000",
+        );
+    });
+
+    it("passes a canonical seconds.nanoseconds expiry through unchanged", () => {
+        expect(expiryToken("1632175380.000000000").expirationTimestamp).toBe(
+            "1632175380.000000000",
+        );
+    });
+
+    it("keeps nanos non-negative for a pre-1970 numeric expiry", () => {
+        // BigInt `/` truncates toward zero — without the floor correction
+        // this would emit the malformed "-1.-500000000".
+        expect(expiryToken(-1_500_000_000).expirationTimestamp).toBe(
+            "-2.500000000",
+        );
+    });
+
+    it("does not misread a short digit-only string as nanoseconds", () => {
+        // Only 16+-digit strings can come from the lossless parse; a
+        // shorter one (a hypothetical upstream seconds-scale quoting)
+        // passes through instead of being shifted ~1e9×.
+        expect(expiryToken("1632175380").expirationTimestamp).toBe(
+            "1632175380",
+        );
     });
 
     it("defaults allCollectorsAreExempt to false when the flag is absent", () => {
@@ -389,7 +431,7 @@ describe("converter default branches", () => {
 
     it("handles an account with no balance object", () => {
         const balance = convertBalance("0.0.9", { account: "0.0.9" });
-        expect(balance.hbars).toBe("0");
+        expect(balance.tinybars).toBe("0");
         expect(balance.tokens).toEqual([]);
     });
 });
@@ -424,7 +466,7 @@ describe("convertAccountInfo — balance snapshot fields", () => {
         const balance = convertBalance("0.0.1234", raw);
         expect(account.tokenBalances).toEqual(balance.tokens);
         expect(account.balanceTimestamp).toEqual(balance.timestamp);
-        expect(String(account.balance)).toEqual(balance.hbars);
+        expect(String(account.balance)).toEqual(balance.tinybars);
     });
 
     it("reports no tokens as an empty array, not undefined", () => {
@@ -438,7 +480,7 @@ describe("convertAccountInfo — balance snapshot fields", () => {
 
     it("tolerates an account with no balance object at all", () => {
         const none = convertAccountInfo({ account: "0.0.3" });
-        expect(none.balance).toBe(0);
+        expect(none.balance).toBe("0");
         expect(none.balanceTimestamp).toBeUndefined();
         expect(none.tokenBalances).toEqual([]);
     });
@@ -508,5 +550,30 @@ describe("convertTransactionInfo — memo decoding", () => {
             memo_base64: btoa("\xff\xfe"),
         } as never);
         expect(raw.memo).toBe("\uFFFD\uFFFD");
+    });
+});
+
+describe("convertContractResult \u2014 wire-union narrowing", () => {
+    it("keeps gas a number and amount a string, whichever arm arrives", () => {
+        // The lossless parse quotes on digit count, not meaning: a
+        // 16-digit user-chosen gas limit arrives as a string and must be
+        // coerced back \u2014 gas is protocol-bounded and stays `number` \u2014
+        // while the payable amount (tinybars) follows the string rule.
+        const result = convertContractResult({
+            // String arm: a number literal at this magnitude would round
+            // in this very test file — the bug the PR exists to stop.
+            amount: "28912437152291031",
+            contract_id: "0.0.100",
+            from: "0x0",
+            gas_limit: "1000000000000000",
+            gas_used: 21_000,
+            hash: "0xabc",
+            timestamp: "1700000000.000000000",
+            to: "0x1",
+        });
+
+        expect(result.gasLimit).toBe(1_000_000_000_000_000);
+        expect(result.gasUsed).toBe(21_000);
+        expect(result.amount).toBe("28912437152291031");
     });
 });

@@ -72,7 +72,7 @@ async function transferHbar(accountService: AccountService) {
     console.log("Transferred:", result.transactionId, result.status);
 
     const balance = await accountService.getAccountBalance(receiver.accountId);
-    console.log("Receiver balance:", balance.hbars, "tinybars");
+    console.log("Receiver balance:", balance.tinybars, "tinybars");
     console.log();
 }
 
