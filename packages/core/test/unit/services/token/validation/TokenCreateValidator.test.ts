@@ -326,7 +326,10 @@ describe("TokenCreateValidator", () => {
             expect(() =>
                 validator.validate({
                     ...nftOptions,
-                    decimals: 0n as unknown as number,
+                    // Deliberately outside the declared type: the validator
+                    // must accept/reject bad runtime values from untyped JS
+                    // callers, so these tests feed it exactly those.
+                    decimals: 0n as never,
                     initialSupply: 0n,
                 }),
             ).not.toThrow();
@@ -372,7 +375,7 @@ describe("TokenCreateValidator", () => {
             expect(() =>
                 validator.validate({
                     ...nftOptions,
-                    decimals: new BigNumber(2) as unknown as number,
+                    decimals: new BigNumber(2) as never,
                 }),
             ).toThrow(/Non-fungible tokens must have decimals: 0/);
         });

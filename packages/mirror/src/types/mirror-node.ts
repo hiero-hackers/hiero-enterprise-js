@@ -12,6 +12,34 @@ export interface MirrorPageResponse<_T> {
     links?: { next: string | null };
 }
 
+/**
+ * A tinybar or token amount as it survives the lossless parse
+ * (`utils/LosslessJson.ts`): an ordinary `number` when the wire value was
+ * left unquoted, a decimal `string` when the parse quoted it to preserve
+ * precision (all bare integers of 16+ digits — a conservative bound, since
+ * 2^53 is 16 digits; live mainnet balances already exceed it, see #136).
+ * Converters normalise both arms to `string` on the public surface —
+ * except protocol-bounded magnitudes (gas), which narrow back to `number`.
+ *
+ * Which numeric wire fields take this union: any value that is
+ * user-chosen (gas limits, hook ids, fee fractions, authorization
+ * nonces) or grows with holdings (balances, amounts, fees charged) —
+ * those can genuinely cross the 16-digit quote threshold. On the public
+ * surface, values whose full uint64 range is legitimate data surface as
+ * strings; gas-family fields narrow back to `number` via `amountNumber`
+ * (utils/Units.ts), which converts exactly up to 2^53−1 and throws a
+ * typed error beyond — gas past 2^53 cannot pass the network's gas
+ * throttle, so a loud failure beats a silent type-lie. Monotonic network
+ * counters (serial numbers, sequence numbers, block numbers) and
+ * network-computed fee quotes stay plain `number`: reaching 16 digits
+ * there is not physically plausible, so a quoted value would mean a
+ * broken upstream — rejected by the schema validators where those fields
+ * are asserted, surfaced as a type mismatch to the consumer elsewhere.
+ * The amount/counter line is machine-enforced against the vendored spec
+ * by `spec/diff-response-fields.mjs`.
+ */
+export type MirrorAmount = number | string;
+
 export interface MirrorAccountResponse {
     account: string;
     alias?: string;
@@ -27,7 +55,7 @@ export interface MirrorAccountResponse {
     key?: { key: string; _type?: string };
     balance?: {
         timestamp?: string | null;
-        balance: number;
+        balance: MirrorAmount;
         tokens: MirrorTokenBalance[];
     };
     deleted?: boolean;
@@ -41,20 +69,20 @@ export interface MirrorAccountResponse {
     expiry_timestamp?: string;
     decline_reward?: boolean;
     ethereum_nonce?: number | null;
-    pending_reward?: number;
+    pending_reward?: MirrorAmount;
     receiver_sig_required?: boolean | null;
 }
 
 export interface MirrorTokenBalance {
     token_id: string;
-    balance: number;
+    balance: MirrorAmount;
     decimals: number;
 }
 
 /** A single entry in the raw `/api/v1/tokens/{id}/balances` response. */
 export interface MirrorTokenHolderBalance {
     account: string;
-    balance: number;
+    balance: MirrorAmount;
     decimals?: number | null;
 }
 
@@ -70,11 +98,11 @@ export interface MirrorNetworkNode {
     node_id: number;
     node_account_id: string;
     description: string;
-    stake: number;
-    min_stake: number;
-    max_stake: number;
-    stake_rewarded: number;
-    stake_not_rewarded: number;
+    stake: MirrorAmount;
+    min_stake: MirrorAmount;
+    max_stake: MirrorAmount;
+    stake_rewarded: MirrorAmount;
+    stake_not_rewarded: MirrorAmount;
     admin_key?: { key: string; _type?: string } | null;
     associated_registered_nodes?: number[];
     decline_reward?: boolean | null;
@@ -83,7 +111,7 @@ export interface MirrorNetworkNode {
     memo?: string | null;
     node_cert_hash?: string | null;
     public_key?: string | null;
-    reward_rate_start?: number | null;
+    reward_rate_start?: MirrorAmount | null;
     service_endpoints?: MirrorServiceEndpoint[];
     staking_period?: MirrorTimestampRange | null;
     timestamp?: MirrorTimestampRange;
@@ -92,7 +120,7 @@ export interface MirrorNetworkNode {
 /** A single entry in the raw `/api/v1/accounts/{id}/tokens` response. */
 export interface MirrorAccountTokenBalance {
     token_id: string;
-    balance: number;
+    balance: MirrorAmount;
     decimals?: number | null;
     automatic_association?: boolean | null;
     created_timestamp?: string | null;
@@ -110,6 +138,24 @@ export interface MirrorNft {
     deleted: boolean;
     delegating_spender?: string;
     spender?: string;
+}
+
+/**
+ * A single row in the raw `/api/v1/tokens` listing. The list endpoint
+ * serves a seven-field summary, NOT the detail shape: `decimals` is a
+ * bare integer here (the detail endpoint quotes it as a string), and
+ * the supply/treasury/fee fields are absent entirely — reusing
+ * `MirrorTokenResponse` for these rows would silently `undefined` its
+ * required fields.
+ */
+export interface MirrorTokenListRow {
+    admin_key: { key: string; _type?: string } | null;
+    decimals: number;
+    metadata?: string;
+    name: string;
+    symbol: string;
+    token_id: string;
+    type: string;
 }
 
 export interface MirrorTokenResponse {
@@ -141,10 +187,11 @@ export interface MirrorTokenResponse {
      * Upstream wart (documented in the mirror node's own V2-API notes):
      * tokens return this as epoch NANOSECONDS as a JSON number — unlike
      * the `seconds.nanoseconds` strings everywhere else. Values exceed
-     * MAX_SAFE_INTEGER, so JSON.parse has already rounded to ~512ns
-     * granularity by the time we see it.
+     * MAX_SAFE_INTEGER; the lossless parse (`utils/LosslessJson.ts`)
+     * delivers them as exact strings, where plain JSON.parse used to
+     * round to ~512ns granularity.
      */
-    expiry_timestamp?: number | string;
+    expiry_timestamp?: number | string | null;
     memo?: string;
     auto_renew_account?: string | null;
     auto_renew_period?: number | null;
@@ -157,16 +204,17 @@ export interface MirrorTokenResponse {
 }
 
 export interface MirrorFixedFeeRaw {
-    amount: number;
+    amount: MirrorAmount;
     collector_account_id: string;
     denominating_token_id?: string;
     all_collectors_are_exempt?: boolean;
 }
 
 export interface MirrorFractionalFeeRaw {
-    amount?: { numerator: number; denominator: number };
-    minimum?: number;
-    maximum?: number | null;
+    /** Creator-chosen int64s — any magnitude is legal, so MirrorAmount. */
+    amount?: { numerator: MirrorAmount; denominator: MirrorAmount };
+    minimum?: MirrorAmount;
+    maximum?: MirrorAmount | null;
     net_of_transfers?: boolean;
     collector_account_id: string;
     denominating_token_id?: string | null;
@@ -174,9 +222,10 @@ export interface MirrorFractionalFeeRaw {
 }
 
 export interface MirrorRoyaltyFeeRaw {
-    amount?: { numerator: number; denominator: number };
+    /** Creator-chosen int64s — any magnitude is legal, so MirrorAmount. */
+    amount?: { numerator: MirrorAmount; denominator: MirrorAmount };
     fallback_fee?: {
-        amount: number;
+        amount: MirrorAmount;
         denominating_token_id?: string | null;
     } | null;
     collector_account_id: string;
@@ -208,7 +257,7 @@ export interface MirrorTopicMessageRaw {
 
 /** A custom fee actually charged by a transaction. */
 export interface MirrorAssessedCustomFee {
-    amount: number;
+    amount: MirrorAmount;
     collector_account_id: string | null;
     effective_payer_account_ids: string[];
     token_id: string | null;
@@ -217,7 +266,7 @@ export interface MirrorAssessedCustomFee {
 /** A HIP-18 custom fee limit attached to a transaction. */
 export interface MirrorCustomFeeLimit {
     account_id: string | null;
-    amount: number;
+    amount: MirrorAmount;
     denominating_token_id: string | null;
 }
 
@@ -227,7 +276,7 @@ export interface MirrorTransaction {
     result: string;
     consensus_timestamp: string;
     valid_start_timestamp: string;
-    charged_tx_fee: number;
+    charged_tx_fee: MirrorAmount;
     memo_base64?: string;
     transfers: MirrorTransfer[];
     token_transfers: MirrorTokenTransfer[];
@@ -251,14 +300,14 @@ export interface MirrorTransaction {
 
 export interface MirrorTransfer {
     account: string;
-    amount: number;
+    amount: MirrorAmount;
     is_approval: boolean;
 }
 
 export interface MirrorTokenTransfer {
     token_id: string;
     account: string;
-    amount: number;
+    amount: MirrorAmount;
     is_approval?: boolean;
 }
 
@@ -272,7 +321,7 @@ export interface MirrorNftTransfer {
 
 export interface MirrorStakingRewardTransfer {
     account: string;
-    amount: number;
+    amount: MirrorAmount;
 }
 
 export interface MirrorTransactionListResponse {
@@ -298,27 +347,27 @@ export interface MirrorNetworkSupplyResponse {
 }
 
 export interface MirrorNetworkStakeResponse {
-    max_stake_rewarded: number;
-    max_staking_reward_rate_per_hbar: number;
-    max_total_reward: number;
+    max_stake_rewarded: MirrorAmount;
+    max_staking_reward_rate_per_hbar: MirrorAmount;
+    max_total_reward: MirrorAmount;
     node_reward_fee_fraction: number;
-    reserved_staking_rewards: number;
-    reward_balance_threshold: number;
-    stake_total: number;
+    reserved_staking_rewards: MirrorAmount;
+    reward_balance_threshold: MirrorAmount;
+    stake_total: MirrorAmount;
     staking_period: { from: string; to: string } | null;
     staking_period_duration: number;
     staking_periods_stored: number;
     staking_reward_fee_fraction: number;
-    staking_reward_rate: number;
-    staking_start_threshold: number;
-    unreserved_staking_reward_balance: number;
+    staking_reward_rate: MirrorAmount;
+    staking_start_threshold: MirrorAmount;
+    unreserved_staking_reward_balance: MirrorAmount;
 }
 
 /** A single entry in the raw `/api/v1/balances` snapshot response. */
 export interface MirrorAccountBalanceSnapshot {
     account: string;
-    balance: number;
-    tokens?: Array<{ token_id: string; balance: number }>;
+    balance: MirrorAmount;
+    tokens?: Array<{ token_id: string; balance: MirrorAmount }>;
 }
 
 /** Raw timestamp range: `to` is null while the record is current. */
@@ -329,7 +378,7 @@ export interface MirrorTimestampRange {
 
 /** A single entry in the raw airdrop listings. */
 export interface MirrorAirdrop {
-    amount: number;
+    amount: MirrorAmount;
     receiver_id: string;
     sender_id: string;
     serial_number: number | null;
@@ -339,8 +388,8 @@ export interface MirrorAirdrop {
 
 /** A single entry in the raw crypto-allowance listing. */
 export interface MirrorCryptoAllowance {
-    amount: number;
-    amount_granted: number;
+    amount: MirrorAmount;
+    amount_granted: MirrorAmount;
     owner: string;
     spender: string;
     timestamp: MirrorTimestampRange;
@@ -393,7 +442,7 @@ export interface MirrorTopicResponse {
     custom_fees?: {
         created_timestamp?: string;
         fixed_fees?: Array<{
-            amount: number;
+            amount: MirrorAmount;
             collector_account_id: string;
             denominating_token_id: string | null;
         }>;
@@ -427,7 +476,7 @@ export interface MirrorNftTransaction {
 /** A single entry in the raw `/api/v1/blocks` response. */
 export interface MirrorBlock {
     count: number;
-    gas_used: number | null;
+    gas_used: MirrorAmount | null;
     hapi_version: string | null;
     hash: string;
     logs_bloom: string | null;
@@ -445,7 +494,8 @@ export interface MirrorHook {
     created_timestamp: string | null;
     deleted: boolean;
     extension_point: string;
-    hook_id: number;
+    /** Owner-chosen int64 id — user-chosen, so it can reach 16+ digits. */
+    hook_id: MirrorAmount;
     owner_id: string | null;
     timestamp_range: MirrorTimestampRange;
     type: string;
@@ -522,7 +572,12 @@ export interface MirrorAccessListEntry {
 export interface MirrorAuthorizationListEntry {
     address: string;
     chain_id: string;
-    nonce: number;
+    /**
+     * Signed by an arbitrary third party and recorded verbatim — an
+     * authorization tuple's nonce is whatever its signer put there, so
+     * any uint64 is *valid data* here, not a broken upstream.
+     */
+    nonce: MirrorAmount;
     r: string;
     s: string;
     y_parity: string;
@@ -541,8 +596,8 @@ export interface MirrorContractResult {
     access_list?: MirrorAccessListEntry[] | null;
     address?: string;
     authorization_list?: MirrorAuthorizationListEntry[] | null;
-    amount: number | null;
-    block_gas_used?: number | null;
+    amount: MirrorAmount | null;
+    block_gas_used?: MirrorAmount | null;
     block_hash?: string | null;
     block_number?: number | null;
     bloom?: string | null;
@@ -554,10 +609,10 @@ export interface MirrorContractResult {
     failed_initcode?: string | null;
     from: string | null;
     function_parameters?: string | null;
-    gas_consumed?: number | null;
-    gas_limit: number;
+    gas_consumed?: MirrorAmount | null;
+    gas_limit: MirrorAmount;
     gas_price?: string | null;
-    gas_used: number | null;
+    gas_used: MirrorAmount | null;
     hash: string;
     max_fee_per_gas?: string | null;
     max_priority_fee_per_gas?: string | null;
@@ -595,7 +650,7 @@ export interface MirrorContractStateChange {
 /** Raw detailed contract result (single-result endpoints). */
 export interface MirrorContractResultDetails extends MirrorContractResult {
     // Detail responses always carry the fields the list omits.
-    block_gas_used: number | null;
+    block_gas_used: MirrorAmount | null;
     block_hash: string | null;
     block_number: number | null;
     chain_id: string | null;
@@ -638,8 +693,8 @@ export interface MirrorContractAction {
     caller: string | null;
     caller_type: string;
     from: string;
-    gas: number;
-    gas_used: number;
+    gas: MirrorAmount;
+    gas_used: MirrorAmount;
     index: number;
     input: string | null;
     recipient: string | null;
@@ -648,13 +703,13 @@ export interface MirrorContractAction {
     result_data_type: string;
     timestamp: string;
     to: string | null;
-    value: number;
+    value: MirrorAmount;
 }
 
 /** A single opcode step in the raw opcode trace response. */
 export interface MirrorOpcode {
     depth: number;
-    gas: number;
+    gas: MirrorAmount;
     gas_cost: number;
     memory: string[] | null;
     op: string;
@@ -669,7 +724,7 @@ export interface MirrorOpcodesResponse {
     address: string;
     contract_id: string | null;
     failed: boolean;
-    gas: number;
+    gas: MirrorAmount;
     opcodes: MirrorOpcode[];
     return_value: string;
 }
@@ -682,7 +737,7 @@ export interface MirrorContractCallResponse {
 /** A single entry in the raw `/api/v1/accounts/{id}/rewards` response. */
 export interface MirrorStakingReward {
     account_id: string | null;
-    amount: number;
+    amount: MirrorAmount;
     timestamp: string;
 }
 

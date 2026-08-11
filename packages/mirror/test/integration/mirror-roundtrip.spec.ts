@@ -68,7 +68,9 @@ describe.skipIf(!hasEnvironment)("mirror round-trips [Integration]", () => {
             `account ${operatorId}`,
         );
         expect(account.accountId).toBe(operatorId);
-        expect(account.balance).toBeGreaterThan(0);
+        // `balance` is a decimal string (#136) — compare as BigInt, which is
+        // exact at any magnitude.
+        expect(BigInt(account.balance)).toBeGreaterThan(0n);
     });
 
     it("round-trips a topic: create + submit → messages", async () => {

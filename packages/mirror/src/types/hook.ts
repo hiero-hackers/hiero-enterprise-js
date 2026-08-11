@@ -15,8 +15,12 @@ export interface Hook {
     deleted: boolean;
     /** The extension point this hook implements, e.g. `ACCOUNT_ALLOWANCE_HOOK` */
     extensionPoint: string;
-    /** The hook's identifier within the owner's scope */
-    hookId: number;
+    /**
+     * The hook's identifier within the owner's scope — a decimal string:
+     * hook ids are owner-chosen int64s, so they can exceed 2^53. Ids are
+     * compared, never computed with, so the string costs nothing.
+     */
+    hookId: string;
     /** The account that owns the hook */
     ownerId: string | null;
     /** Validity range; `to` is null while the hook is current */

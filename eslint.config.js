@@ -52,6 +52,9 @@ export default defineConfig(
         files: ["**/*.{js,ts}"],
         rules: {
             // Disable base rule in favour of TypeScript-aware version
+            // (the base rule misreads TS function overloads as redeclarations)
+            "no-redeclare": "off",
+            "@typescript-eslint/no-redeclare": "error",
             "no-unused-vars": "off",
             // Allow unused vars when prefixed with _
             "@typescript-eslint/no-unused-vars": [

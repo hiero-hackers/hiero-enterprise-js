@@ -67,8 +67,13 @@ export type EntityIdFilter = string | readonly string[] | RangeFilter<string>;
  * bounds. Amounts are in the smallest unit: **tinybars** for HBAR balances
  * on `/api/v1/accounts`, the token's smallest denomination for
  * `/api/v1/tokens/{id}/balances`.
+ *
+ * Decimal strings are accepted alongside numbers so thresholds compose
+ * with the exact string builders (`hbarToTinybar`, `parseUnits`) and the
+ * string amount fields — a whale-sized threshold above 2^53 cannot be
+ * expressed as a `number` without rounding.
  */
-export type BalanceFilter = number | RangeFilter<number>;
+export type BalanceFilter = number | string | RangeFilter<number | string>;
 
 /**
  * Options for a single-account lookup (`/api/v1/accounts/{id}`).

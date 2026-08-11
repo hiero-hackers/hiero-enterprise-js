@@ -46,7 +46,7 @@ describe("AccountBalanceQuery (via AccountService)", () => {
             const balance = await service.getAccountBalance("0.0.999");
 
             expect(balance.accountId).toBe("0.0.999");
-            expect(balance.hbars).toBe("1000000");
+            expect(balance.tinybars).toBe("1000000");
             expect(balance.tokens).toEqual([]);
         });
     });
@@ -56,7 +56,7 @@ describe("AccountBalanceQuery (via AccountService)", () => {
             const balance = await service.getOperatorAccountBalance();
 
             expect(balance.accountId).toBe("0.0.2");
-            expect(balance.hbars).toBe("1000000");
+            expect(balance.tinybars).toBe("1000000");
         });
     });
 });

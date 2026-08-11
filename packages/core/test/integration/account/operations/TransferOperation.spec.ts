@@ -39,12 +39,12 @@ describe("TransferOperation [Integration]", () => {
             const receiver = await createTestAccount(client, 0);
 
             const before = await client.getAccountBalance(receiver.accountId);
-            const beforeTinybars = BigInt(before.hbars);
+            const beforeTinybars = BigInt(before.tinybars);
 
             await client.transferHbar(receiver.accountId, 1, operatorAccountId);
 
             const after = await client.getAccountBalance(receiver.accountId);
-            const afterTinybars = BigInt(after.hbars);
+            const afterTinybars = BigInt(after.tinybars);
 
             // Receiver pays no fees — balance increases by exactly the transfer
             expect(afterTinybars - beforeTinybars).toBe(100_000_000n);
@@ -55,14 +55,14 @@ describe("TransferOperation [Integration]", () => {
             const receiver = await createTestAccount(client, 0);
 
             const before = await client.getAccountBalance(receiver.accountId);
-            const beforeTinybars = BigInt(before.hbars);
+            const beforeTinybars = BigInt(before.tinybars);
 
             await client.transferHbar(receiver.accountId, 1, sender.accountId, {
                 additionalSigners: [sender.key],
             });
 
             const after = await client.getAccountBalance(receiver.accountId);
-            const afterTinybars = BigInt(after.hbars);
+            const afterTinybars = BigInt(after.tinybars);
 
             expect(afterTinybars - beforeTinybars).toBe(100_000_000n);
         });

@@ -1,4 +1,8 @@
-import { MirrorError, MirrorErrorCodes } from "../errors/MirrorError.js";
+import {
+    MirrorError,
+    MirrorErrorCodes,
+    describeValue,
+} from "../errors/MirrorError.js";
 import type {
     MirrorAccountResponse,
     MirrorExchangeRatesResponse,
@@ -110,7 +114,11 @@ export function assertNetworkStakeResponse(
     path: string,
 ): asserts raw is MirrorNetworkStakeResponse {
     assertObject(raw, path);
-    assertField(raw, "max_stake_rewarded", "number", path);
+    // A `MirrorAmount`: the lossless parse delivers it as a string whenever
+    // the wire value has 16+ digits — which mainnet's does today
+    // (max_stake_rewarded ≈ 6.5e17). Asserting "number" here would reject
+    // every mainnet /network/stake response.
+    assertAmountField(raw, "max_stake_rewarded", path);
 }
 
 export function assertScheduleResponse(
@@ -212,7 +220,49 @@ function assertField(
     if (typeof value !== expectedType) {
         throw mismatch(
             `${path}.${field}`,
-            `expected ${expectedType}, got ${typeof value}`,
+            `expected ${expectedType}, got ${describeValue(value)}`,
+        );
+    }
+}
+
+/**
+ * Assert a `MirrorAmount` field, with the same both-arms invariant the
+ * normalisers (`amountString`/`amountNumber` in utils/Units.ts) enforce —
+ * a value passes only if its exactness is provable:
+ *
+ * - number arm: must be a *safe* integer (`Number.isSafeInteger`, which
+ *   also rules out `NaN`/`Infinity`). A fractional `1.5` is valid JSON
+ *   and must not pass — and neither must an integer-valued `1e20`: the
+ *   lossless parse only protects bare integer literals, so a number
+ *   at/past 2^53 could only have arrived through a form JSON.parse
+ *   already rounded.
+ * - string arm: must be all digits (sign allowed — transfer debit legs
+ *   are negative), regardless of who quoted it: the lossless parse
+ *   (`utils/LosslessJson.ts`) quotes 16+-digit wire integers, and the
+ *   mirror node itself quotes some amounts at the source (e.g.
+ *   `/network/supply`), which the parse passes through unchanged. Either
+ *   way an amount slot holds a decimal integer, so unlike the free-text
+ *   `assertField` checks the string's *content* is part of the schema —
+ *   any non-digit string means the payload itself was malformed.
+ *
+ * Keeping validator and normaliser in lockstep means a bad value fails
+ * here, at the schema boundary with a field path — not one step later
+ * inside a converter.
+ */
+function assertAmountField(
+    obj: Record<string, unknown>,
+    field: string,
+    path: string,
+): void {
+    const value: unknown = Reflect.get(obj, field);
+    const isWholeAmount =
+        typeof value === "number"
+            ? Number.isSafeInteger(value)
+            : typeof value === "string" && /^-?\d+$/.test(value);
+    if (!isWholeAmount) {
+        throw mismatch(
+            `${path}.${field}`,
+            `expected a whole amount (safe integer, or digit string), got ${describeValue(value)}`,
         );
     }
 }

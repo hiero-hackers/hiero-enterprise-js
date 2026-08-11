@@ -27,7 +27,7 @@ export class AccountBalanceQuery {
 
             return {
                 accountId: accountId.toString(),
-                hbars: balance.hbars.toTinybars().toString(),
+                tinybars: balance.hbars.toTinybars().toString(),
                 tokens,
             };
         } catch (error) {

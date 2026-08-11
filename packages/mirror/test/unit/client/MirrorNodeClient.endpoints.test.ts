@@ -59,17 +59,18 @@ describe("MirrorNodeClient remaining endpoints", () => {
             .spyOn(globalThis, "fetch")
             .mockResolvedValueOnce(
                 jsonResponse({
+                    // The REAL list-row shape: seven fields, integer
+                    // decimals — not the detail response (string
+                    // decimals, supply/treasury fields).
                     tokens: [
                         {
-                            token_id: "0.0.5",
+                            admin_key: null,
+                            decimals: 2,
+                            metadata: "",
                             name: "T",
                             symbol: "T",
+                            token_id: "0.0.5",
                             type: "FUNGIBLE_COMMON",
-                            decimals: "2",
-                            total_supply: "1",
-                            max_supply: "0",
-                            treasury_account_id: "0.0.2",
-                            deleted: false,
                         },
                     ],
                     links: { next: null },
@@ -197,7 +198,7 @@ describe("MirrorNodeClient remaining endpoints", () => {
             );
 
         const info = await client.queryAccount("0.0.1");
-        expect(info.balance).toBe(1);
+        expect(info.balance).toBe("1");
         expect(spy).toHaveBeenCalledTimes(3);
     });
 

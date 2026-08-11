@@ -101,8 +101,17 @@ describe("field-drift guard: account", () => {
         key: { key: "ACCT_KEY_HEX", _type: "ED25519" },
         balance: {
             timestamp: "1700000000.111111111",
-            balance: 424242001,
-            tokens: [{ token_id: "0.0.7770", balance: 5501, decimals: 3302 }],
+            // Amount sentinels are odd values past 2^53, as the lossless
+            // parse delivers them (strings) — so the guard also proves the
+            // converters carry whale-scale amounts digit-exactly.
+            balance: "31869085891081369",
+            tokens: [
+                {
+                    token_id: "0.0.7770",
+                    balance: "28912437152291031",
+                    decimals: 3302,
+                },
+            ],
         },
         deleted: false,
         auto_renew_period: 7776001,
@@ -115,7 +124,7 @@ describe("field-drift guard: account", () => {
         expiry_timestamp: "1800000000.444444444",
         decline_reward: true,
         ethereum_nonce: 30001,
-        pending_reward: 990001,
+        pending_reward: "75429753064560425",
         receiver_sig_required: true,
     };
 

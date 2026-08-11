@@ -132,7 +132,8 @@ describe("HieroContext", () => {
 
         it("supports custom network with networkNodes only (no mirrorNodeUrl)", () => {
             // Custom SDK client only needs consensus node addresses;
-            // mirrorNodeUrl is a REST concern handled by the factory.
+            // the mirror node URL is a REST concern handled by the factory
+            // (HieroConfig deliberately has no mirrorNodeUrl key).
             const ctx = new HieroContext({
                 ...validConfig,
                 network: "local",

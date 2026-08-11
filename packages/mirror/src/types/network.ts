@@ -45,15 +45,15 @@ export interface NetworkNode {
     /** Node operator description, e.g. "Hosted by X | City" */
     description: string;
     /** Current effective stake in tinybars */
-    stake: number;
+    stake: string;
     /** Minimum stake for the node to be eligible for rewards, in tinybars */
-    minStake: number;
+    minStake: string;
     /** Maximum stake considered for rewards, in tinybars */
-    maxStake: number;
+    maxStake: string;
     /** Stake that is eligible for rewards, in tinybars */
-    stakeRewarded: number;
+    stakeRewarded: string;
     /** Stake that declines rewards, in tinybars */
-    stakeNotRewarded: number;
+    stakeNotRewarded: string;
     /** The node's admin key, if readable */
     adminKey?: MirrorKey;
     /** Registered node IDs associated with this consensus node */
@@ -71,7 +71,7 @@ export interface NetworkNode {
     /** Hex X509 RSA public key used to verify stream signatures */
     publicKey?: string | null;
     /** Tinybars earned per whole hbar staked in the last period */
-    rewardRateStart?: number | null;
+    rewardRateStart?: string | null;
     /** Endpoints the node serves */
     serviceEndpoints?: ServiceEndpoint[];
     /** The staking period the stake figures describe */
@@ -143,19 +143,19 @@ export interface RegisteredNode {
  */
 export interface NetworkStake {
     /** Maximum stake rewarded in tinybars */
-    maxStakeRewarded: number;
+    maxStakeRewarded: string;
     /** Maximum staking reward rate per HBAR */
-    maxStakingRewardRatePerHbar: number;
+    maxStakingRewardRatePerHbar: string;
     /** Maximum total reward in tinybars */
-    maxTotalReward: number;
-    /** Threshold for minimum node stake */
+    maxTotalReward: string;
+    /** Fraction (0–1) of network+service fees paid to the node reward account 0.0.801 */
     nodeRewardFeeFraction: number;
     /** Reserved staking rewards in tinybars */
-    reservedStakingRewards: number;
+    reservedStakingRewards: string;
     /** Reward balance threshold */
-    rewardBalanceThreshold: number;
-    /** Total stake rewarded */
-    stakeTotal: number;
+    rewardBalanceThreshold: string;
+    /** Total stake to the network in tinybars at the start of the current staking period */
+    stakeTotal: string;
     /** The current staking period's bounds (consensus timestamps) */
     stakingPeriod: StakingPeriod | null;
     /** Staking period duration in minutes */
@@ -165,11 +165,11 @@ export interface NetworkStake {
     /** Fraction (0–1) of fees paid to the staking reward account 0.0.800 */
     stakingRewardFeeFraction: number;
     /** Total tinybars distributed as staking rewards each period */
-    stakingRewardRate: number;
+    stakingRewardRate: string;
     /** Minimum 0.0.800 balance required to activate rewards */
-    stakingStartThreshold: number;
+    stakingStartThreshold: string;
     /** Unreserved staking reward balance */
-    unreservedStakingRewardBalance: number;
+    unreservedStakingRewardBalance: string;
 }
 
 /**
@@ -192,7 +192,7 @@ export interface StakingReward {
     /** The rewarded account */
     accountId: string | null;
     /** The reward amount in tinybars */
-    amount: number;
+    amount: string;
     /** When the reward was paid */
     timestamp: string;
 }

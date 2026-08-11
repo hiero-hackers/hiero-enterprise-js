@@ -9,12 +9,17 @@
  * response fields the spec defines that the raw types don't carry (converters
  * silently drop unknown fields, so gaps here mean data consumers can't reach).
  *
- * Three checks:
+ * Four checks:
  *  1. Reachability — every structural schema reachable from a 200/206
  *     response must be mapped, a known wrapper, or explicitly ignored.
  *  2. Named-pair field diff (spec schema ↔ raw interface).
  *  3. Inline-schema diff for item shapes the spec doesn't name
  *     (transaction transfer legs).
+ *  4. int64 classification — every spec `type: integer, format: int64`
+ *     response field must be typed `MirrorAmount` (the lossless parse can
+ *     quote it) or appear in the COUNTERS allowlist with a reason. This
+ *     mechanizes the amount/counter line documented on `MirrorAmount`, so
+ *     the #136 bug class cannot be reintroduced by a new field.
  */
 import { parse } from "yaml";
 import { readFileSync } from "node:fs";
@@ -60,10 +65,26 @@ const parsed = new Map(
                 name[1],
                 {
                     parent: parent?.[1],
+                    // Raw body text, for interface-SCOPED regex checks:
+                    // a whole-source regex can be satisfied by a match in
+                    // a *different* interface (aliasing), silently
+                    // blessing a regression in the one it names.
+                    body,
                     own: new Set(
                         [...body.matchAll(/^\s{4}([a-z_0-9]+)\??:/gm)].map(
                             (key) => key[1],
                         ),
+                    ),
+                    // Field → declared type text, for the int64 check.
+                    // Multi-line (inline-object) types capture garbage,
+                    // which is fine: the spec types those as objects, so
+                    // the int64 check never consults them.
+                    ownTypes: new Map(
+                        [
+                            ...body.matchAll(
+                                /^\s{4}([a-z_0-9]+)\??:\s*([^;]+);/gm,
+                            ),
+                        ].map((m) => [m[1], m[2]]),
                     ),
                 },
             ];
@@ -77,6 +98,15 @@ const interfaces = new Map(
         return [name, keys];
     }),
 );
+const interfaceTypes = new Map(
+    [...parsed.keys()].map((name) => {
+        const types = new Map();
+        for (let cur = name; cur; cur = parsed.get(cur)?.parent)
+            for (const [key, text] of parsed.get(cur)?.ownTypes ?? [])
+                if (!types.has(key)) types.set(key, text);
+        return [name, types];
+    }),
+);
 
 /** Spec schema → raw interface (`extends` chains are resolved). */
 const PAIRS = [
@@ -87,7 +117,9 @@ const PAIRS = [
     ["AssessedCustomFee", "MirrorAssessedCustomFee"],
     ["CustomFeeLimit", "MirrorCustomFeeLimit"],
     ["StakingRewardTransfer", "MirrorStakingRewardTransfer"],
-    ["Token", "MirrorTokenResponse"],
+    // The list schema is a 7-field summary with integer decimals — a
+    // DIFFERENT shape from TokenInfo (string decimals, supply fields).
+    ["Token", "MirrorTokenListRow"],
     ["TokenInfo", "MirrorTokenResponse"],
     ["TokenBalance", "MirrorTokenBalance"],
     ["TokenRelationship", "MirrorAccountTokenBalance"],
@@ -258,24 +290,35 @@ for (const [schema, iface] of PAIRS) {
 }
 
 // ── 3 · inline item shapes ──────────────────────────────────────
+// Shapes the spec doesn't name (or names as a bare array schema, which
+// check 1's `hasProps` cannot see — TokenDistribution is the original
+// #136 whale-balance listing and must not escape).
 const transaction = schemas.get("Transaction").properties;
-for (const [leg, items, iface] of [
-    ["transfers", transaction.transfers.items, "MirrorTransfer"],
+const INLINE_ITEMS = [
+    ["Transaction.transfers", transaction.transfers.items, "MirrorTransfer"],
     [
-        "token_transfers",
+        "Transaction.token_transfers",
         transaction.token_transfers.items,
         "MirrorTokenTransfer",
     ],
-    ["nft_transfers", transaction.nft_transfers.items, "MirrorNftTransfer"],
-]) {
+    [
+        "Transaction.nft_transfers",
+        transaction.nft_transfers.items,
+        "MirrorNftTransfer",
+    ],
+    [
+        "TokenDistribution[]",
+        schemas.get("TokenDistribution").items,
+        "MirrorTokenHolderBalance",
+    ],
+];
+for (const [label, items, iface] of INLINE_ITEMS) {
     const specFields = props(items);
     const rawFields = interfaces.get(iface);
     const missing = [...specFields].filter((f) => !rawFields.has(f)).sort();
     if (missing.length) {
         gaps += missing.length;
-        console.log(
-            `● Transaction.${leg} → ${iface}: missing ${missing.join(", ")}`,
-        );
+        console.log(`● ${label} → ${iface}: missing ${missing.join(", ")}`);
     }
 }
 
@@ -284,4 +327,259 @@ console.log(
         ? "✓ field diff: 0 spec response fields missing from raw types"
         : `✖ ${gaps} spec response fields missing from raw types`,
 );
-process.exitCode = gaps === 0 && unaccounted.length === 0 ? 0 : 1;
+
+// ── 4 · int64 classification ────────────────────────────────────
+// The #136 bug class: the lossless parse quotes ANY bare integer of 16+
+// digits, so every spec int64 response field can arrive as a string. A
+// field typed plain `number` is therefore a latent type-lie — unless it
+// is a monotonic counter or network-computed quote that cannot plausibly
+// reach 16 digits, recorded here WITH ITS REASON. A ✖ from this check
+// means: classify the new field, deliberately.
+const COUNTERS = new Map([
+    ["serial_number", "monotonic per-token mint counter"],
+    ["sequence_number", "monotonic per-topic message counter"],
+    ["nonce", "account/contract transaction counter, network-incremented"],
+    ["ethereum_nonce", "account transaction counter, network-incremented"],
+    ["node_id", "small node identifier"],
+    ["registered_node_id", "small node identifier"],
+    ["staked_node_id", "small node identifier (or -1 when unset)"],
+    ["staking_period_duration", "network config, minutes"],
+    ["staking_periods_stored", "network config, small count"],
+    ["expiration_time", "epoch seconds — 10 digits until year ~33658"],
+    ["auto_renew_period", "seconds duration, network-validated (~90 days)"],
+    ["decimals", "token decimal places, protocol-bounded"],
+    ["block_number", "monotonic block counter"],
+    ["transaction_index", "position within a block, small"],
+    // Two distinct fields, one per schema: FeeEstimateResponse carries
+    // high_volume_multiplier, Transaction carries the _pricing_ variant.
+    ["high_volume_multiplier", "small network-set multiplier"],
+    ["high_volume_pricing_multiplier", "small network-set multiplier"],
+    ["gas_cost", "static per-opcode cost from the EVM fee table"],
+    ["count", "usage count"],
+    ["included", "usage count covered by the base fee"],
+    ["total", "network-computed fee quote, tinycents"],
+    ["charged", "network-computed fee quote, tinycents"],
+    ["fee_per_unit", "network-computed fee quote, tinycents"],
+    ["subtotal", "network-computed fee quote, tinycents"],
+    ["base", "network-computed fee quote, tinycents"],
+    // Qualified entries — the reason binds to ONE schema's field.
+    [
+        "TokenInfo.expiry_timestamp",
+        "epoch nanos as number|string union — the string arm is the lossless quote, normalized digit-exact by normalizeTokenExpiry",
+    ],
+]);
+
+/**
+ * Spec int64 test, OpenAPI-3.1-aware: nullable fields carry
+ * `type: ["integer", "null"]`, and a plain `!== "integer"` comparison
+ * silently skips every one of them — which is how amounts/stakes once
+ * escaped this check entirely.
+ */
+const isInt64 = (prop) => {
+    const types = Array.isArray(prop.type) ? prop.type : [prop.type];
+    return types.includes("integer") && prop.format === "int64";
+};
+
+/** A property's effective scalar schema, `$ref`s resolved. */
+function typedProps(node) {
+    const out = new Map();
+    const walk = (n) => {
+        if (!n) return;
+        if (n.$ref) return walk(schemas.get(n.$ref.split("/").pop()));
+        for (const sub of n.allOf ?? []) walk(sub);
+        for (const [key, prop] of Object.entries(n.properties ?? {})) {
+            let p = prop;
+            while (p?.$ref) p = schemas.get(p.$ref.split("/").pop());
+            if (!out.has(key)) out.set(key, p ?? {});
+        }
+    };
+    walk(node);
+    return out;
+}
+
+let unclassified = 0;
+const checkInt64 = (label, specNode, iface) => {
+    const rawTypes = interfaceTypes.get(iface);
+    if (!rawTypes) return;
+    for (const [field, prop] of typedProps(specNode)) {
+        if (!isInt64(prop)) continue;
+        const text = rawTypes.get(field);
+        if (!text) continue; // absence is check 2's report
+        if (text.includes("MirrorAmount")) continue;
+        if (!/\bnumber\b/.test(text)) continue; // wire string — already safe
+        // Qualified (`Schema.field`) entries bind a reason to one schema;
+        // bare names are legacy and bless the name everywhere — prefer
+        // qualified for new entries.
+        if (COUNTERS.has(`${label}.${field}`) || COUNTERS.has(field)) continue;
+        unclassified += 1;
+        console.log(
+            `✖ ${label}.${field}: spec int64 typed \`${text.trim()}\` — make it MirrorAmount, or allowlist it as a counter with a reason`,
+        );
+    }
+};
+for (const [schema, iface] of PAIRS)
+    checkInt64(schema, schemas.get(schema), iface);
+for (const [label, items, iface] of INLINE_ITEMS)
+    checkInt64(label, items, iface);
+
+// ── 4b · nested int64s ──────────────────────────────────────────
+// The flat check reads one interface's direct fields, so an int64 inside
+// an inline object (`fallback_fee.amount`), a $ref the PAIRS table
+// doesn't cover (AccountInfo.balance → Balance), or a bare int64 array
+// item is invisible to it. This walk DISCOVERS every such nested int64
+// from the spec; each discovered path must be classified in NESTED —
+// either `{ iface, pattern }`, a regex proving the raw type inside THAT
+// interface's body (scoped, because a whole-source regex can be
+// satisfied by a different interface and silently bless a regression),
+// or a counter reason string. An unclassified path fails the run, so a
+// future nested spec field cannot slip through.
+const NESTED = new Map([
+    [
+        "AccountInfo.balance.balance",
+        {
+            iface: "MirrorAccountResponse",
+            pattern: /balance\?: \{[\s\S]{0,200}?balance: MirrorAmount/,
+        },
+    ],
+    [
+        "FractionalFee.amount.numerator",
+        {
+            iface: "MirrorFractionalFeeRaw",
+            pattern: /numerator: MirrorAmount; denominator: MirrorAmount/,
+        },
+    ],
+    [
+        "FractionalFee.amount.denominator",
+        {
+            iface: "MirrorFractionalFeeRaw",
+            pattern: /numerator: MirrorAmount; denominator: MirrorAmount/,
+        },
+    ],
+    [
+        "RoyaltyFee.amount.numerator",
+        {
+            iface: "MirrorRoyaltyFeeRaw",
+            pattern: /numerator: MirrorAmount; denominator: MirrorAmount/,
+        },
+    ],
+    [
+        "RoyaltyFee.amount.denominator",
+        {
+            iface: "MirrorRoyaltyFeeRaw",
+            pattern: /numerator: MirrorAmount; denominator: MirrorAmount/,
+        },
+    ],
+    [
+        "RoyaltyFee.fallback_fee.amount",
+        {
+            iface: "MirrorRoyaltyFeeRaw",
+            pattern: /fallback_fee\?: \{\s*amount: MirrorAmount/,
+        },
+    ],
+    [
+        // The array is typed by MirrorTokenBalance, whose `balance` the
+        // flat check already enforces via the TokenBalance pair — this
+        // regex pins the linkage so retyping the array breaks the run.
+        "AccountInfo.balance.tokens[].balance",
+        {
+            iface: "MirrorAccountResponse",
+            pattern: /tokens: MirrorTokenBalance\[\]/,
+        },
+    ],
+    [
+        "Topic.custom_fees.fixed_fees[].amount",
+        {
+            iface: "MirrorTopicResponse",
+            pattern: /fixed_fees\?: Array<\{\s*amount: MirrorAmount/,
+        },
+    ],
+    // Counters, with reasons — same bar as COUNTERS above.
+    [
+        "NetworkFeesResponse.fees[].gas",
+        "network-computed gas price quote, tinycents — bounded",
+    ],
+    [
+        "FeeEstimateResponse.network.subtotal",
+        "network-computed fee quote, tinycents — bounded",
+    ],
+    [
+        "NetworkNode.associated_registered_nodes[]",
+        "small node identifiers — network config",
+    ],
+]);
+
+const interfaceText = new Map(
+    [...parsed].map(([name, info]) => [name, info.body]),
+);
+
+/** True when `label.path` has a satisfied NESTED classification. */
+const classifiedNested = (label, path) => {
+    const rule = NESTED.get(`${label}.${path}`);
+    if (typeof rule === "string") return true; // counter, with reason
+    return Boolean(rule?.pattern.test(interfaceText.get(rule.iface) ?? ""));
+};
+const flatChecked = new Set([
+    ...PAIRS.map(([schema]) => schema),
+    "TokenDistribution",
+]);
+const inlineChecked = new Set(INLINE_ITEMS.map(([, items]) => items));
+const findNestedInt64 = (label, node, path, depth, seenRefs) => {
+    if (!node) return;
+    if (node.$ref) {
+        const name = node.$ref.split("/").pop();
+        // A schema the flat check (or this walk) already covers.
+        if (flatChecked.has(name) || seenRefs.has(name)) return;
+        seenRefs.add(name);
+        return findNestedInt64(label, schemas.get(name), path, depth, seenRefs);
+    }
+    // A bare scalar int64 reached through structure rather than as a
+    // property key — an array of int64s (`path` ends "[]") or a $ref
+    // chain. Property-keyed int64s are handled in the loop below; this
+    // arm is what keeps `amounts: [int64]`-shaped fields from escaping.
+    if (isInt64(node)) {
+        if (path !== "" && !classifiedNested(label, path)) {
+            unclassified += 1;
+            console.log(
+                `✖ nested int64 ${label}.${path}: classify it in NESTED — an interface-scoped MirrorAmount regex, or a counter reason`,
+            );
+        }
+        return;
+    }
+    for (const sub of node.allOf ?? [])
+        findNestedInt64(label, sub, path, depth, seenRefs);
+    // INLINE_ITEMS subtrees get their own flat check under their own
+    // label — re-discovering them here would double-report every field.
+    if (node.items && !inlineChecked.has(node.items))
+        findNestedInt64(label, node.items, `${path}[]`, depth, seenRefs);
+    for (const [key, prop] of Object.entries(node.properties ?? {})) {
+        const at = path === "" ? key : `${path}.${key}`;
+        // Property-keyed int64s terminate HERE, never via the head
+        // check: at depth 0 they are the flat check's job, deeper they
+        // classify as nested. Recursing into them would re-report every
+        // flat-checked field through the scalar head arm.
+        if (isInt64(prop)) {
+            if (depth > 0 && !classifiedNested(label, at)) {
+                unclassified += 1;
+                console.log(
+                    `✖ nested int64 ${label}.${at}: classify it in NESTED — an interface-scoped MirrorAmount regex, or a counter reason`,
+                );
+            }
+            continue;
+        }
+        findNestedInt64(label, prop, at, depth + 1, seenRefs);
+    }
+};
+for (const [schema] of PAIRS)
+    findNestedInt64(schema, schemas.get(schema), "", 0, new Set());
+for (const [label, items] of INLINE_ITEMS)
+    findNestedInt64(label, items, "", 0, new Set());
+
+console.log(
+    unclassified === 0
+        ? `✓ int64 classification: every spec int64 field is MirrorAmount, wire-string, or an allowlisted counter (${COUNTERS.size} reasons recorded)`
+        : `✖ ${unclassified} spec int64 fields lack a classification`,
+);
+// One assignment for all three failure signals — a second assignment
+// would silently overwrite the first, turning a check non-enforcing.
+process.exitCode =
+    gaps === 0 && unaccounted.length === 0 && unclassified === 0 ? 0 : 1;

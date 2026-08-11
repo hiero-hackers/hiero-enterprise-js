@@ -72,7 +72,7 @@ export interface ContractResult {
     /** EIP-7702 authorizations of a wrapped ethereum transaction */
     authorizationList?: AuthorizationListEntry[] | null;
     /** Amount sent to the function, in tinybars */
-    amount: number | null;
+    amount: string | null;
     /** Total gas used in the block (detail responses only) */
     blockGasUsed?: number | null;
     /** The block's hash (detail responses only) */
@@ -147,8 +147,12 @@ export interface AuthorizationListEntry {
     address: string;
     /** Hex chain id */
     chainId: string;
-    /** Authorization nonce */
-    nonce: number;
+    /**
+     * Authorization nonce — decimal string. The tuple is signed by an
+     * arbitrary third party and recorded verbatim, so any uint64 is
+     * valid data; `number` would silently corrupt values past 2^53.
+     */
+    nonce: string;
     /** Hex signature r */
     r: string;
     /** Hex signature s */
@@ -290,8 +294,8 @@ export interface ContractAction {
     timestamp: string;
     /** EVM address of the recipient */
     to: string | null;
-    /** Value transferred, in tinybars */
-    value: number;
+    /** Value transferred, in tinybars — decimal string */
+    value: string;
 }
 
 /** One opcode step in a re-executed transaction trace. */

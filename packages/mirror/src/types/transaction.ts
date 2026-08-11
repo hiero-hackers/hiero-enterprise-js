@@ -19,8 +19,12 @@ export interface TransactionInfo {
     validStartTimestamp: string;
     /** Whether the transaction was successful */
     successful: boolean;
-    /** Charged transaction fee in tinybars */
-    chargedTxFee: number;
+    /**
+     * Charged transaction fee, in tinybars, as a decimal string — a fee is
+     * debited from the payer like any other amount and follows the same
+     * lossless rule as the transfer legs.
+     */
+    chargedTxFee: string;
     /** Memo */
     memo?: string;
     /** HBAR transfers */
@@ -66,7 +70,7 @@ export interface TransactionInfo {
  */
 export interface AssessedCustomFee {
     /** Fee amount, in the denominating token's smallest unit */
-    amount: number;
+    amount: string;
     /** The fee collector */
     collectorAccountId: string | null;
     /** Accounts that effectively paid the fee */
@@ -82,7 +86,7 @@ export interface CustomFeeLimit {
     /** The payer account the limit applies to */
     accountId: string | null;
     /** Maximum fee amount */
-    amount: number;
+    amount: string;
     /** Denominating token, or null for HBAR */
     denominatingTokenId: string | null;
 }
@@ -94,8 +98,8 @@ export interface Transfer {
     /** Account ID */
     accountId: string;
     /** Amount in tinybars (negative = sent, positive = received) */
-    amount: number;
-    /** Whether this is a reward payout */
+    amount: string;
+    /** Whether the transfer spent an approved allowance */
     isApproval: boolean;
 }
 
@@ -108,7 +112,7 @@ export interface TokenTransferInfo {
     /** Account ID */
     accountId: string;
     /** Amount transferred */
-    amount: number;
+    amount: string;
     /** Whether this leg spent an allowance */
     isApproval?: boolean;
 }
@@ -136,7 +140,7 @@ export interface StakingRewardTransfer {
     /** Account ID receiving the reward */
     accountId: string;
     /** Reward amount in tinybars */
-    amount: number;
+    amount: string;
 }
 
 /**

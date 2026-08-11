@@ -107,7 +107,9 @@ describe("ContractCreateValidator", () => {
             expect(() =>
                 validator.validate({
                     ...baseOptions,
-                    initialBalance: -1n as unknown as number,
+                    // Deliberately outside the declared type: the validator
+                    // must reject bad runtime values from untyped JS callers.
+                    initialBalance: -1n as never,
                 }),
             ).toThrow(/initialBalance must not be negative/);
         });
