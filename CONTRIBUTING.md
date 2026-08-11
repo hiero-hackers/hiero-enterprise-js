@@ -89,7 +89,9 @@ npm install @hiero-hackers/enterprise-mirror
 
 Publishing happens only in CI (`.github/workflows/release.yml`), on a
 version tag, using the workflow's own `GITHUB_TOKEN` — there is no
-publish token to manage.
+publish token to manage. Once the publish succeeds the same workflow cuts
+a [GitHub Release](https://github.com/hiero-hackers/hiero-enterprise-js/releases)
+for the tag, so the Releases tab always mirrors what is on the registry.
 
 ### Test quick reference
 
