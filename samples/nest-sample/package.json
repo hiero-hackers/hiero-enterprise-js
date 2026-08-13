@@ -11,9 +11,9 @@
     },
     "dependencies": {
         "@hiero-hackers/enterprise-nest": "workspace:*",
-        "@nestjs/common": "^11.1.28",
-        "@nestjs/core": "^11.1.28",
-        "@nestjs/platform-express": "^11.1.28",
+        "@nestjs/common": "^11.1.29",
+        "@nestjs/core": "^11.1.29",
+        "@nestjs/platform-express": "^11.1.29",
         "dotenv": "^17.4.2",
         "reflect-metadata": "^0.2.0"
     }
