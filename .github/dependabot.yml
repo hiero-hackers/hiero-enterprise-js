@@ -11,6 +11,23 @@ updates:
       schedule:
           interval: "daily" # Daily check for faster security patching
       open-pull-requests-limit: 10
+      ignore:
+          # TypeScript majors are a deliberate migration, not a routine bump.
+          # TS 7 is the Go-based compiler rewrite, and typescript-eslint
+          # refuses to load against it outright:
+          #
+          #     Error: typescript-eslint does not support TS 7.0.
+          #
+          # Because every dep here is grouped into one PR, that single
+          # incompatibility fails the ESLint step and *skips* build,
+          # spec-drift, published-types and the integration tests — so an
+          # otherwise-good batch of nine bumps lands untested (#190).
+          #
+          # Minor and patch TypeScript updates still come through. Remove this
+          # entry when adopting a new major deliberately, once the lint
+          # toolchain supports it.
+          - dependency-name: "typescript"
+            update-types: ["version-update:semver-major"]
       groups:
           dependencies:
               patterns:
