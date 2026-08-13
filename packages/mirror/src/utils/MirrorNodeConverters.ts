@@ -547,6 +547,10 @@ export function convertTransactionInfo(
         successful: raw.result === "SUCCESS",
         chargedTxFee: amountString(raw.charged_tx_fee),
         memo: raw.memo_base64 ? decodeMemo(raw.memo_base64) : undefined,
+        // Carry the encoded bytes alongside the decoded text: `decodeMemo`
+        // substitutes U+FFFD for anything that is not valid UTF-8, and a memo
+        // is 100 arbitrary bytes, so the decode is irreversible (#193).
+        memoBase64: raw.memo_base64 ?? undefined,
         transfers: (raw.transfers ?? []).map(convertTransfer),
         tokenTransfers: (raw.token_transfers ?? []).map(convertTokenTransfer),
         nftTransfers: (raw.nft_transfers ?? []).map(convertNftTransfer),
