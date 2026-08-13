@@ -41,6 +41,7 @@ export type {
     MirrorTokenInfo,
     TokenSummary,
     MirrorTokenType,
+    MirrorTokenPauseStatus,
     TokenTransfer,
     MirrorCustomFee,
     MirrorFixedFee,

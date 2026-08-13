@@ -59,8 +59,15 @@ export interface MirrorTokenInfo {
     feeScheduleKey?: MirrorKey;
     /** Whether the token is deleted */
     deleted: boolean;
-    /** Whether the token is paused */
+    /** Whether the token is currently paused (`pauseStatus === "PAUSED"`) */
     paused: boolean;
+    /**
+     * Pause status as the mirror node reports it. Distinguishes
+     * `NOT_APPLICABLE` (no pause key — can never be paused) from `UNPAUSED`
+     * (pausable, not currently paused); {@link paused} collapses both to
+     * `false`. Absent only if the node omitted the field.
+     */
+    pauseStatus?: MirrorTokenPauseStatus;
     /** Custom fees */
     customFees: MirrorCustomFee[];
     /** When the custom-fee schedule was last set, if fees are configured */
@@ -93,6 +100,14 @@ export interface MirrorTokenInfo {
  * Mirror node token type (string representation from REST API).
  */
 export type MirrorTokenType = "FUNGIBLE_COMMON" | "NON_FUNGIBLE_UNIQUE";
+
+/**
+ * The mirror node's three-state pause status. `NOT_APPLICABLE` means the token
+ * has no pause key and can never be paused — a different fact from `UNPAUSED`
+ * (has a pause key, currently unpaused), which is why this cannot be collapsed
+ * into a boolean without losing information (#189).
+ */
+export type MirrorTokenPauseStatus = "NOT_APPLICABLE" | "PAUSED" | "UNPAUSED";
 
 /**
  * Token transfer in a transaction.

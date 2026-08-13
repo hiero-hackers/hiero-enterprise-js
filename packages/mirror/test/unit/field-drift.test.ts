@@ -179,10 +179,10 @@ describe("field-drift guard: token", () => {
     };
 
     it("carries every wire field (keys w/ algorithm, custom-fee timestamp)", () => {
-        assertNoSilentDrops(raw, convertTokenInfo(raw), {
-            // pause_status is collapsed to the boolean `paused`.
-            UNPAUSED: "transformed: pause_status → boolean `paused`",
-        });
+        // No pause_status exemption anymore: the three-state value survives
+        // verbatim as `pauseStatus` (#189), so the guard checks it like any
+        // other field.
+        assertNoSilentDrops(raw, convertTokenInfo(raw));
     });
 });
 
