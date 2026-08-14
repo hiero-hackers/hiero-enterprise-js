@@ -62,6 +62,10 @@ pnpm lint
 pnpm format
 ```
 
+Once building and testing pass, see the [samples](samples/README.md) for
+runnable examples of each package (Express/Fastify/NestJS integrations,
+plus a mirror-node example gallery that needs no credentials).
+
 ## Installing the published packages
 
 Releases are published to the **GitHub Packages npm registry**, not
