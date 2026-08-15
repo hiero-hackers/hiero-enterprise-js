@@ -40,8 +40,6 @@ never have to guess what arrived pre-composed.
 
 ## Quick Start
 
-> **Note:** These packages are not yet published to npm. The guide below shows how installation will work once they are. To run the project locally for development, see [CONTRIBUTING.md](./CONTRIBUTING.md).
-
 ### Standalone (no framework)
 
 ```bash
