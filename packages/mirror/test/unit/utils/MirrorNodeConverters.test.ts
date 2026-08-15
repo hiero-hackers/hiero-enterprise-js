@@ -155,6 +155,7 @@ describe("token converters", () => {
         });
         expect(token.type).toBe("NON_FUNGIBLE_UNIQUE");
         expect(token.paused).toBe(true);
+        expect(token.pauseStatus).toBe("PAUSED");
         expect(token.customFees.map((fee) => fee.type)).toEqual([
             "fixed",
             "fractional",
@@ -302,6 +303,41 @@ describe("converter default branches", () => {
         expect(token.customFees).toEqual([]);
         expect(token.paused).toBe(false);
         expect(token.type).toBe("FUNGIBLE_COMMON");
+        // No pause_status on the wire => absent, not defaulted to a state.
+        expect(token.pauseStatus).toBeUndefined();
+    });
+
+    it("preserves the three-state pause status (#189)", () => {
+        // NOT_APPLICABLE and UNPAUSED both yield paused: false — the boolean
+        // alone cannot distinguish "has no pause key" from "unpaused". The
+        // raw status must survive alongside it.
+        const base = {
+            token_id: "0.0.5",
+            name: "T",
+            symbol: "T",
+            type: "FUNGIBLE_COMMON",
+            decimals: "2",
+            total_supply: "1",
+            max_supply: "0",
+            treasury_account_id: "0.0.2",
+            deleted: false,
+        };
+
+        const notApplicable = convertTokenInfo({...base, pause_status: "NOT_APPLICABLE"});
+        expect(notApplicable.paused).toBe(false);
+        expect(notApplicable.pauseStatus).toBe("NOT_APPLICABLE");
+
+        const unpaused = convertTokenInfo({...base, pause_status: "UNPAUSED"});
+        expect(unpaused.paused).toBe(false);
+        expect(unpaused.pauseStatus).toBe("UNPAUSED");
+
+        // The two false cases must be distinguishable via pauseStatus.
+        expect(notApplicable.pauseStatus).not.toBe(unpaused.pauseStatus);
+
+        // Unrecognised values map to undefined rather than a fabricated state.
+        const unknown = convertTokenInfo({...base, pause_status: "SOMETHING_NEW"});
+        expect(unknown.paused).toBe(false);
+        expect(unknown.pauseStatus).toBeUndefined();
     });
 
     it("handles fee lists with missing subsets and royalty without fallback", () => {

@@ -4,6 +4,7 @@ import type {
     TokenBalance,
     Nft,
     MirrorTokenInfo,
+    MirrorTokenPauseStatus,
     TokenSummary,
     MirrorTopicMessage,
     TransactionInfo,
@@ -115,6 +116,20 @@ import {
  * the key is absent/null, matching the optional key fields on the domain
  * types.
  */
+/**
+ * Narrow the wire's `pause_status` string to {@link MirrorTokenPauseStatus}.
+ * An unrecognised value (future HAPI addition, malformed payload) maps to
+ * `undefined` rather than a lie — same posture as `convertKey` on unknown
+ * key types.
+ */
+function convertPauseStatus(
+    raw: string | undefined,
+): MirrorTokenPauseStatus | undefined {
+    return raw === "NOT_APPLICABLE" || raw === "PAUSED" || raw === "UNPAUSED"
+        ? raw
+        : undefined;
+}
+
 export function convertKey(
     raw: { key: string; _type?: string } | null | undefined,
 ): MirrorKey | undefined {
@@ -453,6 +468,7 @@ export function convertTokenInfo(raw: MirrorTokenResponse): MirrorTokenInfo {
         feeScheduleKey: convertKey(raw.fee_schedule_key),
         deleted: raw.deleted,
         paused: raw.pause_status === "PAUSED",
+        pauseStatus: convertPauseStatus(raw.pause_status),
         customFees,
         customFeesCreatedTimestamp: raw.custom_fees?.created_timestamp,
         createdTimestamp: raw.created_timestamp,
