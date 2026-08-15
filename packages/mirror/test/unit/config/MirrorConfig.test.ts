@@ -171,3 +171,47 @@ describe("config default branches", () => {
         expect(error.context).toBeUndefined();
     });
 });
+
+describe("createMirrorNodeClient — observer forwarding (#182)", () => {
+    const observer = { onRequestStart() {}, onRequestEnd() {} };
+
+    it("forwards an observer from the config to the client", () => {
+        // Before the fix this was silently dropped: MirrorConfig had no
+        // `observer` field and the factory built its options from five other
+        // values, so the #145 telemetry hook was unreachable through the
+        // documented entry point and UI consumers had to bypass the factory.
+        const client = createMirrorNodeClient({
+            mirrorNodeUrl: "https://example.test",
+            observer,
+        });
+
+        expect((client as unknown as { observer?: unknown }).observer).toBe(
+            observer,
+        );
+    });
+
+    it("matches what the constructor does with the same observer", () => {
+        // The factory should be a superset of `new MirrorNodeClient(...)`, not
+        // a lossy shortcut — that equivalence is the actual contract.
+        const viaFactory = createMirrorNodeClient({
+            mirrorNodeUrl: "https://example.test",
+            observer,
+        });
+        const viaCtor = new MirrorNodeClient("https://example.test", {
+            observer,
+        });
+
+        const read = (c: unknown) => (c as { observer?: unknown }).observer;
+        expect(read(viaFactory)).toBe(read(viaCtor));
+    });
+
+    it("leaves the observer undefined when the config omits it", () => {
+        const client = createMirrorNodeClient({
+            mirrorNodeUrl: "https://example.test",
+        });
+
+        expect(
+            (client as unknown as { observer?: unknown }).observer,
+        ).toBeUndefined();
+    });
+});

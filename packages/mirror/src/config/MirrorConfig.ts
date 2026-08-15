@@ -1,5 +1,6 @@
 import { MirrorError, MirrorErrorCodes } from "../errors/MirrorError.js";
 import type { MirrorNodeClientOptions } from "../client/MirrorNodeClient.js";
+import type { MirrorClientObserver } from "../client/MirrorClientObserver.js";
 import { MirrorNodeClient } from "../client/MirrorNodeClient.js";
 
 /**
@@ -28,6 +29,16 @@ export interface MirrorConfig {
     readonly mirrorNodeMaxConcurrent?: number;
     /** Sustained request-rate ceiling in requests/second (default: unlimited) */
     readonly mirrorNodeMaxRequestsPerSecond?: number;
+    /**
+     * Read-only request-lifecycle telemetry — start/retry/end events for UI
+     * loading indicators and status banners. Callbacks are error-isolated and
+     * cannot affect requests. See {@link MirrorClientObserver}.
+     *
+     * Unprefixed, unlike the `mirrorNode*` fields above: those mirror the
+     * pre-split `HieroConfig` names for flat-config compatibility, whereas this
+     * is a new option with no legacy counterpart to match.
+     */
+    readonly observer?: MirrorClientObserver;
 }
 
 /**
@@ -159,6 +170,12 @@ export function createMirrorNodeClient(
         retryOn404: resolved.mirrorNodeRetryOn404,
         maxConcurrent: resolved.mirrorNodeMaxConcurrent,
         maxRequestsPerSecond: resolved.mirrorNodeMaxRequestsPerSecond,
+        // Without this the #145 telemetry hook is unreachable through the
+        // factory: `MirrorNodeClientOptions` accepts an observer, but a
+        // caller passing one here had it silently dropped, so any UI needing
+        // a loading indicator had to bypass `createMirrorNodeClient` and
+        // construct `MirrorNodeClient` directly (#182).
+        observer: resolved.observer,
     };
     return new MirrorNodeClient(baseUrl, options);
 }
