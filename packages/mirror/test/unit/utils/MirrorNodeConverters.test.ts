@@ -323,11 +323,17 @@ describe("converter default branches", () => {
             deleted: false,
         };
 
-        const notApplicable = convertTokenInfo({...base, pause_status: "NOT_APPLICABLE"});
+        const notApplicable = convertTokenInfo({
+            ...base,
+            pause_status: "NOT_APPLICABLE",
+        });
         expect(notApplicable.paused).toBe(false);
         expect(notApplicable.pauseStatus).toBe("NOT_APPLICABLE");
 
-        const unpaused = convertTokenInfo({...base, pause_status: "UNPAUSED"});
+        const unpaused = convertTokenInfo({
+            ...base,
+            pause_status: "UNPAUSED",
+        });
         expect(unpaused.paused).toBe(false);
         expect(unpaused.pauseStatus).toBe("UNPAUSED");
 
@@ -335,7 +341,10 @@ describe("converter default branches", () => {
         expect(notApplicable.pauseStatus).not.toBe(unpaused.pauseStatus);
 
         // Unrecognised values map to undefined rather than a fabricated state.
-        const unknown = convertTokenInfo({...base, pause_status: "SOMETHING_NEW"});
+        const unknown = convertTokenInfo({
+            ...base,
+            pause_status: "SOMETHING_NEW",
+        });
         expect(unknown.paused).toBe(false);
         expect(unknown.pauseStatus).toBeUndefined();
     });
@@ -608,9 +617,8 @@ describe("convertTransactionInfo — memo decoding", () => {
         expect(tx.memo).toContain("\uFFFD");
         // ...but the encoded form is byte-exact, so a consumer can recover it.
         expect(tx.memoBase64).toBe(rawB64);
-        const recovered = Uint8Array.from(
-            atob(tx.memoBase64!),
-            (c) => c.charCodeAt(0),
+        const recovered = Uint8Array.from(atob(tx.memoBase64!), (c) =>
+            c.charCodeAt(0),
         );
         expect(Array.from(recovered)).toStrictEqual(Array.from(bytes));
     });
