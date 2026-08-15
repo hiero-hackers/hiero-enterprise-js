@@ -1,6 +1,6 @@
 {
     "name": "@hiero-hackers/enterprise-mirror",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "description": "Dependency-free Hiero mirror node REST client — repositories, pagination, rate limiting, filters, and unit helpers",
     "license": "Apache-2.0",
     "type": "module",
