@@ -447,9 +447,10 @@ describe("field-drift guard: transactionInfo", () => {
                 },
             ],
         };
-        assertNoSilentDrops(raw, convertTransactionInfo(raw), {
-            TWF4aW1hbCBtZW1v: "transformed: memo_base64 → UTF-8 decode",
-        });
+        // No memo exemption anymore: memo_base64 survives verbatim as
+        // `memoBase64` alongside the decoded `memo` (#193), so the guard
+        // checks it like any other field.
+        assertNoSilentDrops(raw, convertTransactionInfo(raw));
     });
 });
 

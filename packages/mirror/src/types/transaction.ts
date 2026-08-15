@@ -25,8 +25,20 @@ export interface TransactionInfo {
      * lossless rule as the transfer legs.
      */
     chargedTxFee: string;
-    /** Memo */
+    /**
+     * Memo decoded as UTF-8.
+     *
+     * **Lossy for non-text memos.** A memo is 100 arbitrary bytes and nothing
+     * requires it to be text; bytes that are not valid UTF-8 decode to U+FFFD
+     * and cannot be recovered from this string. Use {@link memoBase64} when the
+     * exact bytes matter (#193).
+     */
     memo?: string;
+    /**
+     * The memo exactly as the mirror node sent it, base64-encoded — the
+     * lossless counterpart to {@link memo}.
+     */
+    memoBase64?: string;
     /** HBAR transfers */
     transfers: Transfer[];
     /** Token transfers */

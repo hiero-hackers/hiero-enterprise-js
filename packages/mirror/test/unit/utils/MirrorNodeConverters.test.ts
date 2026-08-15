@@ -583,6 +583,36 @@ describe("convertTransactionInfo — memo decoding", () => {
         ["Ω≈ç√∫˜µ≤≥÷", "assorted multi-byte"],
     ])("round-trips %j (%s)", (memo) => {
         expect(withMemo(memo).memo).toBe(memo);
+        // The encoded form is carried too, and matches what the node sent.
+        expect(withMemo(memo).memoBase64).toBe(b64(memo));
+    });
+
+    it("preserves the exact bytes of a non-UTF-8 memo (#193)", () => {
+        // A memo is 100 arbitrary bytes. These are not valid UTF-8 — a lone
+        // 0xFF, and a truncated multi-byte sequence — so TextDecoder
+        // substitutes U+FFFD and the original bytes are unrecoverable from
+        // `memo` alone. This is the case `memoBase64` exists for.
+        const bytes = new Uint8Array([0xff, 0xfe, 0x00, 0x41, 0xc3]);
+        const rawB64 = btoa(String.fromCharCode(...bytes));
+
+        const tx = convertTransactionInfo({
+            transaction_id: "0.0.1-1-0",
+            result: "SUCCESS",
+            consensus_timestamp: "1.0",
+            valid_start_timestamp: "1.0",
+            charged_tx_fee: 1,
+            memo_base64: rawB64,
+        } as never);
+
+        // Decoded form is lossy — it contains the replacement character...
+        expect(tx.memo).toContain("\uFFFD");
+        // ...but the encoded form is byte-exact, so a consumer can recover it.
+        expect(tx.memoBase64).toBe(rawB64);
+        const recovered = Uint8Array.from(
+            atob(tx.memoBase64!),
+            (c) => c.charCodeAt(0),
+        );
+        expect(Array.from(recovered)).toStrictEqual(Array.from(bytes));
     });
 
     it("returns undefined when there is no memo", () => {
