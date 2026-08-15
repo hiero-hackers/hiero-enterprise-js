@@ -37,6 +37,7 @@
         "node": ">=18.0.0"
     },
     "scripts": {
+        "prepare": "pnpm run build",
         "build": "tsup",
         "clean": "rm -rf dist",
         "test": "pnpm run test:integration",
