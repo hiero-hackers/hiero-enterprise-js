@@ -35,7 +35,16 @@ const mirror = new MirrorNodeClient(mirrorUrl, {
     // smoke run, and the public mirror's p99 occasionally exceeds the
     // 10s library default. A patient canary alerts on real drift, not on
     // one slow day (the library default stays 10s for real consumers).
-    timeoutMs: 30_000,
+    //
+    // 60s, not 30s, because of the account this example queries. 0.0.98 is
+    // the fee-collection account — deliberately chosen as "always populated",
+    // but that also makes it one of the busiest on mainnet, and
+    // `?account.id=0.0.98&limit=1&order=desc` is expensive to serve cold.
+    // Measured against public mainnet: 22.7s on a cold cache, then ~0.04s
+    // once warm. 30s sat close enough to that cold-path cost that an
+    // ordinary slow day tripped it, and the retries timed out too — a ~121s
+    // failure that looked like drift but was just a tight budget.
+    timeoutMs: 60_000,
 });
 
 console.log(`Mirror queries example`);
