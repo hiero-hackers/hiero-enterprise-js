@@ -37,6 +37,7 @@
         "node": ">=18.0.0"
     },
     "scripts": {
+        "prepare": "pnpm run build",
         "build": "pnpm run build:test && tsup",
         "build:test": "tsc --noEmit -p test/tsconfig.test.json",
         "clean": "rm -rf dist",
