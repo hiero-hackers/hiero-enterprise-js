@@ -1,3 +1,19 @@
 packages:
-    - "packages/*"
-    - "samples/*"
+  - "packages/*"
+  - "samples/*"
+
+# Build scripts (pnpm 11 blocks these by default).
+# esbuild: install script links the platform-specific binary — required.
+# protobufjs: postinstall only prints a version-scheme warning — not needed.
+allowBuilds:
+  esbuild: true
+  protobufjs: false
+
+# Security overrides — transitive deps pinned above advisory ranges.
+# ws: GHSA-96hv-2xvq-fx4p (high, DoS) + GHSA-58qx-3vcg-4xpx (moderate, memory
+#     disclosure). Pulled in via @hiero-ledger/sdk > ethers, which pins ws 8.17.1.
+# esbuild: GHSA-g7r4-m6w7-qqqr (low, dev-server arbitrary file read on Windows).
+#     Pulled in via tsup; vite peer-accepts ^0.27 || ^0.28.
+overrides:
+  ws: ^8.21.3
+  esbuild: ^0.28.2
