@@ -21,10 +21,10 @@
         "@arethetypeswrong/cli": "0.18.5",
         "@eslint/js": "^10.0.1",
         "@hiero-hackers/enterprise-core": "workspace:*",
-        "@nestjs/testing": "^12.0.1",
+        "@nestjs/testing": "^12.0.3",
         "@types/express": "^5.0.0",
-        "@types/node": "^26.4.1",
-        "@vitest/coverage-v8": "^5.0.0",
+        "@types/node": "^26.6.1",
+        "@vitest/coverage-v8": "^5.0.1",
         "eslint": "^10.10.0",
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-prettier": "^5.5.5",
@@ -34,8 +34,8 @@
         "tsup": "^8.5.1",
         "tsx": "^4.23.13",
         "typescript": "^5.9.3",
-        "typescript-eslint": "^8.69.0",
-        "vitest": "^5.0.0",
-        "yaml": "^2.9.0"
+        "typescript-eslint": "^8.70.0",
+        "vitest": "^5.0.1",
+        "yaml": "^2.9.1"
     }
 }
