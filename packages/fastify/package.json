@@ -58,6 +58,6 @@
         "access": "public"
     },
     "devDependencies": {
-        "fastify": "^5.12.4"
+        "fastify": "^5.12.5"
     }
 }

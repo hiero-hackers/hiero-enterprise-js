@@ -11,7 +11,7 @@
     },
     "dependencies": {
         "@hiero-hackers/enterprise-express": "workspace:*",
-        "dotenv": "^17.4.2",
+        "dotenv": "^18.0.0",
         "express": "^5.1.0"
     },
     "devDependencies": {
