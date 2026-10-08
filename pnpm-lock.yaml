@@ -73,8 +73,8 @@ importers:
   packages/core:
     dependencies:
       '@hiero-ledger/sdk':
-        specifier: ^2.89.1
-        version: 2.89.1(bn.js@5.2.3)(supports-color@7.2.0)
+        specifier: ^2.88.0
+        version: 2.88.0(bn.js@5.2.3)(supports-color@7.2.0)
       bignumber.js:
         specifier: ^11.1.5
         version: 11.1.5
@@ -486,8 +486,8 @@ packages:
     engines: {node: '>=6'}
     hasBin: true
 
-  '@hiero-ledger/cryptography@1.22.0':
-    resolution: {integrity: sha512-eQ9F35Zs2hQPNM27ljGhLFiA5K3JdPP2pD3sMvlrbaQvAg/QD9Cgb522C6Nq+seLi0AetIWvU8N8xnHV44b5/Q==}
+  '@hiero-ledger/cryptography@1.21.0':
+    resolution: {integrity: sha512-q3LR+OgJMDNRund2CTsvFRHab5EKypm81v+0yM/rGWRq0igPRbd/SGzs2X7Q6n/UvZYT+bKI8gnrXzafbN2TCA==}
     engines: {node: '>=20.19.0'}
     peerDependencies:
       expo-crypto: '*'
@@ -505,8 +505,8 @@ packages:
       protobufjs: 8.0.1
       strip-ansi: 7.1.2
 
-  '@hiero-ledger/sdk@2.89.1':
-    resolution: {integrity: sha512-eSgLnemOmI79H6QmSNxgNPYaLZ8AIf/IL22Gktz94lnfYv2P6JG0JtG6Je2yMEy+CiOZgL4TaFkr1YBwKWcHuQ==}
+  '@hiero-ledger/sdk@2.88.0':
+    resolution: {integrity: sha512-jFd27eytqGymCpc9QglqMGsDUNVM2PVS59+Sq2JtPirz9AoeJLYyR/h5USPYIS6BgWjeY3etmvve/JiRL/oc9g==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       bn.js: 5.2.3
@@ -2904,7 +2904,7 @@ snapshots:
       protobufjs: 7.6.5
       yargs: 17.7.3
 
-  '@hiero-ledger/cryptography@1.22.0(supports-color@7.2.0)':
+  '@hiero-ledger/cryptography@1.21.0(supports-color@7.2.0)':
     dependencies:
       '@noble/ciphers': 2.2.0
       '@noble/curves': 2.2.0
@@ -2931,10 +2931,10 @@ snapshots:
       protobufjs: 8.6.6
       strip-ansi: 7.1.2
 
-  '@hiero-ledger/sdk@2.89.1(bn.js@5.2.3)(supports-color@7.2.0)':
+  '@hiero-ledger/sdk@2.88.0(bn.js@5.2.3)(supports-color@7.2.0)':
     dependencies:
       '@grpc/grpc-js': 1.12.7
-      '@hiero-ledger/cryptography': 1.22.0(supports-color@7.2.0)
+      '@hiero-ledger/cryptography': 1.21.0(supports-color@7.2.0)
       '@hiero-ledger/proto': 2.31.0(ansi-regex@6.2.2)(ansi-styles@7.0.0)(debug@4.4.1(supports-color@7.2.0))(protobufjs@8.6.6)(strip-ansi@7.1.2)
       ansi-regex: 6.2.2
       ansi-styles: 7.0.0
