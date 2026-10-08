@@ -1,9 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { AccountId, Hbar, TransactionId } from "@hiero-ledger/sdk";
 import { QueryExecutor } from "../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../utils/mock-context.js";
 import { HieroError } from "../../../../src/errors/index.js";
-import type { IHieroContext } from "../../../../src/context/index.js";
+import {
+    HieroContext,
+    type IHieroContext,
+} from "../../../../src/context/index.js";
 import type { TransactionEvent } from "../../../../src/listeners/index.js";
 
 interface MockQuery {
@@ -246,6 +249,77 @@ describe("QueryExecutor", () => {
             ).mock.calls[0][0];
             expect(afterCall.error).toBeInstanceOf(Error);
             expect((afterCall.error as Error).message).toBe("string failure");
+        });
+    });
+
+    describe("run() — listener failures", () => {
+        let ctx: HieroContext;
+        let emitWarning: ReturnType<typeof vi.spyOn>;
+
+        beforeEach(() => {
+            ctx = new HieroContext({
+                network: "testnet",
+                operatorId: "0.0.2",
+                operatorKeyType: "der",
+                operatorKey:
+                    "302e020100300506032b6570042204203b054ddd0c62d577ce0fbb0e92dcce0d5bea42a98a5c9663271939881ce19208",
+            });
+            ctx.addTransactionListener({
+                onAfterTransaction: () => {
+                    throw new Error("listener bug");
+                },
+            });
+            emitWarning = vi
+                .spyOn(process, "emitWarning")
+                .mockImplementation(() => undefined);
+        });
+
+        afterEach(() => {
+            emitWarning.mockRestore();
+            ctx.close();
+        });
+
+        it("emits the after-event once when emitting the success event fails", async () => {
+            vi.mocked(context.emitAfterTransaction).mockRejectedValueOnce(
+                new Error("listener bug"),
+            );
+
+            await executor
+                .run(query as never, {}, SAMPLE_EVENT)
+                .catch(() => undefined);
+
+            expect(context.emitAfterTransaction).toHaveBeenCalledTimes(1);
+        });
+
+        it("returns the result when an onAfterTransaction listener throws", async () => {
+            await expect(
+                new QueryExecutor(ctx).run(query as never, {}, SAMPLE_EVENT),
+            ).resolves.toBe("query-result");
+        });
+
+        it("still runs when an onBeforeTransaction listener throws", async () => {
+            ctx.addTransactionListener({
+                onBeforeTransaction: () => {
+                    throw new Error("metrics backend down");
+                },
+            });
+
+            const result = await new QueryExecutor(ctx).run(
+                query as never,
+                {},
+                SAMPLE_EVENT,
+            );
+
+            expect(result).toBe("query-result");
+        });
+
+        it("keeps the original error when an onAfterTransaction listener throws", async () => {
+            const original = new Error("query exploded");
+            query.execute.mockRejectedValueOnce(original);
+
+            await expect(
+                new QueryExecutor(ctx).run(query as never, {}, SAMPLE_EVENT),
+            ).rejects.toMatchObject({ cause: original });
         });
     });
 });

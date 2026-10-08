@@ -173,6 +173,21 @@ describe("TokenRejectOperation (via TokenService.rejectTokensFlow)", () => {
         );
     });
 
+    it("emits the after-event once when emitting the success event fails", async () => {
+        vi.mocked(context.emitAfterTransaction).mockRejectedValueOnce(
+            new Error("listener bug"),
+        );
+
+        await service
+            .rejectTokensFlow({
+                ownerId: "0.0.700",
+                fungibleTokenIds: ["0.0.500"],
+            })
+            .catch(() => undefined);
+
+        expect(context.emitAfterTransaction).toHaveBeenCalledTimes(1);
+    });
+
     it("emits the after-event with the error and rethrows when the flow fails", async () => {
         const failure = new Error("network down");
         mocks.flow.execute.mockRejectedValueOnce(failure);

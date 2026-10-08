@@ -64,19 +64,10 @@ export class TokenRejectOperation {
         await this.context.emitBeforeTransaction(event);
         const start = Date.now();
 
+        let transactionId: string;
         try {
             const response = await flow.execute(this.context.client);
-            const transactionId = response.transactionId.toString();
-
-            // The flow checks the receipt of both inner transactions
-            // internally — getting here means both succeeded.
-            await this.context.emitAfterTransaction({
-                ...event,
-                transactionId,
-                status: "SUCCESS",
-                durationMs: Date.now() - start,
-            });
-            return { transactionId, status: "SUCCESS" };
+            transactionId = response.transactionId.toString();
         } catch (error) {
             await this.context.emitAfterTransaction({
                 ...event,
@@ -86,6 +77,14 @@ export class TokenRejectOperation {
             });
             throw normalizeError(error, "TokenService.rejectTokensFlow");
         }
+
+        await this.context.emitAfterTransaction({
+            ...event,
+            transactionId,
+            status: "SUCCESS",
+            durationMs: Date.now() - start,
+        });
+        return { transactionId, status: "SUCCESS" };
     }
 
     private buildFlow(options: TokenRejectOperationOptions): TokenRejectFlow {

@@ -2,241 +2,62 @@
 
 All notable changes to this project are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-While the version is below 1.0.0, minor releases may contain breaking changes;
-these are called out with **Breaking**.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). While the version is below 1.0.0, a minor release may contain breaking changes; those entries start with **Behavior change:**.
 
-All published packages (`@hiero-hackers/enterprise-core`, `-mirror`, `-express`,
-`-fastify`, `-nest`) are versioned in lockstep, so one entry covers every package.
+Only changes that users of the published packages would notice are recorded. Test-only changes, CI and tooling tweaks, and dependency bumps are left out, unless they change something contributors work with. All packages are versioned in lockstep, so each entry names the package it applies to.
 
-## [Unreleased]
+## [Unreleased](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.3.0...HEAD)
 
 ### Deprecated
 
-- `@hiero-hackers/enterprise-express`, `@hiero-hackers/enterprise-fastify` and
-  `@hiero-hackers/enterprise-nest` are deprecated and will be removed in a future
-  release ([#238]). They add little over using `enterprise-core` and
-  `enterprise-mirror` directly, and they had diverging lifecycle handling: the
-  Express middleware and Nest module never closed the SDK client.
-    - Every export is marked `@deprecated`, so editors flag usages.
-    - The first use logs a one-time Node.js `DeprecationWarning` with code
-      `HIERO_ENTERPRISE_EXPRESS_DEPRECATED`, `HIERO_ENTERPRISE_FASTIFY_DEPRECATED` or
-      `HIERO_ENTERPRISE_NEST_DEPRECATED`. Silence it with `node --no-deprecation`.
-    - Migration steps are in the README under
-      [Migrating from the framework adapters](./README.md#migrating-from-the-framework-adapters).
-
-### Changed
-
-- The Express, Fastify and NestJS samples now use `enterprise-core` and
-  `enterprise-mirror` directly instead of the deprecated adapters. Each one is a
-  copyable recipe:
-    - the services are created once in `src/hiero.ts` (or `src/hiero.module.ts`
-      for NestJS) and shared across requests;
-    - the SDK client is closed on shutdown;
-    - `HieroError` / `MirrorError` codes map to HTTP statuses (`NOT_FOUND` → 404,
-      `CONFIG_INVALID` and requests the mirror node rejects as invalid → 400,
-      `TIMED_OUT` → 504, other mirror node failures → 502) instead of every error
-      returning a 500 with the raw error text.
-- The README now shows how to use the packages with Express, Fastify and NestJS
-  without an adapter, and includes a migration guide.
-- Updated `packageManager` to pnpm 11.24.0 ([#212]).
-
-### Added
-
-- This changelog.
-- Issue moderation workflows. New issues are labelled `pending-review` and locked
-  until a maintainer applies the `approved` label ([#175]).
-
-### Security
-
-- Pinned the transitive `ws` dependency to `^8.21.3` (GHSA-96hv-2xvq-fx4p,
-  GHSA-58qx-3vcg-4xpx) and `esbuild` to `^0.28.2` (GHSA-g7r4-m6w7-qqqr) through
-  pnpm overrides ([#212]).
-
-## [0.3.0] - 2026-08-15
-
-### Added
-
-- `prepare` scripts in every package. Consumers that install from a `file:` or
-  workspace path no longer build silently against a stale `dist/` ([#199]).
+- Deprecated `@hiero-hackers/enterprise-express`, `@hiero-hackers/enterprise-fastify` and `@hiero-hackers/enterprise-nest`; they will be removed in a future release. The adapters added little over using the core and mirror packages directly, and they handled shutdown inconsistently: the Express middleware and the Nest module never closed the SDK client. Every export is now marked `@deprecated`, and the first use logs a one-time Node.js `DeprecationWarning` with code `HIERO_ENTERPRISE_EXPRESS_DEPRECATED`, `HIERO_ENTERPRISE_FASTIFY_DEPRECATED` or `HIERO_ENTERPRISE_NEST_DEPRECATED` (silence it with `node --no-deprecation`). The adapters keep working until they are removed. To migrate, install `@hiero-hackers/enterprise-core` and `@hiero-hackers/enterprise-mirror`, create the services once at startup and close the context on shutdown, as described in the README under "Migrating from the framework adapters"; the Express, Fastify and NestJS samples show the full replacement, including mapping `HieroError` and `MirrorError` codes to HTTP statuses. [#238](https://github.com/hiero-hackers/hiero-enterprise-js/issues/238) [#239](https://github.com/hiero-hackers/hiero-enterprise-js/pull/239)
 
 ### Fixed
 
-- `enterprise-mirror`: `MirrorTokenInfo.pauseStatus` keeps the mirror node's three
-  states instead of collapsing them to a boolean ([#191]).
-- `enterprise-mirror`: `TransactionInfo` keeps `memo_base64` alongside the decoded
-  memo ([#194]).
-- `enterprise-mirror`: an `observer` set on `MirrorConfig` is now forwarded to the
-  client created by `createMirrorNodeClient` ([#200]).
+- Fixed a throwing transaction listener changing the outcome of the operation it observes. An exception from `onBeforeTransaction`, for example a metrics backend being down, blocked the transaction; an exception from `onAfterTransaction` turned a transaction that had already reached consensus into an error, which invites a retry that submits it twice, fired the after-event a second time, and on a failed transaction replaced the original error. `HieroContext.emitBeforeTransaction` and `emitAfterTransaction` now catch each listener's error, report it as a `HIERO_LISTENER_ERROR` process warning and keep calling the remaining listeners; this covers every write and query, including `rejectTokensFlow` and `createContractFlow`. Code that relied on a listener exception reaching the caller, or on a before-listener to stop a transaction, should listen for the warning (`process.on("warning", …)`) instead. Applies to `@hiero-hackers/enterprise-core`. [#245](https://github.com/hiero-hackers/hiero-enterprise-js/issues/245) [#269](https://github.com/hiero-hackers/hiero-enterprise-js/pull/269)
+- Fixed `HieroConfig.grpcDeadlineMs` being ignored. It was documented but `HieroContext` never applied it, so `new HieroContext({ ...config, grpcDeadlineMs: 2000 })` still left every gRPC request on the SDK default deadline of 10 s. The deadline is now applied together with `requestTimeoutMs`, in the order that keeps a valid pair from triggering the SDK warning "grpcDeadline should be smaller than requestTimeout"; a deadline at or above the timeout still warns. Configs that never set `grpcDeadlineMs` are unaffected. Applies to `@hiero-hackers/enterprise-core`. [#247](https://github.com/hiero-hackers/hiero-enterprise-js/issues/247) [#272](https://github.com/hiero-hackers/hiero-enterprise-js/pull/272)
+- Fixed `HieroContext` leaking an SDK client when the operator credentials are invalid. The client was created before the operator ID and key were parsed, so `new HieroContext({ ...config, operatorId: "not-an-id" })` threw and left an open client behind; an application that retries construction with bad config accumulated one per attempt. Credentials are now parsed first, and a malformed `operatorId` throws a `HieroError` with code `CONFIG_INVALID` naming the bad value, instead of the SDK's raw error; an invalid key already did. When both the credentials and the network are invalid, the credential error is now reported first. Applies to `@hiero-hackers/enterprise-core`. [#246](https://github.com/hiero-hackers/hiero-enterprise-js/issues/246) [#271](https://github.com/hiero-hackers/hiero-enterprise-js/pull/271)
 
-### Changed
-
-- `enterprise-mirror`: refreshed the vendored OpenAPI snapshot. The weekly mainnet
-  canary uses a longer timeout, so a slow mirror node no longer triggers a false
-  alarm ([#201]).
-- Dependabot ignores TypeScript major updates ([#192]).
-
-### Documentation
-
-- The CONTRIBUTING quickstart links to the runnable samples ([#185]). README
-  updates ([#198]).
-
-## [0.2.0] - 2026-08-11
-
-### Added
-
-- Every write operation now returns a result object instead of `void`, carrying
-  the transaction ID, status and the operation-specific values from the receipt
-  ([#143]).
-- `ContractService.executeContract` accepts an opt-in `withFunctionResult`. It
-  fetches the transaction record (a paid query) to return the function's return
-  data and gas used ([#166]).
-- `enterprise-mirror`: an opt-in `retryOn404` for reading entities that the
-  mirror node hasn't ingested yet ([#158]).
-- `enterprise-mirror`: a client observer hook (`MirrorClientObserver`) for request
-  start, retry and end events. A guard test now ensures every request goes through
-  the client's single transport path ([#146]).
-- CodeRabbit planning configuration ([#156]); CI uploads code-quality results
-  ([#157]).
-- The release workflow cuts a GitHub Release for each published tag ([#181]).
-
-### Changed
-
-- **Breaking:** return types of several write operations changed as part of
-  [#143]:
-    - `mint`: `Long[]` → a result with `serials: number[]` and
-      `totalSupply: string`;
-    - `burn` and `wipe`: `Long` → a result with `totalSupply: string`;
-    - allowance operations: the raw receipt → a transaction result;
-    - `submitMessage`: `sequenceNumber` is a `number` (or `null`) instead of a
-      `Long`, and the result now includes `runningHash`.
-- **Breaking:** `enterprise-mirror` parses responses losslessly. Tinybar and other
-  int64 amounts above 2^53 are kept exactly instead of losing precision ([#144]).
+## [0.3.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.2.0...v0.3.0) - 2026-08-15
 
 ### Fixed
 
-- `scheduleRun` again returns the shared `transactionId` alongside `scheduleId`
-  ([#164]).
-- `autoCreateEvmAccount` reports a failed child-receipt lookup instead of
-  swallowing it ([#167]).
-- `enterprise-mirror`: the response body is released before a retry, and retry
-  tests no longer depend on the default timeout.
+- Fixed `MirrorTokenInfo` collapsing the mirror node's three-state `pause_status` into `paused`: a token with no pause key (`NOT_APPLICABLE`) and an unpaused token (`UNPAUSED`) both became `paused: false` and could not be told apart. The new `pauseStatus` field carries the original value; `paused` is unchanged. Applies to `@hiero-hackers/enterprise-mirror`. [#189](https://github.com/hiero-hackers/hiero-enterprise-js/issues/189) [#191](https://github.com/hiero-hackers/hiero-enterprise-js/pull/191)
+- Fixed `TransactionInfo.memo` irreversibly mangling memos that are not valid UTF-8: a transaction memo is up to 100 arbitrary bytes, and invalid sequences were replaced with U+FFFD during decoding. The new `memoBase64` field keeps the original bytes; `memo` is unchanged. Applies to `@hiero-hackers/enterprise-mirror`. [#193](https://github.com/hiero-hackers/hiero-enterprise-js/issues/193) [#194](https://github.com/hiero-hackers/hiero-enterprise-js/pull/194)
+- Fixed `createMirrorNodeClient` silently ignoring the `observer` option added in 0.2.0, so `createMirrorNodeClient({ mirrorNodeUrl, observer }).observer` was `undefined` and the request hooks never fired. `MirrorConfig.observer` is now forwarded to the client. Applies to `@hiero-hackers/enterprise-mirror`. [#182](https://github.com/hiero-hackers/hiero-enterprise-js/issues/182) [#200](https://github.com/hiero-hackers/hiero-enterprise-js/pull/200)
+- Fixed packages installed from a local path or git URL (for example `file:` or a workspace link) silently building against whatever `dist/` was already present, which made features that exist in the source look missing (for example `TS2305: Module has no exported member 'MirrorClientObserver'`). Every package now has a `prepare` script that builds it on install. Installs from the registry are unaffected. Applies to all packages. [#183](https://github.com/hiero-hackers/hiero-enterprise-js/issues/183) [#199](https://github.com/hiero-hackers/hiero-enterprise-js/pull/199)
 
-## [0.1.0] - 2026-07-16
-
-First published release, under the `@hiero-hackers` scope on the GitHub Packages
-npm registry ([#126], [#133]).
+## [0.2.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.1.0...v0.2.0) - 2026-08-11
 
 ### Added
 
-- **`@hiero-hackers/enterprise-core`**: typed services over the Hiero SDK, each
-  operation with its own validator, plus unit and integration tests:
-    - `AccountService`: create (native, EVM and alias accounts), update, delete,
-      transfers ([#64]), HBAR, token and NFT allowances ([#60], [#62]), balances,
-      and signature and transaction verification against the on-chain key
-      ([#65]).
-    - `TokenService`: create, mint, burn, wipe, associate, dissociate, update,
-      delete, freeze and unfreeze, grant and revoke KYC, pause and unpause,
-      fee-schedule updates, NFT metadata updates, token reject, fungible and NFT
-      airdrops (send, claim, cancel), and token and NFT info queries ([#67]–[#89]).
-    - `ContractService`: create, create-flow for large bytecode, execute, update,
-      delete, plus bytecode, info and local-call queries ([#91]–[#96]).
-    - `TopicService`: create, update, delete, submit message, topic info and
-      message subscriptions ([#97]–[#100]).
-    - `FileService`: create, append, update, delete and contents and info queries,
-      with automatic chunking for large files ([#101]).
-    - `ScheduleService` and scheduled execution of any write ([#57]).
-    - `NetworkService` and the shared `TransactionExecutor` / `QueryExecutor`
-      ([#90]).
-    - `HieroContext` and `HieroConfig`, configured from code or `HIERO_*`
-      environment variables; ED25519, ECDSA and DER operator keys; custom
-      networks via `HIERO_NETWORK_NODES`.
-    - `HieroError` with machine-readable codes, and transaction listeners for
-      before and after events.
-- **`@hiero-hackers/enterprise-mirror`**: a dependency-free mirror node REST
-  client ([#111]):
-    - covers the complete mirror node REST API, checked in both directions against
-      the vendored OpenAPI spec;
-    - typed repositories for accounts, blocks, contracts, NFTs, tokens, topics,
-      transactions, schedules and network data;
-    - continuable pagination in both directions ([#125]), rate limiting, retries
-      and timeouts, rich filters, and unit helpers;
-    - weekly spec-drift and mainnet smoke workflows, plus response-field
-      completeness checks ([#119], [#127]).
-- **`@hiero-hackers/enterprise-express`, `-fastify`, `-nest`**: framework
-  integrations exposing the core services and mirror repositories as
-  `req.hiero`, `fastify.hiero` and NestJS providers.
-- Express, Fastify and NestJS sample apps and a gallery of standalone example
-  scripts.
-- CI on Node 22 and 24 against a local Solo network, with coverage reports
-  ([#102]), CodeQL, OpenSSF Scorecard, Dependabot, and bug and feature issue
-  templates ([#33], [#35], [#37]).
+- Added `withFunctionResult` to `ContractService.executeContract`. A contract call's receipt only says `SUCCESS` or `CONTRACT_REVERT_EXECUTED`; with `withFunctionResult: true` the method also fetches the transaction record (one extra paid query) and returns `functionResult` with `returnDataHex`, `gasUsed` and `errorMessage`. Without the flag, `functionResult` is `null` and no extra query is made. Applies to `@hiero-hackers/enterprise-core`. [#166](https://github.com/hiero-hackers/hiero-enterprise-js/pull/166)
+- Added an opt-in `retryOn404` option (`HIERO_MIRROR_NODE_RETRY_ON_404`) to `MirrorNodeClient`. The mirror node is eventually consistent, so reading an entity right after creating it can return a 404 until the mirror node imports it; with the option enabled, a 404 is retried on the existing retry budget and backoff. The default is unchanged: a 404 is final and throws `NOT_FOUND`. Applies to `@hiero-hackers/enterprise-mirror`. [#130](https://github.com/hiero-hackers/hiero-enterprise-js/issues/130) [#158](https://github.com/hiero-hackers/hiero-enterprise-js/pull/158)
+- Added `MirrorClientObserver`, an optional `observer` on `MirrorNodeClientOptions` with `onRequestStart`, `onRetry` and `onRequestEnd` hooks, so a UI can show a loading indicator or tell "retrying" apart from "server down". Applies to `@hiero-hackers/enterprise-mirror`; until 0.3.0 it could only be set through the `MirrorNodeClient` constructor. [#145](https://github.com/hiero-hackers/hiero-enterprise-js/issues/145) [#146](https://github.com/hiero-hackers/hiero-enterprise-js/pull/146)
+
+### Changed
+
+- **Behavior change:** write operations now return a result instead of `void`. Every write returns `{ response, receipt, transactionId, status }` plus the operation's own values from the receipt, for example the new entity ID from a create. Return types that changed: `mintToken` returns `{ serials: number[], totalSupply: string }` instead of `Long[]`; `burnToken` and `wipeToken` return `{ totalSupply: string }` instead of `Long`; allowance operations return the shared fields instead of the raw receipt; `submitMessage` returns `sequenceNumber` as a `number` (or `null`) instead of a `Long`, plus `runningHash`. Scheduled variants return the shared fields plus `scheduleId` as an SDK `ScheduleId` instead of a string, and the `ScheduledResult` type was removed; call `scheduleId.toString()` where a string is needed. Applies to `@hiero-hackers/enterprise-core`. [#134](https://github.com/hiero-hackers/hiero-enterprise-js/issues/134) [#143](https://github.com/hiero-hackers/hiero-enterprise-js/pull/143)
+- **Behavior change:** `AccountService.autoCreateEvmAccount` now returns the created `accountId` (or `null` when the EVM address already had an account). If the transfer reached consensus but the child-receipt lookup fails, it throws a `HieroError` with the new code `RESULT_MAPPING_FAILED` and the `transactionId`; do not resubmit, because the transfer already happened. Applies to `@hiero-hackers/enterprise-core`. [#167](https://github.com/hiero-hackers/hiero-enterprise-js/pull/167)
+- **Behavior change:** the mirror package now parses responses losslessly. `JSON.parse` rounds integers above 2^53, so large tinybar balances came back wrong; for example account `0.0.10620677` held 31869085891081369 tinybar but was reported as 31869085891081370. Amount fields are now decimal strings instead of numbers, `Balance.hbars` was renamed to `Balance.tinybars`, and the unit helpers return strings. Use `BigInt(amount)` where you do arithmetic. Fields bounded by the protocol stay numbers. Applies to `@hiero-hackers/enterprise-mirror`. [#136](https://github.com/hiero-hackers/hiero-enterprise-js/issues/136) [#144](https://github.com/hiero-hackers/hiero-enterprise-js/pull/144)
 
 ### Fixed
 
-- `enterprise-mirror`:
-    - account alias lookup no longer assumes an EVM alias ([#124]);
-    - missing response fields were added and key handling corrected ([#128],
-      [#129]);
-    - `convertAccount` keeps `balance.timestamp` and `balance.tokens` ([#137]);
-    - `MirrorError` carries the HTTP status ([#138]);
-    - non-ASCII transaction memos are decoded correctly instead of being mangled
-      by `atob()` ([#135], [#142]);
-    - `getPage` pins the balance snapshot timestamp onto the next-page link.
+- Fixed `MirrorNodeClient` holding a connection open across retries: the body of a failed response was not released before backing off, so the connection could not be reused. Applies to `@hiero-hackers/enterprise-mirror`. [#158](https://github.com/hiero-hackers/hiero-enterprise-js/pull/158)
 
-[Unreleased]: https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/hiero-hackers/hiero-enterprise-js/releases/tag/v0.1.0
-[#33]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/33
-[#35]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/35
-[#37]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/37
-[#57]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/57
-[#60]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/60
-[#62]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/62
-[#64]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/64
-[#65]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/65
-[#67]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/67
-[#89]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/89
-[#90]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/90
-[#91]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/91
-[#96]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/96
-[#97]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/97
-[#100]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/100
-[#101]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/101
-[#102]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/102
-[#111]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/111
-[#119]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/119
-[#124]: https://github.com/hiero-hackers/hiero-enterprise-js/issues/124
-[#125]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/125
-[#126]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/126
-[#127]: https://github.com/hiero-hackers/hiero-enterprise-js/issues/127
-[#128]: https://github.com/hiero-hackers/hiero-enterprise-js/issues/128
-[#129]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/129
-[#133]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/133
-[#135]: https://github.com/hiero-hackers/hiero-enterprise-js/issues/135
-[#137]: https://github.com/hiero-hackers/hiero-enterprise-js/issues/137
-[#138]: https://github.com/hiero-hackers/hiero-enterprise-js/issues/138
-[#142]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/142
-[#143]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/143
-[#144]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/144
-[#146]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/146
-[#156]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/156
-[#157]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/157
-[#158]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/158
-[#164]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/164
-[#166]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/166
-[#167]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/167
-[#175]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/175
-[#181]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/181
-[#185]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/185
-[#191]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/191
-[#192]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/192
-[#194]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/194
-[#198]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/198
-[#199]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/199
-[#200]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/200
-[#201]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/201
-[#212]: https://github.com/hiero-hackers/hiero-enterprise-js/pull/212
-[#238]: https://github.com/hiero-hackers/hiero-enterprise-js/issues/238
+## [0.1.0](https://github.com/hiero-hackers/hiero-enterprise-js/releases/tag/v0.1.0) - 2026-07-16
+
+First published release, under the `@hiero-hackers` scope on the GitHub Packages npm registry.
+
+### Added
+
+- Added `@hiero-hackers/enterprise-core`, typed services over the Hiero SDK, configured from code or `HIERO_*` environment variables, with ED25519, ECDSA and DER operator keys and custom networks via `HIERO_NETWORK_NODES`. Every operation validates its input before building the transaction, failures are reported as `HieroError` with a machine-readable `code`, and transaction listeners receive before and after events. Any write can also be scheduled.
+    - `AccountService`: create (native, EVM and alias accounts), update, delete, transfers, HBAR, token and NFT allowances, balances, and verifying signatures and transactions against an account's on-chain key.
+    - `TokenService`: create, mint, burn, wipe, associate, dissociate, update, delete, freeze and unfreeze, grant and revoke KYC, pause and unpause, fee-schedule updates, NFT metadata updates, token reject, fungible and NFT airdrops (send, claim, cancel), and token and NFT info queries.
+    - `ContractService`: create, create-flow for large bytecode, execute, update, delete, and bytecode, info and local-call queries.
+    - `TopicService`: create, update, delete, submit message, topic info and message subscriptions.
+    - `FileService`: create, append, update, delete, and contents and info queries, with large contents split across transactions automatically.
+    - `ScheduleService` (sign, cancel, info) and `NetworkService`.
+- Added `@hiero-hackers/enterprise-mirror`, a dependency-free mirror node REST client covering the complete mirror node REST API, with typed repositories for accounts, blocks, contracts, NFTs, tokens, topics, transactions, schedules and network data, pagination in both directions, rate limiting, retries and timeouts, filters, and unit helpers. [#111](https://github.com/hiero-hackers/hiero-enterprise-js/pull/111)
+- Added `@hiero-hackers/enterprise-express`, `@hiero-hackers/enterprise-fastify` and `@hiero-hackers/enterprise-nest`, framework integrations that expose the core services and mirror repositories as `req.hiero`, `fastify.hiero` and NestJS providers.
+- Added sample Express, Fastify and NestJS apps and a gallery of standalone example scripts.

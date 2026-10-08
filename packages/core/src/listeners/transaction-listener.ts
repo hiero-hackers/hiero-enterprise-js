@@ -29,6 +29,10 @@ export interface TransactionEvent {
  * Register with HieroContext to receive notifications before and after
  * each transaction is executed.
  *
+ * Listeners observe (logging, metrics, tracing); they cannot change an
+ * outcome. A throwing listener is reported as a `HIERO_LISTENER_ERROR`
+ * process warning and the remaining listeners still run.
+ *
  * @example
  * ```ts
  * const logger: TransactionListener = {

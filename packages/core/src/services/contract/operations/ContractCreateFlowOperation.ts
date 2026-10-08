@@ -5,6 +5,9 @@ import type {
     Hbar,
     AccountId,
     ContractFunctionParameters,
+    ContractId,
+    TransactionReceipt,
+    TransactionResponse,
 } from "@hiero-ledger/sdk";
 import { ContractCreateFlow } from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../../context/index.js";
@@ -110,6 +113,13 @@ export class ContractCreateFlowOperation {
         await this.context.emitBeforeTransaction(event);
         const start = Date.now();
 
+        let result: {
+            response: TransactionResponse;
+            receipt: TransactionReceipt;
+            transactionId: string;
+            status: string;
+            contractId: ContractId;
+        };
         try {
             for (const key of options.additionalSigners ?? []) {
                 flow.sign(key);
@@ -134,21 +144,12 @@ export class ContractCreateFlowOperation {
                     },
                 );
             }
-            const contractId = receipt.contractId;
-
-            await this.context.emitAfterTransaction({
-                ...event,
-                transactionId,
-                status: receipt.status.toString(),
-                durationMs: Date.now() - start,
-            });
-
-            return {
+            result = {
                 response,
                 receipt,
                 transactionId,
                 status: receipt.status.toString(),
-                contractId,
+                contractId: receipt.contractId,
             };
         } catch (error) {
             await this.context.emitAfterTransaction({
@@ -159,6 +160,16 @@ export class ContractCreateFlowOperation {
             });
             throw normalizeError(error, "ContractService.createContractFlow");
         }
+
+        // Outside the try: the contract has been created.
+        await this.context.emitAfterTransaction({
+            ...event,
+            transactionId: result.transactionId,
+            status: result.status,
+            durationMs: Date.now() - start,
+        });
+
+        return result;
     }
 
     /**

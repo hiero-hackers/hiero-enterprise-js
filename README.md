@@ -299,7 +299,7 @@ All five packages are versioned **in lockstep**: one version number, one tag. Th
    pnpm install --frozen-lockfile && pnpm -r run build
    pnpm -r publish --dry-run --no-git-checks
    ```
-4. In [`CHANGELOG.md`](./CHANGELOG.md), rename the `[Unreleased]` heading to the new version and date, add a fresh empty `[Unreleased]` section above it, and update the comparison links at the bottom.
+4. In [`CHANGELOG.md`](./CHANGELOG.md), rename the `Unreleased` heading to the new version and date, point its link at the `vPREVIOUS...vNEW` comparison, and add a fresh `Unreleased` section above it comparing `vNEW...HEAD`.
 5. Open a PR with the bump and changelog, get it reviewed, and merge to `main`.
 6. From the merged commit on `main`, push a **signed** tag that matches the version (note the `v` prefix):
    ```bash

@@ -35,16 +35,9 @@ export class QueryExecutor {
         await this.context.emitBeforeTransaction(event);
         const start = Date.now();
 
+        let result: TResult;
         try {
-            const result = await query.execute(this.context.client);
-
-            await this.context.emitAfterTransaction({
-                ...event,
-                status: Status.Success.toString(),
-                durationMs: Date.now() - start,
-            });
-
-            return result;
+            result = await query.execute(this.context.client);
         } catch (error) {
             await this.context.emitAfterTransaction({
                 ...event,
@@ -57,6 +50,15 @@ export class QueryExecutor {
                 `${event.serviceName}.${event.methodName}`,
             );
         }
+
+        // Emit the "after transaction" event now that the query has already succeeded.
+        await this.context.emitAfterTransaction({
+            ...event,
+            status: Status.Success.toString(),
+            durationMs: Date.now() - start,
+        });
+
+        return result;
     }
 
     /**

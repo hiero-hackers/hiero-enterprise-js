@@ -20,4 +20,5 @@ Closes #
 - [ ] I have added tests that prove my fix/feature works
 - [ ] All existing unit tests pass (`pnpm run test:unit`)
 - [ ] I have updated documentation as needed
+- [ ] I have added a `CHANGELOG.md` entry, or this PR has no user-facing change
 - [ ] My commits are GPG-signed and include DCO sign-off (`git commit -s`)

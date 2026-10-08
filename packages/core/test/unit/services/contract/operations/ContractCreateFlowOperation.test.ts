@@ -190,6 +190,21 @@ describe("ContractCreateFlowOperation (via ContractService)", () => {
             expect(mocks.flow.signWith).toHaveBeenCalledWith(publicKey, signFn);
         });
 
+        it("emits the after-event once when emitting the success event fails", async () => {
+            vi.mocked(context.emitAfterTransaction).mockRejectedValueOnce(
+                new Error("listener bug"),
+            );
+
+            await service
+                .createContractFlow({
+                    bytecode: new Uint8Array([0x60]),
+                    gas: 150_000,
+                })
+                .catch(() => undefined);
+
+            expect(context.emitAfterTransaction).toHaveBeenCalledTimes(1);
+        });
+
         it("emits the after-event with the error and rethrows when the flow fails", async () => {
             const failure = new Error("network down");
             mocks.flow.execute.mockRejectedValueOnce(failure);

@@ -318,6 +318,17 @@ Code contributions are handled using [Pull Requests][pull-requests]. Please keep
 - **Imports** — use `import type` for type-only imports
 - **Tests** — use [Vitest](https://vitest.dev/); aim for coverage of all public API methods
 
+### Changelog
+
+[`CHANGELOG.md`](./CHANGELOG.md) records only changes that users of the published packages would notice. If your PR has one, add an entry under `Unreleased` in the same PR:
+
+- Use the matching section: `Added` (new API), `Changed` (behaviour changes; breaking or surprising ones start with **Behavior change:**), `Deprecated`, `Removed`, `Fixed` or `Security`.
+- Say what changed from the user's side and name the actual APIs. For a fix, say what was wrong before with a concrete case. Cover who is affected, migration steps and changed defaults.
+- Name the package it applies to, for example "Applies to `@hiero-hackers/enterprise-mirror`."
+- End with inline links to the issue and the PR: `[#123](https://github.com/hiero-hackers/hiero-enterprise-js/issues/123) [#130](https://github.com/hiero-hackers/hiero-enterprise-js/pull/130)`.
+
+Test-only changes, CI and tooling tweaks, and dependency bumps don't get an entry, unless they change something contributors work with.
+
 ### Commit Messages
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/):

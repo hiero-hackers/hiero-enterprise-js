@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { HieroContext } from "../../../src/context/index.js";
+import { HieroError, HieroErrorCodes } from "../../../src/errors/index.js";
 import { OperatorKeyType } from "../../../src/types/index.js";
 import type { Transaction } from "@hiero-ledger/sdk";
-import { Client, PrivateKey } from "@hiero-ledger/sdk";
+import { AccountId, Client, PrivateKey } from "@hiero-ledger/sdk";
 import * as configModule from "../../../src/config/index.js";
 
 // Mock the SDK
@@ -95,6 +96,37 @@ describe("HieroContext", () => {
             expect(ctx.config).toEqual(validConfig);
             expect(configModule.assertEnvConfigValid).toHaveBeenCalled();
             expect(configModule.resolveConfigFromEnv).toHaveBeenCalled();
+        });
+    });
+
+    describe("Invalid credentials", () => {
+        it("throws CONFIG_INVALID for a malformed operatorId without creating a client", () => {
+            vi.mocked(AccountId.fromString).mockImplementationOnce(() => {
+                throw new Error("invalid format for entity ID");
+            });
+
+            let thrown: unknown;
+            try {
+                new HieroContext({ ...validConfig, operatorId: "not-an-id" });
+            } catch (error) {
+                thrown = error;
+            }
+
+            expect(thrown).toBeInstanceOf(HieroError);
+            expect(thrown).toMatchObject({
+                code: HieroErrorCodes.ConfigInvalid,
+            });
+            expect((thrown as HieroError).message).toContain("not-an-id");
+            expect(Client.forTestnet).not.toHaveBeenCalled();
+        });
+
+        it("does not create a client when the operator key is invalid", () => {
+            vi.mocked(PrivateKey.fromStringDer).mockImplementationOnce(() => {
+                throw new Error("invalid key");
+            });
+
+            expect(() => new HieroContext(validConfig)).toThrow(HieroError);
+            expect(Client.forTestnet).not.toHaveBeenCalled();
         });
     });
 
@@ -257,6 +289,103 @@ describe("HieroContext", () => {
                 status: "SUCCESS",
             });
             expect(mockListener.onAfterTransaction).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("Listener failures", () => {
+        const event = {
+            type: "AccountCreate",
+            serviceName: "AccountService",
+            methodName: "createAccount",
+            timestamp: new Date(),
+        };
+
+        it("isolates throwing onAfterTransaction listeners and still notifies the rest", async () => {
+            const emitWarning = vi
+                .spyOn(process, "emitWarning")
+                .mockImplementation(() => undefined);
+            try {
+                const ctx = new HieroContext(validConfig);
+                const later = { onAfterTransaction: vi.fn() };
+                ctx.addTransactionListener({
+                    onAfterTransaction: () => {
+                        throw new Error("sync listener bug");
+                    },
+                });
+                ctx.addTransactionListener({
+                    onAfterTransaction: () =>
+                        Promise.reject(new Error("async listener bug")),
+                });
+                ctx.addTransactionListener(later);
+
+                await expect(
+                    ctx.emitAfterTransaction(event),
+                ).resolves.toBeUndefined();
+
+                expect(later.onAfterTransaction).toHaveBeenCalledWith(event);
+                expect(emitWarning).toHaveBeenCalledTimes(2);
+                expect(emitWarning).toHaveBeenCalledWith(
+                    expect.stringContaining(
+                        "AccountService.createAccount: sync listener bug",
+                    ),
+                    expect.objectContaining({ code: "HIERO_LISTENER_ERROR" }),
+                );
+            } finally {
+                emitWarning.mockRestore();
+            }
+        });
+
+        it("still runs later listeners when a listener throws an unprintable value", async () => {
+            const emitWarning = vi
+                .spyOn(process, "emitWarning")
+                .mockImplementation(() => undefined);
+            try {
+                const ctx = new HieroContext(validConfig);
+                const later = { onAfterTransaction: vi.fn() };
+                ctx.addTransactionListener({
+                    onAfterTransaction: () => {
+                        throw Object.create(null);
+                    },
+                });
+                ctx.addTransactionListener(later);
+
+                await expect(
+                    ctx.emitAfterTransaction(event),
+                ).resolves.toBeUndefined();
+                expect(later.onAfterTransaction).toHaveBeenCalledWith(event);
+                expect(emitWarning).toHaveBeenCalledTimes(1);
+            } finally {
+                emitWarning.mockRestore();
+            }
+        });
+
+        it("isolates throwing onBeforeTransaction listeners and still notifies the rest", async () => {
+            const emitWarning = vi
+                .spyOn(process, "emitWarning")
+                .mockImplementation(() => undefined);
+            try {
+                const ctx = new HieroContext(validConfig);
+                const later = { onBeforeTransaction: vi.fn() };
+                ctx.addTransactionListener({
+                    onBeforeTransaction: () => {
+                        throw new Error("metrics backend down");
+                    },
+                });
+                ctx.addTransactionListener(later);
+
+                await expect(
+                    ctx.emitBeforeTransaction(event),
+                ).resolves.toBeUndefined();
+                expect(later.onBeforeTransaction).toHaveBeenCalledWith(event);
+                expect(emitWarning).toHaveBeenCalledWith(
+                    expect.stringContaining(
+                        "onBeforeTransaction listener threw for AccountService.createAccount: metrics backend down",
+                    ),
+                    expect.objectContaining({ code: "HIERO_LISTENER_ERROR" }),
+                );
+            } finally {
+                emitWarning.mockRestore();
+            }
         });
     });
 

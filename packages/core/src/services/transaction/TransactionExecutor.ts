@@ -1,4 +1,8 @@
-import type { Transaction } from "@hiero-ledger/sdk";
+import type {
+    Transaction,
+    TransactionReceipt,
+    TransactionResponse,
+} from "@hiero-ledger/sdk";
 import { AccountId } from "@hiero-ledger/sdk";
 import { type IHieroContext } from "../../context/index.js";
 import type { TransactionEvent } from "../../listeners/index.js";
@@ -30,9 +34,12 @@ export class TransactionExecutor {
         // Apply base SDK options before any signing or execution
         this.applyBaseOptions(tx, options);
 
+        // Emit the "before transaction" event before any execution occurs.
         await this.context.emitBeforeTransaction(event);
         const start = Date.now();
 
+        let response: TransactionResponse;
+        let receipt: TransactionReceipt;
         try {
             // Always freeze before signing or execution
             tx.freezeWith(this.context.client);
@@ -43,25 +50,10 @@ export class TransactionExecutor {
             await this.applySigners(tx, options);
 
             // execute() auto-signs with the operator key via the client
-            const response = await tx.execute(this.context.client);
-            const transactionId = response.transactionId.toString();
+            response = await tx.execute(this.context.client);
 
             // Fetch the receipt so the after-event carries a real chain
-            const receipt = await response.getReceipt(this.context.client);
-
-            await this.context.emitAfterTransaction({
-                ...event,
-                transactionId,
-                status: receipt.status.toString(),
-                durationMs: Date.now() - start,
-            });
-
-            return {
-                response,
-                receipt,
-                transactionId: response.transactionId.toString(),
-                status: receipt.status.toString(),
-            };
+            receipt = await response.getReceipt(this.context.client);
         } catch (error) {
             await this.context.emitAfterTransaction({
                 ...event,
@@ -74,6 +66,19 @@ export class TransactionExecutor {
                 `${event.serviceName}.${event.methodName}`,
             );
         }
+
+        const transactionId = response.transactionId.toString();
+        const status = receipt.status.toString();
+
+        // Emit after the transaction has reached consensus.
+        await this.context.emitAfterTransaction({
+            ...event,
+            transactionId,
+            status,
+            durationMs: Date.now() - start,
+        });
+
+        return { response, receipt, transactionId, status };
     }
 
     /**
