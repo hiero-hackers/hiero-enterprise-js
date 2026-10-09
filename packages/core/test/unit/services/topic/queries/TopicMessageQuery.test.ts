@@ -45,6 +45,12 @@ describe("TopicMessageQuery (via TopicService)", () => {
     /** The listener core handed to the SDK. */
     const sdkListener = () =>
         subscribe.mock.calls[0][2] as (message: TopicMessage) => void;
+    /** The error handler core handed to the SDK. */
+    const sdkErrorHandler = () =>
+        subscribe.mock.calls[0][1] as (
+            message: TopicMessage | null,
+            error: Error,
+        ) => void;
 
     beforeEach(() => {
         handle = new SubscriptionHandle();
@@ -72,7 +78,7 @@ describe("TopicMessageQuery (via TopicService)", () => {
         expect(sentQuery().topicId?.toString()).toBe("0.0.1234");
         expect(subscribe).toHaveBeenCalledWith(
             context.client,
-            null,
+            expect.any(Function),
             expect.any(Function),
         );
 
@@ -131,11 +137,6 @@ describe("TopicMessageQuery (via TopicService)", () => {
         expect(query._maxAttempts).toBe(3);
         expect(query._maxBackoff).toBe(8000);
         expect(setCompletionHandler).toHaveBeenCalledWith(completionHandler);
-        expect(subscribe).toHaveBeenCalledWith(
-            context.client,
-            errorHandler,
-            expect.any(Function),
-        );
     });
 
     it("keeps the SDK defaults when optional fields are omitted", () => {
@@ -172,6 +173,75 @@ describe("TopicMessageQuery (via TopicService)", () => {
         );
     });
 
+    it("passes stream errors to the errorHandler as a HieroError", () => {
+        const errorHandler = vi.fn();
+        service.subscribeToMessages(
+            { topicId: "0.0.1", errorHandler },
+            () => {},
+        );
+        const error = new Error("stream failed");
+
+        sdkErrorHandler()(null, error);
+
+        expect(errorHandler).toHaveBeenCalledWith(
+            null,
+            expect.objectContaining({
+                name: "HieroError",
+                context: "TopicService.subscribeToMessages",
+                message: "stream failed",
+                cause: error,
+            }),
+        );
+    });
+
+    it("emits a process warning when no errorHandler is given", () => {
+        const emitWarning = vi
+            .spyOn(process, "emitWarning")
+            .mockImplementation(() => {});
+        service.subscribeToMessages({ topicId: "0.0.1234" }, () => {});
+
+        sdkErrorHandler()(null, new Error("stream failed"));
+
+        expect(emitWarning).toHaveBeenCalledWith(
+            expect.stringContaining("0.0.1234"),
+            {
+                type: "HieroSubscriptionWarning",
+                code: "HIERO_SUBSCRIPTION_ERROR",
+            },
+        );
+        expect(emitWarning.mock.calls[0][0]).toContain("stream failed");
+    });
+
+    it("keeps the message of an error thrown by the listener", () => {
+        // Run the real SDK subscribe; stub only the stream it opens.
+        subscribe.mockRestore();
+        const internals = SdkTopicMessageQuery.prototype as unknown as {
+            _makeServerStreamRequest(): void;
+            _passTopicMessage(message: TopicMessage): void;
+        };
+        const openStream = vi
+            .spyOn(internals, "_makeServerStreamRequest")
+            .mockImplementation(() => {});
+        const errorHandler = vi.fn();
+        service.subscribeToMessages({ topicId: "0.0.1", errorHandler }, () => {
+            throw new Error("listener bug");
+        });
+        const message = topicMessage();
+
+        // The SDK catches the listener error and passes it to the handler.
+        (openStream.mock.contexts[0] as typeof internals)._passTopicMessage(
+            message,
+        );
+
+        expect(errorHandler).toHaveBeenCalledWith(
+            message,
+            expect.objectContaining({
+                name: "HieroError",
+                message: "listener bug",
+            }),
+        );
+    });
+
     it("builds a new query for every subscribe call", () => {
         service.subscribeToMessages({ topicId: "0.0.1" }, () => {});
         service.subscribeToMessages({ topicId: "0.0.2" }, () => {});
@@ -194,7 +264,7 @@ describe("TopicMessageQuery (via TopicService)", () => {
             expect(sentQuery().topicId?.toString()).toBe("0.0.1234");
             expect(subscribe).toHaveBeenCalledWith(
                 context.client,
-                null,
+                expect.any(Function),
                 listener,
             );
 
@@ -202,6 +272,22 @@ describe("TopicMessageQuery (via TopicService)", () => {
             sdkListener()(message);
 
             expect(listener).toHaveBeenCalledWith(message);
+        });
+
+        it("passes errors to the errorHandler as a HieroError", () => {
+            const query = new TopicMessageQuery(context);
+            const errorHandler = vi.fn();
+            query.subscribeRaw({ topicId: "0.0.1", errorHandler }, () => {});
+
+            sdkErrorHandler()(null, new Error("raw stream failed"));
+
+            expect(errorHandler).toHaveBeenCalledWith(
+                null,
+                expect.objectContaining({
+                    name: "HieroError",
+                    message: "raw stream failed",
+                }),
+            );
         });
 
         it("sets optional filters and uses the provided errorHandler", () => {
@@ -234,11 +320,6 @@ describe("TopicMessageQuery (via TopicService)", () => {
             expect(sdkQuery._maxAttempts).toBe(4);
             expect(sdkQuery._maxBackoff).toBe(16000);
             expect(setCompletionHandler).toHaveBeenCalled();
-            expect(subscribe).toHaveBeenCalledWith(
-                context.client,
-                errorHandler,
-                expect.any(Function),
-            );
         });
 
         it("normalises subscribe-time errors with the TopicService.subscribeToMessages context", () => {

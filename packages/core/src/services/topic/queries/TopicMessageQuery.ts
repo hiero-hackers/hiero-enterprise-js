@@ -64,9 +64,10 @@ export interface TopicMessageSubscribeOptions {
     /** Cap on exponential-backoff delay in milliseconds. */
     maxBackoff?: number;
     /**
-     * Optional callback fired when the stream errors. Defaults to a
-     * no-op — errors are still surfaced through the SDK's retry
-     * machinery.
+     * Optional callback fired when the stream fails after retries or the
+     * listener throws. Receives the error as a `HieroError`. Without it,
+     * the error is reported as a `HIERO_SUBSCRIPTION_ERROR` process
+     * warning.
      */
     errorHandler?: (message: SdkTopicMessage | null, error: Error) => void;
     /** Optional callback fired when the stream completes naturally. */
@@ -101,7 +102,7 @@ export class TopicMessageQuery {
 
             return query.subscribe(
                 this.context.client,
-                options.errorHandler ?? null,
+                (message, error) => this.handleError(options, message, error),
                 (sdkMessage) => listener(toResult(sdkMessage)),
             );
         } catch (error) {
@@ -125,12 +126,35 @@ export class TopicMessageQuery {
 
             return query.subscribe(
                 this.context.client,
-                options.errorHandler ?? null,
+                (message, error) => this.handleError(options, message, error),
                 listener,
             );
         } catch (error) {
             throw normalizeError(error, "TopicService.subscribeToMessages");
         }
+    }
+
+    /** Pass the error to the caller's handler as a HieroError, or warn. */
+    private handleError(
+        options: TopicMessageSubscribeOptions,
+        message: SdkTopicMessage | null,
+        error: Error,
+    ): void {
+        const hieroError = normalizeError(
+            error,
+            "TopicService.subscribeToMessages",
+        );
+        if (options.errorHandler != null) {
+            options.errorHandler(message, hieroError);
+            return;
+        }
+        process.emitWarning(
+            `Subscription to topic ${options.topicId.toString()} failed: ${hieroError.message}`,
+            {
+                type: "HieroSubscriptionWarning",
+                code: "HIERO_SUBSCRIPTION_ERROR",
+            },
+        );
     }
 
     private build(options: TopicMessageSubscribeOptions): SdkTopicMessageQuery {
