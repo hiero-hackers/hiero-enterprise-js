@@ -282,7 +282,9 @@ export class TopicService {
      * @param options.limit - Max number of messages to deliver before stopping
      * @param options.maxAttempts - Retry attempts on transient stream errors
      * @param options.maxBackoff - Cap on exponential-backoff delay (ms)
-     * @param options.errorHandler - Invoked when the stream errors
+     * @param options.errorHandler - Invoked with a `HieroError` when the stream
+     *   fails or the listener throws; without it a `HIERO_SUBSCRIPTION_ERROR`
+     *   process warning is emitted
      * @param options.completionHandler - Invoked when the stream completes naturally
      * @param listener - Invoked once per delivered message
      * @returns A `SubscriptionHandle`; call `.unsubscribe()` to stop the stream
