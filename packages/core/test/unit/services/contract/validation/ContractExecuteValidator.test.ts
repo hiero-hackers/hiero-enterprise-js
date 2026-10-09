@@ -25,6 +25,12 @@ describe("ContractExecuteValidator", () => {
                     functionName: "set",
                 } as unknown as ContractExecuteOperationOptions),
             ).toThrow(/contractId is required/);
+            expect(() =>
+                validator.validate({
+                    gas: 100_000,
+                    functionName: "set",
+                } as unknown as ContractExecuteOperationOptions),
+            ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
         });
 
         it("throws when contractId is an empty string", () => {

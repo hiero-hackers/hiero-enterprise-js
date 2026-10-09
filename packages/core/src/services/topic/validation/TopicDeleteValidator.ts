@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TopicDeleteOperationOptions } from "../operations/index.js";
 
 /**
@@ -20,9 +20,9 @@ export class TopicDeleteValidator {
 
     private validateTopicId(options: TopicDeleteOperationOptions): void {
         if (options.topicId == null) {
-            throw normalizeError(
-                new Error("topicId is required."),
+            throw validationError(
                 "TopicDeleteValidator",
+                "topicId is required.",
             );
         }
 
@@ -30,9 +30,9 @@ export class TopicDeleteValidator {
             typeof options.topicId === "string" &&
             options.topicId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("topicId cannot be empty."),
+            throw validationError(
                 "TopicDeleteValidator",
+                "topicId cannot be empty.",
             );
         }
     }

@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { FileUpdateOperationOptions } from "../operations/index.js";
 
 /**
@@ -35,19 +35,16 @@ export class FileUpdateValidator {
 
     private validateFileId(options: FileUpdateOperationOptions): void {
         if (options.fileId == null) {
-            throw normalizeError(
-                new Error("fileId is required."),
-                "FileUpdateValidator",
-            );
+            throw validationError("FileUpdateValidator", "fileId is required.");
         }
 
         if (
             typeof options.fileId === "string" &&
             options.fileId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("fileId cannot be empty."),
+            throw validationError(
                 "FileUpdateValidator",
+                "fileId cannot be empty.",
             );
         }
     }
@@ -66,11 +63,9 @@ export class FileUpdateValidator {
         const wide = options as { expirationTime?: unknown };
 
         if (wide.expirationTime === null) {
-            throw normalizeError(
-                new Error(
-                    "expirationTime cannot be null — this field has no clear operation. Omit it to leave unchanged.",
-                ),
+            throw validationError(
                 "FileUpdateValidator",
+                "expirationTime cannot be null — this field has no clear operation. Omit it to leave unchanged.",
             );
         }
     }
@@ -92,11 +87,9 @@ export class FileUpdateValidator {
             options.expirationTime !== undefined;
 
         if (!hasChange) {
-            throw normalizeError(
-                new Error(
-                    "updateFile requires at least one field to change. Pass one of: contents, keys, fileMemo, expirationTime.",
-                ),
+            throw validationError(
                 "FileUpdateValidator",
+                "updateFile requires at least one field to change. Pass one of: contents, keys, fileMemo, expirationTime.",
             );
         }
     }

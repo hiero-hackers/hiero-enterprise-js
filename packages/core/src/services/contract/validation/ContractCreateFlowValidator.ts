@@ -1,6 +1,6 @@
 import type BigNumber from "bignumber.js";
 import { Long, Hbar } from "@hiero-ledger/sdk";
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { ContractCreateFlowOperationOptions } from "../operations/index.js";
 
 const MAX_CONTRACT_MEMO_BYTES = 100;
@@ -31,9 +31,9 @@ export class ContractCreateFlowValidator {
         options: ContractCreateFlowOperationOptions,
     ): void {
         if (options.bytecode == null) {
-            throw normalizeError(
-                new Error("bytecode is required."),
+            throw validationError(
                 "ContractCreateFlowValidator",
+                "bytecode is required.",
             );
         }
 
@@ -43,18 +43,18 @@ export class ContractCreateFlowValidator {
                 : options.bytecode.byteLength;
 
         if (len === 0) {
-            throw normalizeError(
-                new Error("bytecode must not be empty."),
+            throw validationError(
                 "ContractCreateFlowValidator",
+                "bytecode must not be empty.",
             );
         }
     }
 
     private validateGas(options: ContractCreateFlowOperationOptions): void {
         if (options.gas == null) {
-            throw normalizeError(
-                new Error("gas is required."),
+            throw validationError(
                 "ContractCreateFlowValidator",
+                "gas is required.",
             );
         }
 
@@ -64,9 +64,9 @@ export class ContractCreateFlowValidator {
                 : options.gas.greaterThan(0);
 
         if (!isPositive) {
-            throw normalizeError(
-                new Error("gas must be greater than zero."),
+            throw validationError(
                 "ContractCreateFlowValidator",
+                "gas must be greater than zero.",
             );
         }
     }
@@ -79,11 +79,9 @@ export class ContractCreateFlowValidator {
 
         // The SDK treats a bigint as 0 HBAR, so reject it.
         if (typeof value === "bigint") {
-            throw normalizeError(
-                new Error(
-                    "initialBalance must be a number, string, Long, BigNumber or Hbar, not a bigint.",
-                ),
+            throw validationError(
                 "ContractCreateFlowValidator",
+                "initialBalance must be a number, string, Long, BigNumber or Hbar, not a bigint.",
             );
         }
 
@@ -101,9 +99,9 @@ export class ContractCreateFlowValidator {
         }
 
         if (isNegative) {
-            throw normalizeError(
-                new Error("initialBalance must not be negative."),
+            throw validationError(
                 "ContractCreateFlowValidator",
+                "initialBalance must not be negative.",
             );
         }
     }
@@ -113,11 +111,9 @@ export class ContractCreateFlowValidator {
 
         const byteLength = Buffer.byteLength(options.contractMemo, "utf8");
         if (byteLength > MAX_CONTRACT_MEMO_BYTES) {
-            throw normalizeError(
-                new Error(
-                    `contractMemo exceeds ${MAX_CONTRACT_MEMO_BYTES} bytes (got ${byteLength}).`,
-                ),
+            throw validationError(
                 "ContractCreateFlowValidator",
+                `contractMemo exceeds ${MAX_CONTRACT_MEMO_BYTES} bytes (got ${byteLength}).`,
             );
         }
     }
@@ -126,11 +122,9 @@ export class ContractCreateFlowValidator {
         options: ContractCreateFlowOperationOptions,
     ): void {
         if (options.stakedAccountId != null && options.stakedNodeId != null) {
-            throw normalizeError(
-                new Error(
-                    "Specify either stakedAccountId or stakedNodeId, not both.",
-                ),
+            throw validationError(
                 "ContractCreateFlowValidator",
+                "Specify either stakedAccountId or stakedNodeId, not both.",
             );
         }
     }
@@ -142,9 +136,9 @@ export class ContractCreateFlowValidator {
         if (value == null) return;
 
         if (!Number.isInteger(value) || value <= 0) {
-            throw normalizeError(
-                new Error("maxChunks must be a positive integer."),
+            throw validationError(
                 "ContractCreateFlowValidator",
+                "maxChunks must be a positive integer.",
             );
         }
     }

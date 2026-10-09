@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TokenUpdateNftsOperationOptions } from "../operations/TokenUpdateNftsOperation.js";
 
 /**
@@ -22,9 +22,9 @@ export class TokenUpdateNftsValidator {
 
     private validateTokenId(options: TokenUpdateNftsOperationOptions): void {
         if (options.tokenId == null) {
-            throw normalizeError(
-                new Error("tokenId is required."),
+            throw validationError(
                 "TokenUpdateNftsValidator",
+                "tokenId is required.",
             );
         }
 
@@ -32,9 +32,9 @@ export class TokenUpdateNftsValidator {
             typeof options.tokenId === "string" &&
             options.tokenId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("tokenId cannot be empty."),
+            throw validationError(
                 "TokenUpdateNftsValidator",
+                "tokenId cannot be empty.",
             );
         }
     }
@@ -43,31 +43,31 @@ export class TokenUpdateNftsValidator {
         options: TokenUpdateNftsOperationOptions,
     ): void {
         if (options.serialNumbers == null) {
-            throw normalizeError(
-                new Error("serialNumbers is required."),
+            throw validationError(
                 "TokenUpdateNftsValidator",
+                "serialNumbers is required.",
             );
         }
 
         if (!Array.isArray(options.serialNumbers)) {
-            throw normalizeError(
-                new Error("serialNumbers must be an array."),
+            throw validationError(
                 "TokenUpdateNftsValidator",
+                "serialNumbers must be an array.",
             );
         }
 
         if (options.serialNumbers.length === 0) {
-            throw normalizeError(
-                new Error("serialNumbers must not be empty."),
+            throw validationError(
                 "TokenUpdateNftsValidator",
+                "serialNumbers must not be empty.",
             );
         }
 
         options.serialNumbers.forEach((serial, index) => {
             if (serial == null) {
-                throw normalizeError(
-                    new Error(`serialNumbers[${index}] is required.`),
+                throw validationError(
                     "TokenUpdateNftsValidator",
+                    `serialNumbers[${index}] is required.`,
                 );
             }
         });
@@ -75,23 +75,23 @@ export class TokenUpdateNftsValidator {
 
     private validateMetadata(options: TokenUpdateNftsOperationOptions): void {
         if (options.metadata == null) {
-            throw normalizeError(
-                new Error("metadata is required."),
+            throw validationError(
                 "TokenUpdateNftsValidator",
+                "metadata is required.",
             );
         }
 
         if (!(options.metadata instanceof Uint8Array)) {
-            throw normalizeError(
-                new Error("metadata must be a Uint8Array."),
+            throw validationError(
                 "TokenUpdateNftsValidator",
+                "metadata must be a Uint8Array.",
             );
         }
 
         if (options.metadata.length === 0) {
-            throw normalizeError(
-                new Error("metadata cannot be empty."),
+            throw validationError(
                 "TokenUpdateNftsValidator",
+                "metadata cannot be empty.",
             );
         }
     }

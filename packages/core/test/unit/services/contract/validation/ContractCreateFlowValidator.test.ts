@@ -29,6 +29,11 @@ describe("ContractCreateFlowValidator", () => {
                     gas: 150_000,
                 } as unknown as ContractCreateFlowOperationOptions),
             ).toThrow(/bytecode is required/);
+            expect(() =>
+                validator.validate({
+                    gas: 150_000,
+                } as unknown as ContractCreateFlowOperationOptions),
+            ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
         });
 
         it("throws when bytecode is an empty Uint8Array", () => {

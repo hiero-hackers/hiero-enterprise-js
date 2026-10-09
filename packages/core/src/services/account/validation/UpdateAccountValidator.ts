@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { UpdateAccountOptions } from "../operations/index.js";
 
 /**
@@ -33,12 +33,10 @@ export class UpdateAccountValidator {
                 (options.additionalSigners?.length ?? 0) > 0 ||
                 (options.externalSigners?.length ?? 0) > 0;
             if (!hasSigners) {
-                throw normalizeError(
-                    new Error(
-                        "Key rotation requires both the old and new key to sign. " +
-                            "Provide the signing keys via 'additionalSigners' or 'externalSigners'.",
-                    ),
+                throw validationError(
                     "UpdateAccountValidator",
+                    "Key rotation requires both the old and new key to sign. " +
+                        "Provide the signing keys via 'additionalSigners' or 'externalSigners'.",
                 );
             }
         }
@@ -47,9 +45,9 @@ export class UpdateAccountValidator {
     private validateExpirationTime(options: UpdateAccountOptions): void {
         if (options.expirationTime != null) {
             if (options.expirationTime <= new Date()) {
-                throw normalizeError(
-                    new Error("expirationTime must be in the future."),
+                throw validationError(
                     "UpdateAccountValidator",
+                    "expirationTime must be in the future.",
                 );
             }
         }
@@ -57,11 +55,9 @@ export class UpdateAccountValidator {
 
     private validateStakingOptions(options: UpdateAccountOptions): void {
         if (options.stakedAccountId != null && options.stakedNodeId != null) {
-            throw normalizeError(
-                new Error(
-                    "stakedAccountId and stakedNodeId are mutually exclusive — set only one.",
-                ),
+            throw validationError(
                 "UpdateAccountValidator",
+                "stakedAccountId and stakedNodeId are mutually exclusive — set only one.",
             );
         }
 
@@ -76,11 +72,9 @@ export class UpdateAccountValidator {
 
     private validateMemo(options: UpdateAccountOptions): void {
         if (options.memo && Buffer.byteLength(options.memo, "utf8") > 100) {
-            throw normalizeError(
-                new Error(
-                    `Account memo exceeds 100 bytes (got ${Buffer.byteLength(options.memo, "utf8")}).`,
-                ),
+            throw validationError(
                 "UpdateAccountValidator",
+                `Account memo exceeds 100 bytes (got ${Buffer.byteLength(options.memo, "utf8")}).`,
             );
         }
     }
@@ -95,11 +89,9 @@ export class UpdateAccountValidator {
             options.autoRenewPeriod < MIN_AUTO_RENEW ||
             options.autoRenewPeriod > MAX_AUTO_RENEW
         ) {
-            throw normalizeError(
-                new Error(
-                    `autoRenewPeriod must be between 30 days (${MIN_AUTO_RENEW}s) and 90 days (${MAX_AUTO_RENEW}s), got ${options.autoRenewPeriod}s.`,
-                ),
+            throw validationError(
                 "UpdateAccountValidator",
+                `autoRenewPeriod must be between 30 days (${MIN_AUTO_RENEW}s) and 90 days (${MAX_AUTO_RENEW}s), got ${options.autoRenewPeriod}s.`,
             );
         }
     }

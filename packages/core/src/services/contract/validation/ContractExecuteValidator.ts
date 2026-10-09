@@ -1,5 +1,5 @@
 import { Long, Hbar } from "@hiero-ledger/sdk";
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { ContractExecuteOperationOptions } from "../operations/index.js";
 
 /**
@@ -24,18 +24,18 @@ export class ContractExecuteValidator {
 
     private validateContractId(options: ContractExecuteOperationOptions): void {
         if (options.contractId == null || options.contractId === "") {
-            throw normalizeError(
-                new Error("contractId is required."),
+            throw validationError(
                 "ContractExecuteValidator",
+                "contractId is required.",
             );
         }
     }
 
     private validateGas(options: ContractExecuteOperationOptions): void {
         if (options.gas == null) {
-            throw normalizeError(
-                new Error("gas is required."),
+            throw validationError(
                 "ContractExecuteValidator",
+                "gas is required.",
             );
         }
 
@@ -45,9 +45,9 @@ export class ContractExecuteValidator {
                 : options.gas.greaterThan(0);
 
         if (!isPositive) {
-            throw normalizeError(
-                new Error("gas must be greater than zero."),
+            throw validationError(
                 "ContractExecuteValidator",
+                "gas must be greater than zero.",
             );
         }
     }
@@ -66,27 +66,23 @@ export class ContractExecuteValidator {
         const hasRawParameters = options.rawFunctionParameters != null;
 
         if (!hasFunctionName && !hasRawParameters) {
-            throw normalizeError(
-                new Error(
-                    "ContractExecute requires either functionName or rawFunctionParameters.",
-                ),
+            throw validationError(
                 "ContractExecuteValidator",
+                "ContractExecute requires either functionName or rawFunctionParameters.",
             );
         }
 
         if (hasFunctionName && hasRawParameters) {
-            throw normalizeError(
-                new Error(
-                    "ContractExecute accepts functionName or rawFunctionParameters, not both.",
-                ),
+            throw validationError(
                 "ContractExecuteValidator",
+                "ContractExecute accepts functionName or rawFunctionParameters, not both.",
             );
         }
 
         if (hasRawParameters && options.rawFunctionParameters!.length === 0) {
-            throw normalizeError(
-                new Error("rawFunctionParameters must not be empty."),
+            throw validationError(
                 "ContractExecuteValidator",
+                "rawFunctionParameters must not be empty.",
             );
         }
     }
@@ -99,11 +95,9 @@ export class ContractExecuteValidator {
 
         // The SDK treats a bigint as 0 HBAR, so reject it.
         if (typeof value === "bigint") {
-            throw normalizeError(
-                new Error(
-                    "payableAmount must be a number, string, Long, BigNumber or Hbar, not a bigint.",
-                ),
+            throw validationError(
                 "ContractExecuteValidator",
+                "payableAmount must be a number, string, Long, BigNumber or Hbar, not a bigint.",
             );
         }
 
@@ -121,9 +115,9 @@ export class ContractExecuteValidator {
         }
 
         if (isNegative) {
-            throw normalizeError(
-                new Error("payableAmount must not be negative."),
+            throw validationError(
                 "ContractExecuteValidator",
+                "payableAmount must not be negative.",
             );
         }
     }

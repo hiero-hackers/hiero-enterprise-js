@@ -13,6 +13,9 @@ describe("FileDeleteValidator", () => {
         expect(() =>
             validator.validate({} as unknown as FileDeleteOperationOptions),
         ).toThrow(/fileId is required/);
+        expect(() =>
+            validator.validate({} as unknown as FileDeleteOperationOptions),
+        ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
     });
 
     it("rejects an empty-string fileId", () => {

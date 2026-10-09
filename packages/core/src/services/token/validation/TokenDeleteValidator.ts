@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TokenDeleteOperationOptions } from "../operations/index.js";
 
 /**
@@ -20,9 +20,9 @@ export class TokenDeleteValidator {
 
     private validateTokenId(options: TokenDeleteOperationOptions): void {
         if (options.tokenId == null) {
-            throw normalizeError(
-                new Error("tokenId is required."),
+            throw validationError(
                 "TokenDeleteValidator",
+                "tokenId is required.",
             );
         }
 
@@ -30,9 +30,9 @@ export class TokenDeleteValidator {
             typeof options.tokenId === "string" &&
             options.tokenId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("tokenId cannot be empty."),
+            throw validationError(
                 "TokenDeleteValidator",
+                "tokenId cannot be empty.",
             );
         }
     }

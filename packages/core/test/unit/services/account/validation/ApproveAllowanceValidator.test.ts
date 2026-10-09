@@ -11,6 +11,9 @@ describe("ApproveAllowanceValidator", () => {
         expect(() => validator.validate({} as ApproveAllowanceOptions)).toThrow(
             /At least one allowance must be provided/,
         );
+        expect(() => validator.validate({} as ApproveAllowanceOptions)).toThrow(
+            expect.objectContaining({ code: "INPUT_INVALID" }),
+        );
     });
 
     it("throws when all arrays are empty", () => {

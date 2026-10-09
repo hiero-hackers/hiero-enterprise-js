@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TokenDissociateOperationOptions } from "../operations/index.js";
 
 /**
@@ -12,9 +12,9 @@ export class TokenDissociateValidator {
 
     private validateAccountId(options: TokenDissociateOperationOptions): void {
         if (options.accountId == null) {
-            throw normalizeError(
-                new Error("accountId is required."),
+            throw validationError(
                 "TokenDissociateValidator",
+                "accountId is required.",
             );
         }
 
@@ -22,47 +22,47 @@ export class TokenDissociateValidator {
             typeof options.accountId === "string" &&
             options.accountId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("accountId cannot be empty."),
+            throw validationError(
                 "TokenDissociateValidator",
+                "accountId cannot be empty.",
             );
         }
     }
 
     private validateTokenIds(options: TokenDissociateOperationOptions): void {
         if (options.tokenIds == null) {
-            throw normalizeError(
-                new Error("tokenIds is required."),
+            throw validationError(
                 "TokenDissociateValidator",
+                "tokenIds is required.",
             );
         }
 
         if (!Array.isArray(options.tokenIds)) {
-            throw normalizeError(
-                new Error("tokenIds must be an array."),
+            throw validationError(
                 "TokenDissociateValidator",
+                "tokenIds must be an array.",
             );
         }
 
         if (options.tokenIds.length === 0) {
-            throw normalizeError(
-                new Error("tokenIds must contain at least one token id."),
+            throw validationError(
                 "TokenDissociateValidator",
+                "tokenIds must contain at least one token id.",
             );
         }
 
         for (const tokenId of options.tokenIds) {
             if (tokenId == null) {
-                throw normalizeError(
-                    new Error("tokenIds entries cannot be null."),
+                throw validationError(
                     "TokenDissociateValidator",
+                    "tokenIds entries cannot be null.",
                 );
             }
 
             if (typeof tokenId === "string" && tokenId.trim().length === 0) {
-                throw normalizeError(
-                    new Error("tokenIds entries cannot be empty."),
+                throw validationError(
                     "TokenDissociateValidator",
+                    "tokenIds entries cannot be empty.",
                 );
             }
         }

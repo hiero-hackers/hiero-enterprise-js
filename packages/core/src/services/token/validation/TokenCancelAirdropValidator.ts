@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TokenCancelAirdropOperationOptions } from "../operations/TokenCancelAirdropOperation.js";
 
 /**
@@ -25,23 +25,23 @@ export class TokenCancelAirdropValidator {
         options: TokenCancelAirdropOperationOptions,
     ): void {
         if (options.pendingAirdropIds == null) {
-            throw normalizeError(
-                new Error("pendingAirdropIds is required."),
+            throw validationError(
                 "TokenCancelAirdropValidator",
+                "pendingAirdropIds is required.",
             );
         }
 
         if (!Array.isArray(options.pendingAirdropIds)) {
-            throw normalizeError(
-                new Error("pendingAirdropIds must be an array."),
+            throw validationError(
                 "TokenCancelAirdropValidator",
+                "pendingAirdropIds must be an array.",
             );
         }
 
         if (options.pendingAirdropIds.length === 0) {
-            throw normalizeError(
-                new Error("pendingAirdropIds must not be empty."),
+            throw validationError(
                 "TokenCancelAirdropValidator",
+                "pendingAirdropIds must not be empty.",
             );
         }
     }
@@ -50,9 +50,9 @@ export class TokenCancelAirdropValidator {
         const prefix = `pendingAirdropIds[${index}]`;
 
         if (id == null) {
-            throw normalizeError(
-                new Error(`${prefix} is required.`),
+            throw validationError(
                 "TokenCancelAirdropValidator",
+                `${prefix} is required.`,
             );
         }
     }

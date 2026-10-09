@@ -42,6 +42,12 @@ describe("TokenUpdateNftsValidator", () => {
                     tokenId: null as unknown as string,
                 }),
             ).toThrow(/tokenId is required/);
+            expect(() =>
+                validator.validate({
+                    ...baseOptions,
+                    tokenId: null as unknown as string,
+                }),
+            ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
         });
 
         it("throws when tokenId is undefined", () => {

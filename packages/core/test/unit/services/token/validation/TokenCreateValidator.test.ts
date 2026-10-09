@@ -25,6 +25,12 @@ describe("TokenCreateValidator", () => {
                     tokenName: undefined as unknown as string,
                 }),
             ).toThrow(/tokenName is required/);
+            expect(() =>
+                validator.validate({
+                    ...baseOptions,
+                    tokenName: undefined as unknown as string,
+                }),
+            ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
         });
 
         it("throws when tokenName is empty", () => {

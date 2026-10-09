@@ -204,7 +204,7 @@ describe("FileUpdateOperation (via FileService)", () => {
 
             await expect(promise).rejects.toThrow(HieroError);
             await expect(promise).rejects.toMatchObject({
-                code: HieroErrorCodes.SdkError,
+                code: HieroErrorCodes.InputInvalid,
                 context: "FileService.scheduleUpdateFile",
                 message: expect.stringMatching(
                     /scheduleUpdateFile does not support contents larger than/,

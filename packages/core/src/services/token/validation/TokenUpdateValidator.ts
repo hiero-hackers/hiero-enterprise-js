@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TokenUpdateOperationOptions } from "../operations/TokenUpdateOperation.js";
 
 const MAX_TOKEN_NAME_BYTES = 100;
@@ -29,9 +29,9 @@ export class TokenUpdateValidator {
 
     private validateTokenId(options: TokenUpdateOperationOptions): void {
         if (options.tokenId == null) {
-            throw normalizeError(
-                new Error("tokenId is required."),
+            throw validationError(
                 "TokenUpdateValidator",
+                "tokenId is required.",
             );
         }
 
@@ -39,9 +39,9 @@ export class TokenUpdateValidator {
             typeof options.tokenId === "string" &&
             options.tokenId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("tokenId cannot be empty."),
+            throw validationError(
                 "TokenUpdateValidator",
+                "tokenId cannot be empty.",
             );
         }
     }
@@ -50,19 +50,17 @@ export class TokenUpdateValidator {
         if (options.tokenName == null) return;
 
         if (options.tokenName.length === 0) {
-            throw normalizeError(
-                new Error("tokenName cannot be empty."),
+            throw validationError(
                 "TokenUpdateValidator",
+                "tokenName cannot be empty.",
             );
         }
 
         const byteLength = Buffer.byteLength(options.tokenName, "utf8");
         if (byteLength > MAX_TOKEN_NAME_BYTES) {
-            throw normalizeError(
-                new Error(
-                    `tokenName exceeds ${MAX_TOKEN_NAME_BYTES} bytes (got ${byteLength}).`,
-                ),
+            throw validationError(
                 "TokenUpdateValidator",
+                `tokenName exceeds ${MAX_TOKEN_NAME_BYTES} bytes (got ${byteLength}).`,
             );
         }
     }
@@ -71,19 +69,17 @@ export class TokenUpdateValidator {
         if (options.tokenSymbol == null) return;
 
         if (options.tokenSymbol.length === 0) {
-            throw normalizeError(
-                new Error("tokenSymbol cannot be empty."),
+            throw validationError(
                 "TokenUpdateValidator",
+                "tokenSymbol cannot be empty.",
             );
         }
 
         const byteLength = Buffer.byteLength(options.tokenSymbol, "utf8");
         if (byteLength > MAX_TOKEN_SYMBOL_BYTES) {
-            throw normalizeError(
-                new Error(
-                    `tokenSymbol exceeds ${MAX_TOKEN_SYMBOL_BYTES} bytes (got ${byteLength}).`,
-                ),
+            throw validationError(
                 "TokenUpdateValidator",
+                `tokenSymbol exceeds ${MAX_TOKEN_SYMBOL_BYTES} bytes (got ${byteLength}).`,
             );
         }
     }
@@ -93,11 +89,9 @@ export class TokenUpdateValidator {
 
         const byteLength = Buffer.byteLength(options.tokenMemo, "utf8");
         if (byteLength > MAX_TOKEN_MEMO_BYTES) {
-            throw normalizeError(
-                new Error(
-                    `tokenMemo exceeds ${MAX_TOKEN_MEMO_BYTES} bytes (got ${byteLength}).`,
-                ),
+            throw validationError(
                 "TokenUpdateValidator",
+                `tokenMemo exceeds ${MAX_TOKEN_MEMO_BYTES} bytes (got ${byteLength}).`,
             );
         }
     }
@@ -109,9 +103,9 @@ export class TokenUpdateValidator {
             typeof options.treasuryAccountId === "string" &&
             options.treasuryAccountId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("treasuryAccountId cannot be empty."),
+            throw validationError(
                 "TokenUpdateValidator",
+                "treasuryAccountId cannot be empty.",
             );
         }
     }
@@ -125,9 +119,9 @@ export class TokenUpdateValidator {
             typeof options.autoRenewAccountId === "string" &&
             options.autoRenewAccountId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("autoRenewAccountId cannot be empty."),
+            throw validationError(
                 "TokenUpdateValidator",
+                "autoRenewAccountId cannot be empty.",
             );
         }
     }

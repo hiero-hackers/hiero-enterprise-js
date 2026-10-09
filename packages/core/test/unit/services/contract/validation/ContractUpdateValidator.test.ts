@@ -20,6 +20,11 @@ describe("ContractUpdateValidator", () => {
                     {} as unknown as ContractUpdateOperationOptions,
                 ),
             ).toThrow(/contractId is required/);
+            expect(() =>
+                validator.validate(
+                    {} as unknown as ContractUpdateOperationOptions,
+                ),
+            ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
         });
 
         it("throws when contractId is an empty string", () => {

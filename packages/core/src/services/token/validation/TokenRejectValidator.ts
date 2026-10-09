@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TokenRejectOperationOptions } from "../operations/index.js";
 
 /**
@@ -14,9 +14,9 @@ export class TokenRejectValidator {
 
     private validateOwnerId(options: TokenRejectOperationOptions): void {
         if (options.ownerId == null) {
-            throw normalizeError(
-                new Error("ownerId is required."),
+            throw validationError(
                 "TokenRejectValidator",
+                "ownerId is required.",
             );
         }
 
@@ -24,9 +24,9 @@ export class TokenRejectValidator {
             typeof options.ownerId === "string" &&
             options.ownerId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("ownerId cannot be empty."),
+            throw validationError(
                 "TokenRejectValidator",
+                "ownerId cannot be empty.",
             );
         }
     }
@@ -37,24 +37,24 @@ export class TokenRejectValidator {
         if (options.fungibleTokenIds == null) return;
 
         if (!Array.isArray(options.fungibleTokenIds)) {
-            throw normalizeError(
-                new Error("fungibleTokenIds must be an array."),
+            throw validationError(
                 "TokenRejectValidator",
+                "fungibleTokenIds must be an array.",
             );
         }
 
         for (const tokenId of options.fungibleTokenIds) {
             if (tokenId == null) {
-                throw normalizeError(
-                    new Error("fungibleTokenIds entries cannot be null."),
+                throw validationError(
                     "TokenRejectValidator",
+                    "fungibleTokenIds entries cannot be null.",
                 );
             }
 
             if (typeof tokenId === "string" && tokenId.trim().length === 0) {
-                throw normalizeError(
-                    new Error("fungibleTokenIds entries cannot be empty."),
+                throw validationError(
                     "TokenRejectValidator",
+                    "fungibleTokenIds entries cannot be empty.",
                 );
             }
         }
@@ -64,17 +64,17 @@ export class TokenRejectValidator {
         if (options.nftIds == null) return;
 
         if (!Array.isArray(options.nftIds)) {
-            throw normalizeError(
-                new Error("nftIds must be an array."),
+            throw validationError(
                 "TokenRejectValidator",
+                "nftIds must be an array.",
             );
         }
 
         for (const nftId of options.nftIds) {
             if (nftId == null) {
-                throw normalizeError(
-                    new Error("nftIds entries cannot be null."),
+                throw validationError(
                     "TokenRejectValidator",
+                    "nftIds entries cannot be null.",
                 );
             }
         }
@@ -89,11 +89,9 @@ export class TokenRejectValidator {
         const hasNfts = options.nftIds != null && options.nftIds.length > 0;
 
         if (!hasTokens && !hasNfts) {
-            throw normalizeError(
-                new Error(
-                    "Token reject requires at least one fungibleTokenId or nftId.",
-                ),
+            throw validationError(
                 "TokenRejectValidator",
+                "Token reject requires at least one fungibleTokenId or nftId.",
             );
         }
     }

@@ -1,6 +1,10 @@
 import type { FileId, Key } from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../context/index.js";
-import { HieroError, HieroErrorCodes } from "../../errors/index.js";
+import {
+    HieroError,
+    HieroErrorCodes,
+    validationError,
+} from "../../errors/index.js";
 import type { QueryOptions, ScheduleOptions } from "../transaction/index.js";
 import {
     FileCreateOperation,
@@ -286,13 +290,10 @@ export class FileService {
         if (options.contents !== undefined) {
             const [, tail] = splitContents(options.contents);
             if (tail !== null) {
-                throw new HieroError(
+                throw validationError(
+                    "FileService.scheduleUpdateFile",
                     "scheduleUpdateFile does not support contents larger than the per-transaction network limit " +
                         `(~${MAX_FILE_TX_BYTES} bytes). Update the file directly and schedule follow-up updates instead.`,
-                    {
-                        code: HieroErrorCodes.SdkError,
-                        context: "FileService.scheduleUpdateFile",
-                    },
                 );
             }
         }

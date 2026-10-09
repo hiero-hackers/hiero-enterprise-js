@@ -48,6 +48,11 @@ describe("TokenAirdropNftValidator", () => {
                     airdrops: null as unknown as NftAirdrop[],
                 }),
             ).toThrow(/airdrops is required/);
+            expect(() =>
+                validator.validate({
+                    airdrops: null as unknown as NftAirdrop[],
+                }),
+            ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
         });
 
         it("throws when airdrops is not an array", () => {

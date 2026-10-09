@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { ContractUpdateOperationOptions } from "../operations/ContractUpdateOperation.js";
 
 const MAX_CONTRACT_MEMO_BYTES = 100;
@@ -25,9 +25,9 @@ export class ContractUpdateValidator {
 
     private validateContractId(options: ContractUpdateOperationOptions): void {
         if (options.contractId == null) {
-            throw normalizeError(
-                new Error("contractId is required."),
+            throw validationError(
                 "ContractUpdateValidator",
+                "contractId is required.",
             );
         }
 
@@ -35,9 +35,9 @@ export class ContractUpdateValidator {
             typeof options.contractId === "string" &&
             options.contractId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("contractId cannot be empty."),
+            throw validationError(
                 "ContractUpdateValidator",
+                "contractId cannot be empty.",
             );
         }
     }
@@ -47,11 +47,9 @@ export class ContractUpdateValidator {
 
         const byteLength = Buffer.byteLength(options.contractMemo, "utf8");
         if (byteLength > MAX_CONTRACT_MEMO_BYTES) {
-            throw normalizeError(
-                new Error(
-                    `contractMemo exceeds ${MAX_CONTRACT_MEMO_BYTES} bytes (got ${byteLength}).`,
-                ),
+            throw validationError(
                 "ContractUpdateValidator",
+                `contractMemo exceeds ${MAX_CONTRACT_MEMO_BYTES} bytes (got ${byteLength}).`,
             );
         }
     }
@@ -60,11 +58,9 @@ export class ContractUpdateValidator {
         options: ContractUpdateOperationOptions,
     ): void {
         if (options.stakedAccountId != null && options.stakedNodeId != null) {
-            throw normalizeError(
-                new Error(
-                    "Specify either stakedAccountId or stakedNodeId, not both.",
-                ),
+            throw validationError(
                 "ContractUpdateValidator",
+                "Specify either stakedAccountId or stakedNodeId, not both.",
             );
         }
     }
@@ -81,18 +77,16 @@ export class ContractUpdateValidator {
         if (value == null) return;
 
         if (!Number.isInteger(value)) {
-            throw normalizeError(
-                new Error("maxAutomaticTokenAssociations must be an integer."),
+            throw validationError(
                 "ContractUpdateValidator",
+                "maxAutomaticTokenAssociations must be an integer.",
             );
         }
 
         if (value < -1) {
-            throw normalizeError(
-                new Error(
-                    "maxAutomaticTokenAssociations must be -1 (unlimited) or a non-negative integer.",
-                ),
+            throw validationError(
                 "ContractUpdateValidator",
+                "maxAutomaticTokenAssociations must be -1 (unlimited) or a non-negative integer.",
             );
         }
     }

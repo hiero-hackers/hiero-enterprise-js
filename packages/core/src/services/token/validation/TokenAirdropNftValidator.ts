@@ -1,5 +1,5 @@
 import { Long } from "@hiero-ledger/sdk";
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type {
     NftAirdrop,
     TokenAirdropNftOperationOptions,
@@ -29,23 +29,23 @@ export class TokenAirdropNftValidator {
         options: TokenAirdropNftOperationOptions,
     ): void {
         if (options.airdrops == null) {
-            throw normalizeError(
-                new Error("airdrops is required."),
+            throw validationError(
                 "TokenAirdropNftValidator",
+                "airdrops is required.",
             );
         }
 
         if (!Array.isArray(options.airdrops)) {
-            throw normalizeError(
-                new Error("airdrops must be an array."),
+            throw validationError(
                 "TokenAirdropNftValidator",
+                "airdrops must be an array.",
             );
         }
 
         if (options.airdrops.length === 0) {
-            throw normalizeError(
-                new Error("airdrops must not be empty."),
+            throw validationError(
                 "TokenAirdropNftValidator",
+                "airdrops must not be empty.",
             );
         }
     }
@@ -61,9 +61,9 @@ export class TokenAirdropNftValidator {
 
     private validateTokenId(airdrop: NftAirdrop, prefix: string): void {
         if (airdrop.tokenId == null) {
-            throw normalizeError(
-                new Error(`${prefix}.tokenId is required.`),
+            throw validationError(
                 "TokenAirdropNftValidator",
+                `${prefix}.tokenId is required.`,
             );
         }
 
@@ -71,18 +71,18 @@ export class TokenAirdropNftValidator {
             typeof airdrop.tokenId === "string" &&
             airdrop.tokenId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error(`${prefix}.tokenId cannot be empty.`),
+            throw validationError(
                 "TokenAirdropNftValidator",
+                `${prefix}.tokenId cannot be empty.`,
             );
         }
     }
 
     private validateSerial(airdrop: NftAirdrop, prefix: string): void {
         if (airdrop.serial == null) {
-            throw normalizeError(
-                new Error(`${prefix}.serial is required.`),
+            throw validationError(
                 "TokenAirdropNftValidator",
+                `${prefix}.serial is required.`,
             );
         }
 
@@ -98,9 +98,9 @@ export class TokenAirdropNftValidator {
         }
 
         if (!isPositiveInteger) {
-            throw normalizeError(
-                new Error(`${prefix}.serial must be a positive integer.`),
+            throw validationError(
                 "TokenAirdropNftValidator",
+                `${prefix}.serial must be a positive integer.`,
             );
         }
     }
@@ -116,16 +116,16 @@ export class TokenAirdropNftValidator {
                 : airdrop.receiverAccountId;
 
         if (value == null) {
-            throw normalizeError(
-                new Error(`${prefix}.${field} is required.`),
+            throw validationError(
                 "TokenAirdropNftValidator",
+                `${prefix}.${field} is required.`,
             );
         }
 
         if (typeof value === "string" && value.trim().length === 0) {
-            throw normalizeError(
-                new Error(`${prefix}.${field} cannot be empty.`),
+            throw validationError(
                 "TokenAirdropNftValidator",
+                `${prefix}.${field} cannot be empty.`,
             );
         }
     }
@@ -144,11 +144,9 @@ export class TokenAirdropNftValidator {
                 : airdrop.receiverAccountId.toString();
 
         if (sender === receiver) {
-            throw normalizeError(
-                new Error(
-                    `${prefix}: senderAccountId and receiverAccountId must be different.`,
-                ),
+            throw validationError(
                 "TokenAirdropNftValidator",
+                `${prefix}: senderAccountId and receiverAccountId must be different.`,
             );
         }
     }

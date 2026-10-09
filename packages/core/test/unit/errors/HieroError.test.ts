@@ -3,6 +3,7 @@ import {
     HieroError,
     HieroErrorCodes,
     normalizeError,
+    validationError,
 } from "../../../src/errors/index.js";
 
 describe("HieroError", () => {
@@ -100,5 +101,17 @@ describe("normalizeError", () => {
         const result = normalizeError(42);
         expect(result.message).toBe("42");
         expect(result.cause).toBe(42);
+    });
+});
+
+describe("validationError", () => {
+    it("creates an INPUT_INVALID error with the validator as context", () => {
+        const error = validationError("ScheduleSignValidator", "bad input");
+        expect(error).toBeInstanceOf(HieroError);
+        expect(error.message).toBe("bad input");
+        expect(error.code).toBe(HieroErrorCodes.InputInvalid);
+        expect(error.code).toBe("INPUT_INVALID");
+        expect(error.context).toBe("ScheduleSignValidator");
+        expect(error.cause).toBeUndefined();
     });
 });

@@ -4,6 +4,8 @@
  */
 export const HieroErrorCodes = {
     ConfigInvalid: "CONFIG_INVALID",
+    /** Invalid caller input, rejected before anything is sent. */
+    InputInvalid: "INPUT_INVALID",
     NotFound: "NOT_FOUND",
     TimedOut: "TIMED_OUT",
     SdkError: "SDK_ERROR",
@@ -106,5 +108,19 @@ export function normalizeError(error: unknown, context?: string): HieroError {
         code: HieroErrorCodes.Unknown,
         context,
         cause: error,
+    });
+}
+
+/**
+ * Create the error a validator throws for invalid caller input.
+ *
+ * @param context - The validator rejecting the input
+ * @param message - What is wrong with the input
+ * @returns A HieroError with code `INPUT_INVALID`
+ */
+export function validationError(context: string, message: string): HieroError {
+    return new HieroError(message, {
+        code: HieroErrorCodes.InputInvalid,
+        context,
     });
 }

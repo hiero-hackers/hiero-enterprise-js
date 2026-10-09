@@ -32,6 +32,11 @@ describe("FileAppendValidator", () => {
                 contents: "x",
             } as unknown as FileAppendOperationOptions),
         ).toThrow(/fileId is required/);
+        expect(() =>
+            validator.validate({
+                contents: "x",
+            } as unknown as FileAppendOperationOptions),
+        ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
     });
 
     it("rejects an empty-string fileId", () => {

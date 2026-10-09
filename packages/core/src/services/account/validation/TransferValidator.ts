@@ -1,5 +1,5 @@
 import type { AccountId, TokenId, Hbar } from "@hiero-ledger/sdk";
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 
 /**
  * Validates inputs to `TransferOperation` methods before building the SDK
@@ -65,30 +65,27 @@ export class TransferValidator {
         paramName: string,
     ): void {
         if (value == null) {
-            throw normalizeError(
-                new Error(`${paramName} is required.`),
+            throw validationError(
                 "TransferValidator",
+                `${paramName} is required.`,
             );
         }
         if (typeof value === "string" && value.trim() === "") {
-            throw normalizeError(
-                new Error(`${paramName} must not be empty.`),
+            throw validationError(
                 "TransferValidator",
+                `${paramName} must not be empty.`,
             );
         }
     }
 
     private validateTokenId(value: string | TokenId | null | undefined): void {
         if (value == null) {
-            throw normalizeError(
-                new Error("tokenId is required."),
-                "TransferValidator",
-            );
+            throw validationError("TransferValidator", "tokenId is required.");
         }
         if (typeof value === "string" && value.trim() === "") {
-            throw normalizeError(
-                new Error("tokenId must not be empty."),
+            throw validationError(
                 "TransferValidator",
+                "tokenId must not be empty.",
             );
         }
     }
@@ -98,34 +95,29 @@ export class TransferValidator {
         receiver: string | AccountId,
     ): void {
         if (sender.toString() === receiver.toString()) {
-            throw normalizeError(
-                new Error(
-                    "senderAccountId and receiverAccountId must be different — transferring to self is a no-op.",
-                ),
+            throw validationError(
                 "TransferValidator",
+                "senderAccountId and receiverAccountId must be different — transferring to self is a no-op.",
             );
         }
     }
 
     private validateHbarAmount(amount: number | Hbar | null | undefined): void {
         if (amount == null) {
-            throw normalizeError(
-                new Error("amount is required."),
-                "TransferValidator",
-            );
+            throw validationError("TransferValidator", "amount is required.");
         }
 
         if (typeof amount === "number") {
             if (!Number.isFinite(amount)) {
-                throw normalizeError(
-                    new Error("amount must be a finite number."),
+                throw validationError(
                     "TransferValidator",
+                    "amount must be a finite number.",
                 );
             }
             if (amount <= 0) {
-                throw normalizeError(
-                    new Error("amount must be positive."),
+                throw validationError(
                     "TransferValidator",
+                    "amount must be positive.",
                 );
             }
             return;
@@ -136,72 +128,66 @@ export class TransferValidator {
         try {
             tinybars = BigInt(amount.toTinybars().toString());
         } catch {
-            throw normalizeError(
-                new Error("amount is not a valid Hbar value."),
+            throw validationError(
                 "TransferValidator",
+                "amount is not a valid Hbar value.",
             );
         }
         if (tinybars <= 0n) {
-            throw normalizeError(
-                new Error("amount must be positive."),
+            throw validationError(
                 "TransferValidator",
+                "amount must be positive.",
             );
         }
     }
 
     private validateTokenAmount(amount: number | null | undefined): void {
         if (amount == null) {
-            throw normalizeError(
-                new Error("amount is required."),
-                "TransferValidator",
-            );
+            throw validationError("TransferValidator", "amount is required.");
         }
         if (!Number.isFinite(amount) || !Number.isSafeInteger(amount)) {
-            throw normalizeError(
-                new Error("amount must be a safe integer."),
+            throw validationError(
                 "TransferValidator",
+                "amount must be a safe integer.",
             );
         }
         if (amount <= 0) {
-            throw normalizeError(
-                new Error("amount must be positive."),
+            throw validationError(
                 "TransferValidator",
+                "amount must be positive.",
             );
         }
     }
 
     private validateSerial(serial: number | null | undefined): void {
         if (serial == null) {
-            throw normalizeError(
-                new Error("serial is required."),
-                "TransferValidator",
-            );
+            throw validationError("TransferValidator", "serial is required.");
         }
         if (!Number.isFinite(serial) || !Number.isSafeInteger(serial)) {
-            throw normalizeError(
-                new Error("serial must be a safe integer."),
+            throw validationError(
                 "TransferValidator",
+                "serial must be a safe integer.",
             );
         }
         if (serial <= 0) {
-            throw normalizeError(
-                new Error("serial must be positive."),
+            throw validationError(
                 "TransferValidator",
+                "serial must be positive.",
             );
         }
     }
 
     private validateExpectedDecimals(decimals: number): void {
         if (!Number.isFinite(decimals) || !Number.isInteger(decimals)) {
-            throw normalizeError(
-                new Error("expectedDecimals must be a finite integer."),
+            throw validationError(
                 "TransferValidator",
+                "expectedDecimals must be a finite integer.",
             );
         }
         if (decimals < 0) {
-            throw normalizeError(
-                new Error("expectedDecimals cannot be negative."),
+            throw validationError(
                 "TransferValidator",
+                "expectedDecimals cannot be negative.",
             );
         }
     }
