@@ -1,7 +1,6 @@
 import type { AccountId, Long, TokenId } from "@hiero-ledger/sdk";
 import { TokenAirdropTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type { TransactionOptions } from "../../transaction/index.js";
 import { TokenAirdropNftValidator } from "../validation/index.js";
 
@@ -43,30 +42,18 @@ export interface TokenAirdropNftOperationOptions extends TransactionOptions {
     airdrops: NftAirdrop[];
 }
 
-export class TokenAirdropNftOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TokenAirdropNftValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TokenAirdropNftValidator();
-    }
+export class TokenAirdropNftOperation extends BaseOperation<TokenAirdropNftOperationOptions> {
+    protected readonly type = "TokenAirdrop";
+    protected readonly serviceName = "TokenService";
+    protected readonly methodName = "airdropNft";
+    protected readonly validator = new TokenAirdropNftValidator();
 
     /** Submit an NFT `TokenAirdropTransaction`. */
     async execute(options: TokenAirdropNftOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "TokenAirdrop",
-            serviceName: "TokenService",
-            methodName: "airdropNft",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
-    private build(
+    protected build(
         options: TokenAirdropNftOperationOptions,
     ): TokenAirdropTransaction {
         const tx = new TokenAirdropTransaction();

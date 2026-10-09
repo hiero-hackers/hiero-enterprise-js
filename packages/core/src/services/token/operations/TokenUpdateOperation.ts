@@ -7,8 +7,7 @@ import type {
     TokenId,
 } from "@hiero-ledger/sdk";
 import { TokenUpdateTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type {
     TransactionOptions,
     ScheduleOptions,
@@ -46,27 +45,15 @@ export interface TokenUpdateOperationOptions extends TransactionOptions {
     keyVerificationMode?: TokenKeyValidation;
 }
 
-export class TokenUpdateOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TokenUpdateValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TokenUpdateValidator();
-    }
+export class TokenUpdateOperation extends BaseOperation<TokenUpdateOperationOptions> {
+    protected readonly type = "TokenUpdate";
+    protected readonly serviceName = "TokenService";
+    protected readonly methodName = "updateToken";
+    protected readonly validator = new TokenUpdateValidator();
 
     /** Submit a `TokenUpdateTransaction`. */
     async execute(options: TokenUpdateOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "TokenUpdate",
-            serviceName: "TokenService",
-            methodName: "updateToken",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
     /** Schedule a `TokenUpdateTransaction` for deferred multi-sig execution. */
@@ -74,24 +61,10 @@ export class TokenUpdateOperation {
         options: TokenUpdateOperationOptions,
         scheduleOptions?: ScheduleOptions,
     ) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.scheduleRun(
-            tx,
-            options,
-            {
-                type: "TokenUpdate",
-                serviceName: "TokenService",
-                methodName: "updateToken",
-                timestamp: new Date(),
-            },
-            scheduleOptions,
-        );
+        return await this.scheduleRun(options, scheduleOptions);
     }
 
-    private build(
+    protected build(
         options: TokenUpdateOperationOptions,
     ): TokenUpdateTransaction {
         const tx = new TokenUpdateTransaction().setTokenId(options.tokenId);

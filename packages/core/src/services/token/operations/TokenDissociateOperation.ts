@@ -1,7 +1,6 @@
 import type { AccountId, TokenId } from "@hiero-ledger/sdk";
 import { TokenDissociateTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type {
     TransactionOptions,
     ScheduleOptions,
@@ -20,27 +19,15 @@ export interface TokenDissociateOperationOptions extends TransactionOptions {
     tokenIds: (TokenId | string)[];
 }
 
-export class TokenDissociateOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TokenDissociateValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TokenDissociateValidator();
-    }
+export class TokenDissociateOperation extends BaseOperation<TokenDissociateOperationOptions> {
+    protected readonly type = "TokenDissociate";
+    protected readonly serviceName = "TokenService";
+    protected readonly methodName = "dissociateToken";
+    protected readonly validator = new TokenDissociateValidator();
 
     /** Submit a `TokenDissociateTransaction`. */
     async execute(options: TokenDissociateOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "TokenDissociate",
-            serviceName: "TokenService",
-            methodName: "dissociateToken",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
     /** Schedule a `TokenDissociateTransaction` for deferred multi-sig execution. */
@@ -48,24 +35,10 @@ export class TokenDissociateOperation {
         options: TokenDissociateOperationOptions,
         scheduleOptions?: ScheduleOptions,
     ) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.scheduleRun(
-            tx,
-            options,
-            {
-                type: "TokenDissociate",
-                serviceName: "TokenService",
-                methodName: "dissociateToken",
-                timestamp: new Date(),
-            },
-            scheduleOptions,
-        );
+        return await this.scheduleRun(options, scheduleOptions);
     }
 
-    private build(
+    protected build(
         options: TokenDissociateOperationOptions,
     ): TokenDissociateTransaction {
         return new TokenDissociateTransaction()

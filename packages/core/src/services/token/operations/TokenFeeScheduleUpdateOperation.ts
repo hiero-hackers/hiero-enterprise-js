@@ -1,7 +1,6 @@
 import type { CustomFee, TokenId } from "@hiero-ledger/sdk";
 import { TokenFeeScheduleUpdateTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type { TransactionOptions } from "../../transaction/index.js";
 import { TokenFeeScheduleUpdateValidator } from "../validation/index.js";
 
@@ -23,30 +22,18 @@ export interface TokenFeeScheduleUpdateOperationOptions extends TransactionOptio
     customFees: CustomFee[];
 }
 
-export class TokenFeeScheduleUpdateOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TokenFeeScheduleUpdateValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TokenFeeScheduleUpdateValidator();
-    }
+export class TokenFeeScheduleUpdateOperation extends BaseOperation<TokenFeeScheduleUpdateOperationOptions> {
+    protected readonly type = "TokenFeeScheduleUpdate";
+    protected readonly serviceName = "TokenService";
+    protected readonly methodName = "updateTokenFeeSchedule";
+    protected readonly validator = new TokenFeeScheduleUpdateValidator();
 
     /** Submit a `TokenFeeScheduleUpdateTransaction`. */
     async execute(options: TokenFeeScheduleUpdateOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "TokenFeeScheduleUpdate",
-            serviceName: "TokenService",
-            methodName: "updateTokenFeeSchedule",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
-    private build(
+    protected build(
         options: TokenFeeScheduleUpdateOperationOptions,
     ): TokenFeeScheduleUpdateTransaction {
         return new TokenFeeScheduleUpdateTransaction()

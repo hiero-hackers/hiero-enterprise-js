@@ -1,7 +1,6 @@
 import type { TokenId } from "@hiero-ledger/sdk";
 import { TokenPauseTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type { TransactionOptions } from "../../transaction/index.js";
 import { TokenPauseValidator } from "../validation/index.js";
 
@@ -22,30 +21,20 @@ export interface TokenPauseOperationOptions extends TransactionOptions {
     tokenId: TokenId | string;
 }
 
-export class TokenPauseOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TokenPauseValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TokenPauseValidator();
-    }
+export class TokenPauseOperation extends BaseOperation<TokenPauseOperationOptions> {
+    protected readonly type = "TokenPause";
+    protected readonly serviceName = "TokenService";
+    protected readonly methodName = "pauseToken";
+    protected readonly validator = new TokenPauseValidator();
 
     /** Submit a `TokenPauseTransaction`. */
     async execute(options: TokenPauseOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "TokenPause",
-            serviceName: "TokenService",
-            methodName: "pauseToken",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
-    private build(options: TokenPauseOperationOptions): TokenPauseTransaction {
+    protected build(
+        options: TokenPauseOperationOptions,
+    ): TokenPauseTransaction {
         return new TokenPauseTransaction().setTokenId(options.tokenId);
     }
 }
