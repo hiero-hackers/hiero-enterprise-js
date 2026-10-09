@@ -1,8 +1,7 @@
 import type { Key, Long, AccountId, CustomFixedFee } from "@hiero-ledger/sdk";
 import { TopicCreateTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
 import { HieroError } from "../../../errors/HieroError.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type {
     TransactionOptions,
     ScheduleOptions,
@@ -75,27 +74,15 @@ export interface TopicCreateOperationOptions extends TransactionOptions {
     customFees?: CustomFixedFee[];
 }
 
-export class TopicCreateOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TopicCreateValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TopicCreateValidator();
-    }
+export class TopicCreateOperation extends BaseOperation<TopicCreateOperationOptions> {
+    protected readonly type = "TopicCreate";
+    protected readonly serviceName = "TopicService";
+    protected readonly methodName = "createTopic";
+    protected readonly validator = new TopicCreateValidator();
 
     /** Submit a `TopicCreateTransaction` and return the new topic ID. */
     async execute(options: TopicCreateOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        const results = await this.executor.run(tx, options, {
-            type: "TopicCreate",
-            serviceName: "TopicService",
-            methodName: "createTopic",
-            timestamp: new Date(),
-        });
+        const results = await this.run(options);
 
         if (!results.receipt.topicId) {
             throw new HieroError(
@@ -120,21 +107,7 @@ export class TopicCreateOperation {
         options: TopicCreateOperationOptions,
         scheduleOptions?: ScheduleOptions,
     ) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.scheduleRun(
-            tx,
-            options,
-            {
-                type: "TopicCreate",
-                serviceName: "TopicService",
-                methodName: "createTopic",
-                timestamp: new Date(),
-            },
-            scheduleOptions,
-        );
+        return await this.scheduleRun(options, scheduleOptions);
     }
 
     /**
@@ -142,7 +115,7 @@ export class TopicCreateOperation {
      * options. Only fields that were explicitly supplied are forwarded
      * so the SDK defaults remain in effect for omitted options.
      */
-    private build(
+    protected build(
         options: TopicCreateOperationOptions,
     ): TopicCreateTransaction {
         const tx = new TopicCreateTransaction();

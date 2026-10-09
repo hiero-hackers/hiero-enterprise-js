@@ -1,7 +1,6 @@
 import type { FileId } from "@hiero-ledger/sdk";
 import { FileDeleteTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type { TransactionOptions } from "../../transaction/index.js";
 import { FileDeleteValidator } from "../validation/index.js";
 
@@ -24,30 +23,20 @@ export interface FileDeleteOperationOptions extends TransactionOptions {
     fileId: string | FileId;
 }
 
-export class FileDeleteOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: FileDeleteValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new FileDeleteValidator();
-    }
+export class FileDeleteOperation extends BaseOperation<FileDeleteOperationOptions> {
+    protected readonly type = "FileDelete";
+    protected readonly serviceName = "FileService";
+    protected readonly methodName = "deleteFile";
+    protected readonly validator = new FileDeleteValidator();
 
     /** Submit a `FileDeleteTransaction`. */
     async execute(options: FileDeleteOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "FileDelete",
-            serviceName: "FileService",
-            methodName: "deleteFile",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
-    private build(options: FileDeleteOperationOptions): FileDeleteTransaction {
+    protected build(
+        options: FileDeleteOperationOptions,
+    ): FileDeleteTransaction {
         return new FileDeleteTransaction().setFileId(options.fileId);
     }
 }

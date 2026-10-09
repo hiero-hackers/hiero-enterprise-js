@@ -1,7 +1,6 @@
 import type { PendingAirdropId } from "@hiero-ledger/sdk";
 import { TokenClaimAirdropTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type { TransactionOptions } from "../../transaction/index.js";
 import { TokenClaimAirdropValidator } from "../validation/index.js";
 
@@ -37,30 +36,18 @@ export interface TokenClaimAirdropOperationOptions extends TransactionOptions {
     pendingAirdropIds: PendingAirdropId[];
 }
 
-export class TokenClaimAirdropOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TokenClaimAirdropValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TokenClaimAirdropValidator();
-    }
+export class TokenClaimAirdropOperation extends BaseOperation<TokenClaimAirdropOperationOptions> {
+    protected readonly type = "TokenClaimAirdrop";
+    protected readonly serviceName = "TokenService";
+    protected readonly methodName = "claimAirdrop";
+    protected readonly validator = new TokenClaimAirdropValidator();
 
     /** Submit a `TokenClaimAirdropTransaction`. */
     async execute(options: TokenClaimAirdropOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "TokenClaimAirdrop",
-            serviceName: "TokenService",
-            methodName: "claimAirdrop",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
-    private build(
+    protected build(
         options: TokenClaimAirdropOperationOptions,
     ): TokenClaimAirdropTransaction {
         return new TokenClaimAirdropTransaction().setPendingAirdropIds(

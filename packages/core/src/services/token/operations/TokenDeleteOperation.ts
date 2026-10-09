@@ -1,7 +1,6 @@
 import type { TokenId } from "@hiero-ledger/sdk";
 import { TokenDeleteTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type { TransactionOptions } from "../../transaction/index.js";
 import { TokenDeleteValidator } from "../validation/index.js";
 
@@ -20,30 +19,18 @@ export interface TokenDeleteOperationOptions extends TransactionOptions {
     tokenId: TokenId | string;
 }
 
-export class TokenDeleteOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TokenDeleteValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TokenDeleteValidator();
-    }
+export class TokenDeleteOperation extends BaseOperation<TokenDeleteOperationOptions> {
+    protected readonly type = "TokenDelete";
+    protected readonly serviceName = "TokenService";
+    protected readonly methodName = "deleteToken";
+    protected readonly validator = new TokenDeleteValidator();
 
     /** Submit a `TokenDeleteTransaction`. */
     async execute(options: TokenDeleteOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "TokenDelete",
-            serviceName: "TokenService",
-            methodName: "deleteToken",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
-    private build(
+    protected build(
         options: TokenDeleteOperationOptions,
     ): TokenDeleteTransaction {
         return new TokenDeleteTransaction().setTokenId(options.tokenId);

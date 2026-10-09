@@ -9,8 +9,7 @@ import type {
     TokenSupplyType,
 } from "@hiero-ledger/sdk";
 import { TokenCreateTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type {
     TransactionOptions,
     ScheduleOptions,
@@ -55,27 +54,15 @@ export interface TokenCreateOperationOptions extends TransactionOptions {
     metadata?: Uint8Array;
 }
 
-export class TokenCreateOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TokenCreateValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TokenCreateValidator();
-    }
+export class TokenCreateOperation extends BaseOperation<TokenCreateOperationOptions> {
+    protected readonly type = "TokenCreate";
+    protected readonly serviceName = "TokenService";
+    protected readonly methodName = "createToken";
+    protected readonly validator = new TokenCreateValidator();
 
     /** Submit a `TokenCreateTransaction` and return the new token ID. */
     async execute(options: TokenCreateOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        const results = await this.executor.run(tx, options, {
-            type: "TokenCreate",
-            serviceName: "TokenService",
-            methodName: "createToken",
-            timestamp: new Date(),
-        });
+        const results = await this.run(options);
 
         if (!results.receipt.tokenId) {
             throw new HieroError(
@@ -100,21 +87,7 @@ export class TokenCreateOperation {
         options: TokenCreateOperationOptions,
         scheduleOptions?: ScheduleOptions,
     ) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.scheduleRun(
-            tx,
-            options,
-            {
-                type: "TokenCreate",
-                serviceName: "TokenService",
-                methodName: "createToken",
-                timestamp: new Date(),
-            },
-            scheduleOptions,
-        );
+        return await this.scheduleRun(options, scheduleOptions);
     }
 
     /**
@@ -123,7 +96,7 @@ export class TokenCreateOperation {
      * Only setters for fields that were actually provided are invoked so the
      * SDK defaults remain in effect for omitted options.
      */
-    private build(
+    protected build(
         options: TokenCreateOperationOptions,
     ): TokenCreateTransaction {
         const tx = new TokenCreateTransaction()

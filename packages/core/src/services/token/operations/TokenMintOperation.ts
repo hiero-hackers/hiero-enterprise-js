@@ -1,8 +1,7 @@
 import type BigNumber from "bignumber.js";
 import type { TokenId, Long } from "@hiero-ledger/sdk";
 import { TokenMintTransaction } from "@hiero-ledger/sdk";
-import { type IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type {
     TransactionOptions,
     ScheduleOptions,
@@ -16,29 +15,17 @@ export interface TokenMintOperationOptions extends TransactionOptions {
     metadata?: Uint8Array[];
 }
 
-export class TokenMintOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TokenMintValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TokenMintValidator();
-    }
+export class TokenMintOperation extends BaseOperation<TokenMintOperationOptions> {
+    protected readonly type = "TokenMint";
+    protected readonly serviceName = "TokenService";
+    protected readonly methodName = "mintToken";
+    protected readonly validator = new TokenMintValidator();
 
     /**
      * Submit a `TokenMintTransaction`.
      */
     async execute(options: TokenMintOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        const results = await this.executor.run(tx, options, {
-            type: "TokenMint",
-            serviceName: "TokenService",
-            methodName: "mintToken",
-            timestamp: new Date(),
-        });
+        const results = await this.run(options);
 
         if (results.receipt.totalSupply == null) {
             throw new HieroError(
@@ -64,24 +51,10 @@ export class TokenMintOperation {
         options: TokenMintOperationOptions,
         scheduleOptions?: ScheduleOptions,
     ) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.scheduleRun(
-            tx,
-            options,
-            {
-                type: "TokenMint",
-                serviceName: "TokenService",
-                methodName: "mintToken",
-                timestamp: new Date(),
-            },
-            scheduleOptions,
-        );
+        return await this.scheduleRun(options, scheduleOptions);
     }
 
-    private build(options: TokenMintOperationOptions): TokenMintTransaction {
+    protected build(options: TokenMintOperationOptions): TokenMintTransaction {
         const tx = new TokenMintTransaction().setTokenId(options.tokenId);
 
         if (options.amount != null) {

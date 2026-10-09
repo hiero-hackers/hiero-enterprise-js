@@ -1,7 +1,6 @@
 import type { AccountId, TokenId } from "@hiero-ledger/sdk";
 import { TokenAssociateTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type {
     TransactionOptions,
     ScheduleOptions,
@@ -18,27 +17,15 @@ export interface TokenAssociateOperationOptions extends TransactionOptions {
     tokenId: TokenId | string;
 }
 
-export class TokenAssociateOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TokenAssociateValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TokenAssociateValidator();
-    }
+export class TokenAssociateOperation extends BaseOperation<TokenAssociateOperationOptions> {
+    protected readonly type = "TokenAssociate";
+    protected readonly serviceName = "TokenService";
+    protected readonly methodName = "associateToken";
+    protected readonly validator = new TokenAssociateValidator();
 
     /** Submit a `TokenAssociateTransaction`. */
     async execute(options: TokenAssociateOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "TokenAssociate",
-            serviceName: "TokenService",
-            methodName: "associateToken",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
     /** Schedule a `TokenAssociateTransaction` for deferred multi-sig execution. */
@@ -46,24 +33,10 @@ export class TokenAssociateOperation {
         options: TokenAssociateOperationOptions,
         scheduleOptions?: ScheduleOptions,
     ) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.scheduleRun(
-            tx,
-            options,
-            {
-                type: "TokenAssociate",
-                serviceName: "TokenService",
-                methodName: "associateToken",
-                timestamp: new Date(),
-            },
-            scheduleOptions,
-        );
+        return await this.scheduleRun(options, scheduleOptions);
     }
 
-    private build(
+    protected build(
         options: TokenAssociateOperationOptions,
     ): TokenAssociateTransaction {
         return new TokenAssociateTransaction()

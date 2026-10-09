@@ -1,7 +1,6 @@
 import type { CustomFeeLimit, TopicId } from "@hiero-ledger/sdk";
 import { TopicMessageSubmitTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type { TransactionOptions } from "../../transaction/index.js";
 import { TopicMessageSubmitValidator } from "../validation/index.js";
 
@@ -61,30 +60,18 @@ export interface TopicMessageSubmitOperationOptions extends TransactionOptions {
  * For multi-chunk submissions the values correspond to the **first**
  * chunk's receipt; subsequent chunks increment the sequence number.
  */
-export class TopicMessageSubmitOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TopicMessageSubmitValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TopicMessageSubmitValidator();
-    }
+export class TopicMessageSubmitOperation extends BaseOperation<TopicMessageSubmitOperationOptions> {
+    protected readonly type = "TopicMessageSubmit";
+    protected readonly serviceName = "TopicService";
+    protected readonly methodName = "submitMessage";
+    protected readonly validator = new TopicMessageSubmitValidator();
 
     /**
      * Submit a message to a topic. Returns the sequence number,
      * running hash, and transaction ID from the receipt.
      */
     async execute(options: TopicMessageSubmitOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        const results = await this.executor.run(tx, options, {
-            type: "TopicMessageSubmit",
-            serviceName: "TopicService",
-            methodName: "submitMessage",
-            timestamp: new Date(),
-        });
+        const results = await this.run(options);
         return {
             ...results,
             // Sequence counters sit far below 2^53 — plain numbers are exact.
@@ -95,7 +82,7 @@ export class TopicMessageSubmitOperation {
         };
     }
 
-    private build(
+    protected build(
         options: TopicMessageSubmitOperationOptions,
     ): TopicMessageSubmitTransaction {
         const tx = new TopicMessageSubmitTransaction()

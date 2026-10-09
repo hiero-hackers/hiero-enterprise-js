@@ -7,8 +7,7 @@ import type {
     Timestamp,
 } from "@hiero-ledger/sdk";
 import { ContractUpdateTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type {
     TransactionOptions,
     ScheduleOptions,
@@ -59,29 +58,17 @@ export interface ContractUpdateOperationOptions extends TransactionOptions {
     maxAutomaticTokenAssociations?: number;
 }
 
-export class ContractUpdateOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: ContractUpdateValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new ContractUpdateValidator();
-    }
+export class ContractUpdateOperation extends BaseOperation<ContractUpdateOperationOptions> {
+    protected readonly type = "ContractUpdate";
+    protected readonly serviceName = "ContractService";
+    protected readonly methodName = "updateContract";
+    protected readonly validator = new ContractUpdateValidator();
 
     /**
      * Submit a `ContractUpdateTransaction`.
      */
     async execute(options: ContractUpdateOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "ContractUpdate",
-            serviceName: "ContractService",
-            methodName: "updateContract",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
     /** Schedule a `ContractUpdateTransaction` for deferred multi-sig execution. */
@@ -89,21 +76,7 @@ export class ContractUpdateOperation {
         options: ContractUpdateOperationOptions,
         scheduleOptions?: ScheduleOptions,
     ) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.scheduleRun(
-            tx,
-            options,
-            {
-                type: "ContractUpdate",
-                serviceName: "ContractService",
-                methodName: "updateContract",
-                timestamp: new Date(),
-            },
-            scheduleOptions,
-        );
+        return await this.scheduleRun(options, scheduleOptions);
     }
 
     /**
@@ -113,7 +86,7 @@ export class ContractUpdateOperation {
      * Only setters for fields that were actually provided are invoked so
      * the SDK leaves omitted properties unchanged on the contract.
      */
-    private build(
+    protected build(
         options: ContractUpdateOperationOptions,
     ): ContractUpdateTransaction {
         const tx = new ContractUpdateTransaction().setContractId(

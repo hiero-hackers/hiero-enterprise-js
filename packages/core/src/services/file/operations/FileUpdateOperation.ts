@@ -1,7 +1,6 @@
 import type { Key, KeyList, FileId, Timestamp } from "@hiero-ledger/sdk";
 import { FileUpdateTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type {
     TransactionOptions,
     ScheduleOptions,
@@ -63,27 +62,15 @@ export interface FileUpdateOperationOptions extends TransactionOptions {
     expirationTime?: Date | Timestamp;
 }
 
-export class FileUpdateOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: FileUpdateValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new FileUpdateValidator();
-    }
+export class FileUpdateOperation extends BaseOperation<FileUpdateOperationOptions> {
+    protected readonly type = "FileUpdate";
+    protected readonly serviceName = "FileService";
+    protected readonly methodName = "updateFile";
+    protected readonly validator = new FileUpdateValidator();
 
     /** Submit a `FileUpdateTransaction`. */
     async execute(options: FileUpdateOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "FileUpdate",
-            serviceName: "FileService",
-            methodName: "updateFile",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
     /** Schedule a `FileUpdateTransaction` for deferred multi-sig execution. */
@@ -91,24 +78,12 @@ export class FileUpdateOperation {
         options: FileUpdateOperationOptions,
         scheduleOptions?: ScheduleOptions,
     ) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.scheduleRun(
-            tx,
-            options,
-            {
-                type: "FileUpdate",
-                serviceName: "FileService",
-                methodName: "updateFile",
-                timestamp: new Date(),
-            },
-            scheduleOptions,
-        );
+        return await this.scheduleRun(options, scheduleOptions);
     }
 
-    private build(options: FileUpdateOperationOptions): FileUpdateTransaction {
+    protected build(
+        options: FileUpdateOperationOptions,
+    ): FileUpdateTransaction {
         const tx = new FileUpdateTransaction().setFileId(options.fileId);
 
         if (options.contents !== undefined) {

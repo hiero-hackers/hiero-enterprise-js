@@ -1,7 +1,6 @@
 import type { AccountId, ContractId } from "@hiero-ledger/sdk";
 import { ContractDeleteTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type {
     TransactionOptions,
     ScheduleOptions,
@@ -46,29 +45,17 @@ export interface ContractDeleteOperationOptions extends TransactionOptions {
     transferContractId?: string | ContractId;
 }
 
-export class ContractDeleteOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: ContractDeleteValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new ContractDeleteValidator();
-    }
+export class ContractDeleteOperation extends BaseOperation<ContractDeleteOperationOptions> {
+    protected readonly type = "ContractDelete";
+    protected readonly serviceName = "ContractService";
+    protected readonly methodName = "deleteContract";
+    protected readonly validator = new ContractDeleteValidator();
 
     /**
      * Submit a `ContractDeleteTransaction`.
      */
     async execute(options: ContractDeleteOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "ContractDelete",
-            serviceName: "ContractService",
-            methodName: "deleteContract",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
     /** Schedule a `ContractDeleteTransaction` for deferred multi-sig execution. */
@@ -76,21 +63,7 @@ export class ContractDeleteOperation {
         options: ContractDeleteOperationOptions,
         scheduleOptions?: ScheduleOptions,
     ) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.scheduleRun(
-            tx,
-            options,
-            {
-                type: "ContractDelete",
-                serviceName: "ContractService",
-                methodName: "deleteContract",
-                timestamp: new Date(),
-            },
-            scheduleOptions,
-        );
+        return await this.scheduleRun(options, scheduleOptions);
     }
 
     /**
@@ -98,7 +71,7 @@ export class ContractDeleteOperation {
      * options. The validator guarantees exactly one transfer target is
      * set, so the build path only needs to dispatch on which one.
      */
-    private build(
+    protected build(
         options: ContractDeleteOperationOptions,
     ): ContractDeleteTransaction {
         const tx = new ContractDeleteTransaction().setContractId(

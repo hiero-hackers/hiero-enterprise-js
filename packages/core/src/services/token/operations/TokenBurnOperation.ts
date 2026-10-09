@@ -1,8 +1,7 @@
 import type BigNumber from "bignumber.js";
 import type { TokenId, Long } from "@hiero-ledger/sdk";
 import { TokenBurnTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type {
     TransactionOptions,
     ScheduleOptions,
@@ -22,14 +21,11 @@ export interface TokenBurnOperationOptions extends TransactionOptions {
     serials?: (Long | number)[];
 }
 
-export class TokenBurnOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TokenBurnValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TokenBurnValidator();
-    }
+export class TokenBurnOperation extends BaseOperation<TokenBurnOperationOptions> {
+    protected readonly type = "TokenBurn";
+    protected readonly serviceName = "TokenService";
+    protected readonly methodName = "burnToken";
+    protected readonly validator = new TokenBurnValidator();
 
     /**
      * Submit a `TokenBurnTransaction`.
@@ -38,16 +34,7 @@ export class TokenBurnOperation {
      *   supply after the burn (a decimal string — supplies can exceed 2^53).
      */
     async execute(options: TokenBurnOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        const results = await this.executor.run(tx, options, {
-            type: "TokenBurn",
-            serviceName: "TokenService",
-            methodName: "burnToken",
-            timestamp: new Date(),
-        });
+        const results = await this.run(options);
 
         if (results.receipt.totalSupply == null) {
             throw new HieroError(
@@ -72,24 +59,10 @@ export class TokenBurnOperation {
         options: TokenBurnOperationOptions,
         scheduleOptions?: ScheduleOptions,
     ) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.scheduleRun(
-            tx,
-            options,
-            {
-                type: "TokenBurn",
-                serviceName: "TokenService",
-                methodName: "burnToken",
-                timestamp: new Date(),
-            },
-            scheduleOptions,
-        );
+        return await this.scheduleRun(options, scheduleOptions);
     }
 
-    private build(options: TokenBurnOperationOptions): TokenBurnTransaction {
+    protected build(options: TokenBurnOperationOptions): TokenBurnTransaction {
         const tx = new TokenBurnTransaction().setTokenId(options.tokenId);
 
         if (options.amount != null) {

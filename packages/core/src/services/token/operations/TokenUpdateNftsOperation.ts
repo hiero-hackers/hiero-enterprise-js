@@ -1,7 +1,6 @@
 import type { TokenId } from "@hiero-ledger/sdk";
 import { TokenUpdateNftsTransaction, Long } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type { TransactionOptions } from "../../transaction/index.js";
 import { TokenUpdateNftsValidator } from "../validation/index.js";
 
@@ -42,30 +41,18 @@ export interface TokenUpdateNftsOperationOptions extends TransactionOptions {
     metadata: Uint8Array;
 }
 
-export class TokenUpdateNftsOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TokenUpdateNftsValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TokenUpdateNftsValidator();
-    }
+export class TokenUpdateNftsOperation extends BaseOperation<TokenUpdateNftsOperationOptions> {
+    protected readonly type = "TokenUpdateNfts";
+    protected readonly serviceName = "TokenService";
+    protected readonly methodName = "updateNfts";
+    protected readonly validator = new TokenUpdateNftsValidator();
 
     /** Submit a `TokenUpdateNftsTransaction`. */
     async execute(options: TokenUpdateNftsOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "TokenUpdateNfts",
-            serviceName: "TokenService",
-            methodName: "updateNfts",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
-    private build(
+    protected build(
         options: TokenUpdateNftsOperationOptions,
     ): TokenUpdateNftsTransaction {
         // The SDK's `setSerialNumbers` is typed as `Long[]`, so promote

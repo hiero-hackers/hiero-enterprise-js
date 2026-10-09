@@ -1,8 +1,7 @@
 import type BigNumber from "bignumber.js";
 import type { TokenId, AccountId, Long } from "@hiero-ledger/sdk";
 import { TokenWipeTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type { TransactionOptions } from "../../transaction/index.js";
 import { TokenWipeValidator } from "../validation/index.js";
 import { HieroError } from "../../../errors/HieroError.js";
@@ -24,14 +23,11 @@ export interface TokenWipeOperationOptions extends TransactionOptions {
     serials?: (Long | number)[];
 }
 
-export class TokenWipeOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TokenWipeValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TokenWipeValidator();
-    }
+export class TokenWipeOperation extends BaseOperation<TokenWipeOperationOptions> {
+    protected readonly type = "TokenWipe";
+    protected readonly serviceName = "TokenService";
+    protected readonly methodName = "wipeToken";
+    protected readonly validator = new TokenWipeValidator();
 
     /**
      * Submit a `TokenWipeTransaction`.
@@ -40,16 +36,7 @@ export class TokenWipeOperation {
      *   supply after the wipe, as a decimal string.
      */
     async execute(options: TokenWipeOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        const results = await this.executor.run(tx, options, {
-            type: "TokenWipe",
-            serviceName: "TokenService",
-            methodName: "wipeToken",
-            timestamp: new Date(),
-        });
+        const results = await this.run(options);
 
         if (results.receipt.totalSupply == null) {
             throw new HieroError(
@@ -69,7 +56,7 @@ export class TokenWipeOperation {
         };
     }
 
-    private build(options: TokenWipeOperationOptions): TokenWipeTransaction {
+    protected build(options: TokenWipeOperationOptions): TokenWipeTransaction {
         const tx = new TokenWipeTransaction()
             .setTokenId(options.tokenId)
             .setAccountId(options.accountId);

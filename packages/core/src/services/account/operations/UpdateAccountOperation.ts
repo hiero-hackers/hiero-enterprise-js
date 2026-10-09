@@ -1,7 +1,6 @@
 import { AccountUpdateTransaction } from "@hiero-ledger/sdk";
 import type { Key } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type {
     TransactionOptions,
     ScheduleOptions,
@@ -64,26 +63,15 @@ export interface UpdateAccountOptions extends TransactionOptions {
     autoRenewPeriod?: number;
 }
 
-export class UpdateAccountOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: UpdateAccountValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new UpdateAccountValidator();
-    }
+export class UpdateAccountOperation extends BaseOperation<UpdateAccountOptions> {
+    protected readonly type = "AccountUpdate";
+    protected readonly serviceName = "AccountService";
+    protected readonly methodName = "updateAccount";
+    protected readonly validator = new UpdateAccountValidator();
 
     /** Update account execute handler. */
     async execute(options: UpdateAccountOptions) {
-        this.validator.validate(options);
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "AccountUpdate",
-            serviceName: "AccountService",
-            methodName: "updateAccount",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
     /** Schedule account update */
@@ -91,26 +79,14 @@ export class UpdateAccountOperation {
         options: UpdateAccountOptions,
         scheduleOptions?: ScheduleOptions,
     ) {
-        this.validator.validate(options);
-        const tx = this.build(options);
-        return await this.executor.scheduleRun(
-            tx,
-            options,
-            {
-                type: "AccountUpdate",
-                serviceName: "AccountService",
-                methodName: "updateAccount",
-                timestamp: new Date(),
-            },
-            scheduleOptions,
-        );
+        return await this.scheduleRun(options, scheduleOptions);
     }
 
     /**
      * Constructs the `AccountUpdateTransaction` from the caller-provided
      * options.
      */
-    private build(options: UpdateAccountOptions): AccountUpdateTransaction {
+    protected build(options: UpdateAccountOptions): AccountUpdateTransaction {
         const tx = new AccountUpdateTransaction().setAccountId(
             options.accountId,
         );

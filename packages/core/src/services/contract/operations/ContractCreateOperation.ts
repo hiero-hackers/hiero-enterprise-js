@@ -8,9 +8,8 @@ import type {
     ContractFunctionParameters,
 } from "@hiero-ledger/sdk";
 import { ContractCreateTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
 import { HieroError } from "../../../errors/HieroError.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type {
     TransactionOptions,
     ScheduleOptions,
@@ -73,27 +72,15 @@ export interface ContractCreateOperationOptions extends TransactionOptions {
     maxAutomaticTokenAssociations?: number;
 }
 
-export class ContractCreateOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: ContractCreateValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new ContractCreateValidator();
-    }
+export class ContractCreateOperation extends BaseOperation<ContractCreateOperationOptions> {
+    protected readonly type = "ContractCreate";
+    protected readonly serviceName = "ContractService";
+    protected readonly methodName = "createContract";
+    protected readonly validator = new ContractCreateValidator();
 
     /** Submit a `ContractCreateTransaction` and return the new contract ID. */
     async execute(options: ContractCreateOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        const results = await this.executor.run(tx, options, {
-            type: "ContractCreate",
-            serviceName: "ContractService",
-            methodName: "createContract",
-            timestamp: new Date(),
-        });
+        const results = await this.run(options);
 
         if (!results.receipt.contractId) {
             throw new HieroError(
@@ -118,21 +105,7 @@ export class ContractCreateOperation {
         options: ContractCreateOperationOptions,
         scheduleOptions?: ScheduleOptions,
     ) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.scheduleRun(
-            tx,
-            options,
-            {
-                type: "ContractCreate",
-                serviceName: "ContractService",
-                methodName: "createContract",
-                timestamp: new Date(),
-            },
-            scheduleOptions,
-        );
+        return await this.scheduleRun(options, scheduleOptions);
     }
 
     /**
@@ -141,7 +114,7 @@ export class ContractCreateOperation {
      * Only setters for fields that were actually provided are invoked so the
      * SDK defaults remain in effect for omitted options.
      */
-    private build(
+    protected build(
         options: ContractCreateOperationOptions,
     ): ContractCreateTransaction {
         const tx = new ContractCreateTransaction().setGas(options.gas);

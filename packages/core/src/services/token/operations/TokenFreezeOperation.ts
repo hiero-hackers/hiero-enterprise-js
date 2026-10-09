@@ -1,7 +1,6 @@
 import type { AccountId, TokenId } from "@hiero-ledger/sdk";
 import { TokenFreezeTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type { TransactionOptions } from "../../transaction/index.js";
 import { TokenFreezeValidator } from "../validation/index.js";
 
@@ -21,30 +20,18 @@ export interface TokenFreezeOperationOptions extends TransactionOptions {
     accountId: AccountId | string;
 }
 
-export class TokenFreezeOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TokenFreezeValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TokenFreezeValidator();
-    }
+export class TokenFreezeOperation extends BaseOperation<TokenFreezeOperationOptions> {
+    protected readonly type = "TokenFreeze";
+    protected readonly serviceName = "TokenService";
+    protected readonly methodName = "freezeToken";
+    protected readonly validator = new TokenFreezeValidator();
 
     /** Submit a `TokenFreezeTransaction`. */
     async execute(options: TokenFreezeOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "TokenFreeze",
-            serviceName: "TokenService",
-            methodName: "freezeToken",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
-    private build(
+    protected build(
         options: TokenFreezeOperationOptions,
     ): TokenFreezeTransaction {
         return new TokenFreezeTransaction()
