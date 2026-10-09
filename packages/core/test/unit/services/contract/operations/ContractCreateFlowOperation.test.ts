@@ -1,105 +1,89 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ContractCreateFlow, Hbar, PrivateKey } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+    ContractCreateFlow,
+    ContractId,
+    Hbar,
+    PrivateKey,
+    Status,
+    TransactionId,
+} from "@hiero-ledger/sdk";
 import { ContractService } from "../../../../../src/services/contract/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
 import type { IHieroContext } from "../../../../../src/context/index.js";
 
-/**
- * Flows don't extend `Transaction`, so the shared `buildMockTxBundle`
- * helper doesn't apply. We inline a minimal flow mock here: chainable
- * setters, sign / signWith, and an `execute` that returns a response
- * whose receipt carries a contractId.
- */
-const mocks = vi.hoisted(() => {
-    const receipt = {
-        status: { toString: () => "SUCCESS" },
-        contractId: { toString: () => "0.0.666" },
-    };
-    const response = {
-        transactionId: { toString: () => "0.0.123@1234567890.000000000" },
-        getReceipt: vi.fn().mockResolvedValue(receipt),
-    };
-    const flow = {
-        setBytecode: vi.fn().mockReturnThis(),
-        setGas: vi.fn().mockReturnThis(),
-        setMaxChunks: vi.fn().mockReturnThis(),
-        setInitialBalance: vi.fn().mockReturnThis(),
-        setAdminKey: vi.fn().mockReturnThis(),
-        setConstructorParameters: vi.fn().mockReturnThis(),
-        setContractMemo: vi.fn().mockReturnThis(),
-        setAutoRenewPeriod: vi.fn().mockReturnThis(),
-        setAutoRenewAccountId: vi.fn().mockReturnThis(),
-        setStakedAccountId: vi.fn().mockReturnThis(),
-        setStakedNodeId: vi.fn().mockReturnThis(),
-        setDeclineStakingReward: vi.fn().mockReturnThis(),
-        setMaxAutomaticTokenAssociations: vi.fn().mockReturnThis(),
-        sign: vi.fn().mockReturnThis(),
-        signWith: vi.fn().mockReturnThis(),
-        execute: vi.fn().mockResolvedValue(response),
-    };
-    return { flow, response, receipt };
-});
+// Flows don't go through TransactionExecutor, so ContractCreateFlow.execute,
+// the network call, is stubbed. Its response is plain data.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        ContractCreateFlow: vi.fn(function () {
-            return mocks.flow;
-        }),
-    };
-});
+const receipt = {
+    status: Status.Success,
+    contractId: ContractId.fromString("0.0.666"),
+};
+const response = {
+    transactionId: TransactionId.fromString("0.0.123@1234567890.000000000"),
+    getReceipt: () => Promise.resolve(receipt),
+};
 
 describe("ContractCreateFlowOperation (via ContractService)", () => {
     let context: IHieroContext;
     let service: ContractService;
+    let execute: ReturnType<typeof vi.spyOn>;
+
+    /** The flow sent to the network. */
+    const sentFlow = () => execute.mock.contexts[0] as ContractCreateFlow;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        // re-attach the chains that vi.clearAllMocks() wipes
-        mocks.response.getReceipt.mockResolvedValue(mocks.receipt);
-        mocks.flow.execute.mockResolvedValue(mocks.response);
-        for (const [name, fn] of Object.entries(mocks.flow)) {
-            if (name !== "execute") {
-                fn.mockReturnThis();
-            }
-        }
+        execute = vi
+            .spyOn(ContractCreateFlow.prototype, "execute")
+            .mockResolvedValue(response as never);
         context = createMockContext();
         service = new ContractService(context);
     });
 
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
     describe("createContractFlow", () => {
-        it("submits a ContractCreateFlow with only required fields and returns the contractId", async () => {
+        it("deploys with only required fields, keeps SDK defaults and returns the contractId", async () => {
             const bytecode = new Uint8Array([0x60, 0x80, 0x60, 0x40]);
 
-            const { contractId } = await service.createContractFlow({
+            const result = await service.createContractFlow({
                 bytecode,
                 gas: 150_000,
             });
 
-            expect(contractId.toString()).toBe("0.0.666");
-            expect(vi.mocked(ContractCreateFlow)).toHaveBeenCalledTimes(1);
-            expect(mocks.flow.setBytecode).toHaveBeenCalledWith(bytecode);
-            expect(mocks.flow.setGas).toHaveBeenCalledWith(150_000);
-            expect(mocks.flow.execute).toHaveBeenCalledWith(context.client);
+            expect(result.contractId.toString()).toBe("0.0.666");
+            expect(result.status).toBe("SUCCESS");
+            expect(result.transactionId).toBe("0.0.123@1234567890.000000000");
+            expect(execute).toHaveBeenCalledWith(context.client);
 
-            // No optional setters touched.
-            expect(mocks.flow.setMaxChunks).not.toHaveBeenCalled();
-            expect(mocks.flow.setInitialBalance).not.toHaveBeenCalled();
-            expect(mocks.flow.setAdminKey).not.toHaveBeenCalled();
-            expect(mocks.flow.setConstructorParameters).not.toHaveBeenCalled();
-            expect(mocks.flow.setContractMemo).not.toHaveBeenCalled();
-            expect(mocks.flow.setAutoRenewPeriod).not.toHaveBeenCalled();
-            expect(mocks.flow.setAutoRenewAccountId).not.toHaveBeenCalled();
-            expect(mocks.flow.setStakedAccountId).not.toHaveBeenCalled();
-            expect(mocks.flow.setStakedNodeId).not.toHaveBeenCalled();
-            expect(mocks.flow.setDeclineStakingReward).not.toHaveBeenCalled();
-            expect(
-                mocks.flow.setMaxAutomaticTokenAssociations,
-            ).not.toHaveBeenCalled();
+            const flow = sentFlow();
+            const defaults = new ContractCreateFlow();
+            expect(flow).toBeInstanceOf(ContractCreateFlow);
+            expect(flow.bytecode).toEqual(bytecode);
+            expect(flow.gas?.toNumber()).toBe(150_000);
+            expect(flow.maxChunks).toEqual(defaults.maxChunks);
+            expect(flow.initialBalance).toEqual(defaults.initialBalance);
+            expect(flow.adminKey).toEqual(defaults.adminKey);
+            expect(flow.constructorParameters).toEqual(
+                defaults.constructorParameters,
+            );
+            expect(flow.contractMemo).toEqual(defaults.contractMemo);
+            expect(flow.autoRenewPeriod).toEqual(defaults.autoRenewPeriod);
+            expect(flow.autoRenewAccountId).toEqual(
+                defaults.autoRenewAccountId,
+            );
+            expect(flow.stakedAccountId).toEqual(defaults.stakedAccountId);
+            expect(flow.stakedNodeId).toEqual(defaults.stakedNodeId);
+            expect(flow.declineStakingRewards).toEqual(
+                defaults.declineStakingRewards,
+            );
+            expect(flow.maxAutomaticTokenAssociation).toEqual(
+                defaults.maxAutomaticTokenAssociation,
+            );
         });
 
-        it("forwards every optional setter when supplied", async () => {
+        it("sets every optional field that is provided", async () => {
             const adminKey = PrivateKey.generateED25519().publicKey;
 
             await service.createContractFlow({
@@ -116,42 +100,36 @@ describe("ContractCreateFlowOperation (via ContractService)", () => {
                 maxAutomaticTokenAssociations: 5,
             });
 
-            expect(mocks.flow.setBytecode).toHaveBeenCalledWith("0x6080");
-            expect(mocks.flow.setMaxChunks).toHaveBeenCalledWith(5);
-            expect(mocks.flow.setInitialBalance).toHaveBeenCalled();
-            expect(mocks.flow.setAdminKey).toHaveBeenCalledWith(adminKey);
-            expect(mocks.flow.setContractMemo).toHaveBeenCalledWith(
-                "flow-deployed",
+            const flow = sentFlow();
+            expect(flow.bytecode).toEqual(
+                new ContractCreateFlow().setBytecode("0x6080").bytecode,
             );
-            expect(mocks.flow.setAutoRenewPeriod).toHaveBeenCalledWith(
-                7_776_000,
+            expect(flow.maxChunks).toBe(5);
+            expect(flow.initialBalance?.toString()).toBe(
+                new Hbar(1).toString(),
             );
-            expect(mocks.flow.setAutoRenewAccountId).toHaveBeenCalledWith(
-                "0.0.123",
-            );
-            expect(mocks.flow.setStakedNodeId).toHaveBeenCalledWith(0);
-            expect(mocks.flow.setDeclineStakingReward).toHaveBeenCalledWith(
-                true,
-            );
-            expect(
-                mocks.flow.setMaxAutomaticTokenAssociations,
-            ).toHaveBeenCalledWith(5);
+            expect(flow.adminKey).toBe(adminKey);
+            expect(flow.contractMemo).toBe("flow-deployed");
+            expect(flow.autoRenewPeriod.seconds.toNumber()).toBe(7_776_000);
+            expect(flow.autoRenewAccountId?.toString()).toBe("0.0.123");
+            expect(flow.stakedNodeId?.toNumber()).toBe(0);
+            expect(flow.declineStakingRewards).toBe(true);
+            expect(flow.maxAutomaticTokenAssociation).toBe(5);
         });
 
-        it("forwards stakedAccountId when supplied (mutually exclusive with stakedNodeId)", async () => {
+        it("sets stakedAccountId without a stakedNodeId", async () => {
             await service.createContractFlow({
                 bytecode: new Uint8Array([0x60]),
                 gas: 150_000,
                 stakedAccountId: "0.0.321",
             });
 
-            expect(mocks.flow.setStakedAccountId).toHaveBeenCalledWith(
-                "0.0.321",
-            );
-            expect(mocks.flow.setStakedNodeId).not.toHaveBeenCalled();
+            const flow = sentFlow();
+            expect(flow.stakedAccountId?.toString()).toBe("0.0.321");
+            expect(flow.stakedNodeId).toBeNull();
         });
 
-        it("forwards constructorParameters when supplied", async () => {
+        it("sets constructorParameters when supplied", async () => {
             const params = new Uint8Array([0x01, 0x02, 0x03]);
 
             await service.createContractFlow({
@@ -160,12 +138,12 @@ describe("ContractCreateFlowOperation (via ContractService)", () => {
                 constructorParameters: params,
             });
 
-            expect(mocks.flow.setConstructorParameters).toHaveBeenCalledWith(
-                params,
-            );
+            expect(sentFlow().constructorParameters).toEqual(params);
         });
 
         it("registers additionalSigners on the flow before execute", async () => {
+            // The flow exposes no getter for its signers.
+            const sign = vi.spyOn(ContractCreateFlow.prototype, "sign");
             const extraSigner = PrivateKey.generateED25519();
 
             await service.createContractFlow({
@@ -174,10 +152,13 @@ describe("ContractCreateFlowOperation (via ContractService)", () => {
                 additionalSigners: [extraSigner],
             });
 
-            expect(mocks.flow.sign).toHaveBeenCalledWith(extraSigner);
+            expect(sign).toHaveBeenCalledWith(extraSigner);
+            expect(sign.mock.contexts[0]).toBe(sentFlow());
         });
 
         it("registers externalSigners on the flow before execute", async () => {
+            // The flow exposes no getter for its signers.
+            const signWith = vi.spyOn(ContractCreateFlow.prototype, "signWith");
             const publicKey = PrivateKey.generateED25519().publicKey;
             const signFn = vi.fn().mockResolvedValue(new Uint8Array());
 
@@ -187,7 +168,8 @@ describe("ContractCreateFlowOperation (via ContractService)", () => {
                 externalSigners: [{ publicKey, sign: signFn }],
             });
 
-            expect(mocks.flow.signWith).toHaveBeenCalledWith(publicKey, signFn);
+            expect(signWith).toHaveBeenCalledWith(publicKey, signFn);
+            expect(signWith.mock.contexts[0]).toBe(sentFlow());
         });
 
         it("emits the after-event once when emitting the success event fails", async () => {
@@ -207,9 +189,7 @@ describe("ContractCreateFlowOperation (via ContractService)", () => {
 
         it("emits the after-event with the error and rethrows when the flow fails", async () => {
             const failure = new Error("network down");
-            mocks.flow.execute.mockRejectedValueOnce(failure);
-
-            const afterSpy = vi.spyOn(context, "emitAfterTransaction");
+            execute.mockRejectedValueOnce(failure);
 
             await expect(
                 service.createContractFlow({
@@ -218,7 +198,7 @@ describe("ContractCreateFlowOperation (via ContractService)", () => {
                 }),
             ).rejects.toThrow(/network down/);
 
-            expect(afterSpy).toHaveBeenCalledWith(
+            expect(context.emitAfterTransaction).toHaveBeenCalledWith(
                 expect.objectContaining({
                     type: "ContractCreate",
                     error: failure,
@@ -227,9 +207,7 @@ describe("ContractCreateFlowOperation (via ContractService)", () => {
         });
 
         it("wraps a non-Error rejection in an Error on the after-event", async () => {
-            mocks.flow.execute.mockRejectedValueOnce("oops");
-
-            const afterSpy = vi.spyOn(context, "emitAfterTransaction");
+            execute.mockRejectedValueOnce("oops");
 
             await expect(
                 service.createContractFlow({
@@ -238,14 +216,14 @@ describe("ContractCreateFlowOperation (via ContractService)", () => {
                 }),
             ).rejects.toThrow();
 
-            expect(afterSpy).toHaveBeenCalledWith(
+            expect(context.emitAfterTransaction).toHaveBeenCalledWith(
                 expect.objectContaining({
                     error: expect.objectContaining({ message: "oops" }),
                 }),
             );
         });
 
-        it("propagates validator errors before touching the SDK", async () => {
+        it("propagates validator errors before sending the flow", async () => {
             await expect(
                 service.createContractFlow({
                     bytecode: new Uint8Array(),
@@ -253,7 +231,7 @@ describe("ContractCreateFlowOperation (via ContractService)", () => {
                 }),
             ).rejects.toThrow(/bytecode must not be empty/);
 
-            expect(vi.mocked(ContractCreateFlow)).not.toHaveBeenCalled();
+            expect(execute).not.toHaveBeenCalled();
         });
 
         it("rejects when bytecode is missing", async () => {

@@ -1,106 +1,85 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ContractDeleteTransaction, PrivateKey } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { ContractDeleteTransaction, ScheduleId } from "@hiero-ledger/sdk";
 import { ContractService } from "../../../../../src/services/contract/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle([
-        "setContractId",
-        "setTransferAccountId",
-        "setTransferContractId",
-    ]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        ContractDeleteTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("ContractDeleteOperation (via ContractService)", () => {
-    let context: IHieroContext;
     let service: ContractService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as ContractDeleteTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new ContractService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new ContractService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     describe("deleteContract", () => {
-        it("submits a ContractDeleteTransaction with transferAccountId", async () => {
+        it("deletes the contract and sends its balance to transferAccountId", async () => {
             const result = await service.deleteContract({
                 contractId: "0.0.12345",
                 transferAccountId: "0.0.2",
             });
 
             expect(result).toMatchObject({
-                transactionId: expect.any(String),
+                transactionId: receipt.transactionId,
                 status: "SUCCESS",
             });
-
-            const tx = vi.mocked(ContractDeleteTransaction).mock.results[0]
-                .value;
-            expect(tx.setContractId).toHaveBeenCalledWith("0.0.12345");
-            expect(tx.setTransferAccountId).toHaveBeenCalledWith("0.0.2");
-            expect(tx.setTransferContractId).not.toHaveBeenCalled();
-            expect(tx.execute).toHaveBeenCalledWith(context.client);
+            const tx = sentTx();
+            expect(tx).toBeInstanceOf(ContractDeleteTransaction);
+            expect(tx.contractId?.toString()).toBe("0.0.12345");
+            expect(tx.transferAccountId?.toString()).toBe("0.0.2");
+            expect(tx.transferContractId).toBeNull();
         });
 
-        it("submits a ContractDeleteTransaction with transferContractId", async () => {
+        it("sends the ContractDelete event", async () => {
+            await service.deleteContract({
+                contractId: "0.0.12345",
+                transferAccountId: "0.0.2",
+                transactionMemo: "base memo",
+            });
+
+            expect(run).toHaveBeenCalledWith(
+                expect.any(ContractDeleteTransaction),
+                expect.objectContaining({ transactionMemo: "base memo" }),
+                expect.objectContaining({
+                    type: "ContractDelete",
+                    serviceName: "ContractService",
+                    methodName: "deleteContract",
+                }),
+            );
+        });
+
+        it("deletes the contract and sends its balance to transferContractId", async () => {
             await service.deleteContract({
                 contractId: "0.0.12345",
                 transferContractId: "0.0.999",
             });
 
-            const tx = vi.mocked(ContractDeleteTransaction).mock.results[0]
-                .value;
-            expect(tx.setContractId).toHaveBeenCalledWith("0.0.12345");
-            expect(tx.setTransferContractId).toHaveBeenCalledWith("0.0.999");
-            expect(tx.setTransferAccountId).not.toHaveBeenCalled();
+            const tx = sentTx();
+            expect(tx.contractId?.toString()).toBe("0.0.12345");
+            expect(tx.transferContractId?.toString()).toBe("0.0.999");
+            expect(tx.transferAccountId).toBeNull();
         });
 
-        it("applies base TransactionOptions to the transaction", async () => {
-            await service.deleteContract({
-                contractId: "0.0.12345",
-                transferAccountId: "0.0.2",
-                transactionMemo: "base memo",
-                transactionValidDuration: 90,
-                regenerateTransactionId: false,
-            });
-
-            const tx = vi.mocked(ContractDeleteTransaction).mock.results[0]
-                .value;
-            expect(tx.setTransactionMemo).toHaveBeenCalledWith("base memo");
-            expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(90);
-            expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        });
-
-        it("freezes and signs with additionalSigners before execute", async () => {
-            const adminKey = PrivateKey.generateED25519();
-
-            await service.deleteContract({
-                contractId: "0.0.12345",
-                transferAccountId: "0.0.2",
-                additionalSigners: [adminKey],
-            });
-
-            const tx = vi.mocked(ContractDeleteTransaction).mock.results[0]
-                .value;
-            expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-            expect(tx.sign).toHaveBeenCalledWith(adminKey);
-        });
-
-        it("propagates validator errors before touching the SDK", async () => {
+        it("propagates validator errors before building a transaction", async () => {
             await expect(
                 service.deleteContract(
                     {} as unknown as Parameters<
@@ -109,7 +88,7 @@ describe("ContractDeleteOperation (via ContractService)", () => {
                 ),
             ).rejects.toThrow(/contractId is required/);
 
-            expect(vi.mocked(ContractDeleteTransaction)).not.toHaveBeenCalled();
+            expect(run).not.toHaveBeenCalled();
         });
 
         it("rejects when no transfer target is provided", async () => {
@@ -119,7 +98,7 @@ describe("ContractDeleteOperation (via ContractService)", () => {
                 }),
             ).rejects.toThrow(/transfer target is required/);
 
-            expect(vi.mocked(ContractDeleteTransaction)).not.toHaveBeenCalled();
+            expect(run).not.toHaveBeenCalled();
         });
 
         it("rejects when both transfer targets are provided", async () => {
@@ -131,26 +110,19 @@ describe("ContractDeleteOperation (via ContractService)", () => {
                 }),
             ).rejects.toThrow(/transferAccountId or transferContractId/);
 
-            expect(vi.mocked(ContractDeleteTransaction)).not.toHaveBeenCalled();
+            expect(run).not.toHaveBeenCalled();
         });
     });
 
     describe("scheduleDeleteContract", () => {
-        it("schedules a contract delete and returns the scheduleId", async () => {
-            const result = await service.scheduleDeleteContract({
-                contractId: "0.0.12345",
-                transferAccountId: "0.0.2",
-            });
+        it("schedules the built transaction with the schedule options and returns the scheduleId", async () => {
+            const scheduleRun = vi
+                .spyOn(TransactionExecutor.prototype, "scheduleRun")
+                .mockResolvedValue({
+                    scheduleId: ScheduleId.fromString("0.0.777"),
+                } as never);
 
-            expect(result.scheduleId.toString()).toBe("0.0.777");
-
-            const tx = vi.mocked(ContractDeleteTransaction).mock.results[0]
-                .value;
-            expect(tx.schedule).toHaveBeenCalled();
-        });
-
-        it("forwards schedule options to the scheduling transaction", async () => {
-            await service.scheduleDeleteContract(
+            const result = await service.scheduleDeleteContract(
                 {
                     contractId: "0.0.12345",
                     transferAccountId: "0.0.2",
@@ -161,10 +133,16 @@ describe("ContractDeleteOperation (via ContractService)", () => {
                 },
             );
 
-            expect(mocks.scheduleTx.setPayerAccountId).toHaveBeenCalled();
-            expect(mocks.scheduleTx.setScheduleMemo).toHaveBeenCalledWith(
-                "delete via multisig",
-            );
+            const [tx, , , scheduleOptions] = scheduleRun.mock.calls[0];
+            expect(tx).toBeInstanceOf(ContractDeleteTransaction);
+            expect(
+                (tx as ContractDeleteTransaction).contractId?.toString(),
+            ).toBe("0.0.12345");
+            expect(scheduleOptions).toEqual({
+                payerAccountId: "0.0.999",
+                scheduleMemo: "delete via multisig",
+            });
+            expect(result.scheduleId.toString()).toBe("0.0.777");
         });
     });
 });

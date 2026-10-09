@@ -1,36 +1,30 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
     AccountId,
     NftId,
     PendingAirdropId,
-    PrivateKey,
     TokenCancelAirdropTransaction,
     TokenId,
 } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle(["setPendingAirdropIds"]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenCancelAirdropTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TokenCancelAirdropOperation (via TokenService)", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as TokenCancelAirdropTransaction;
 
     const fungiblePending = new PendingAirdropId({
         senderId: AccountId.fromString("0.0.700"),
@@ -45,10 +39,14 @@ describe("TokenCancelAirdropOperation (via TokenService)", () => {
     });
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TokenService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new TokenService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it("cancels a single fungible pending airdrop", async () => {
@@ -56,16 +54,9 @@ describe("TokenCancelAirdropOperation (via TokenService)", () => {
             pendingAirdropIds: [fungiblePending],
         });
 
-        const tx = vi.mocked(TokenCancelAirdropTransaction).mock.results[0]
-            .value;
-        const calls = tx.setPendingAirdropIds.mock.calls as Array<
-            [PendingAirdropId[]]
-        >;
-
-        expect(calls).toHaveLength(1);
-        expect(calls[0][0]).toEqual([fungiblePending]);
-
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        const tx = sentTx();
+        expect(tx).toBeInstanceOf(TokenCancelAirdropTransaction);
+        expect(tx.pendingAirdropIds).toEqual([fungiblePending]);
     });
 
     it("cancels a single NFT pending airdrop", async () => {
@@ -73,13 +64,7 @@ describe("TokenCancelAirdropOperation (via TokenService)", () => {
             pendingAirdropIds: [nftPending],
         });
 
-        const tx = vi.mocked(TokenCancelAirdropTransaction).mock.results[0]
-            .value;
-        const calls = tx.setPendingAirdropIds.mock.calls as Array<
-            [PendingAirdropId[]]
-        >;
-
-        expect(calls[0][0]).toEqual([nftPending]);
+        expect(sentTx().pendingAirdropIds).toEqual([nftPending]);
     });
 
     it("batches fungible and NFT pending airdrops in a single cancel transaction", async () => {
@@ -87,43 +72,38 @@ describe("TokenCancelAirdropOperation (via TokenService)", () => {
             pendingAirdropIds: [fungiblePending, nftPending],
         });
 
-        const tx = vi.mocked(TokenCancelAirdropTransaction).mock.results[0]
-            .value;
-        const calls = tx.setPendingAirdropIds.mock.calls as Array<
-            [PendingAirdropId[]]
-        >;
-
-        expect(calls).toHaveLength(1);
-        expect(calls[0][0]).toEqual([fungiblePending, nftPending]);
+        expect(run).toHaveBeenCalledTimes(1);
+        expect(sentTx().pendingAirdropIds).toEqual([
+            fungiblePending,
+            nftPending,
+        ]);
     });
 
-    it("applies base TransactionOptions and additionalSigners", async () => {
-        const signer = PrivateKey.generateED25519();
-
+    it("sends the TokenCancelAirdrop event", async () => {
         await service.cancelAirdrop({
             pendingAirdropIds: [fungiblePending],
             transactionMemo: "cancel test",
-            regenerateTransactionId: false,
-            additionalSigners: [signer],
         });
 
-        const tx = vi.mocked(TokenCancelAirdropTransaction).mock.results[0]
-            .value;
-        expect(tx.setTransactionMemo).toHaveBeenCalledWith("cancel test");
-        expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        expect(tx.sign).toHaveBeenCalledWith(signer);
-        expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        expect(run).toHaveBeenCalledWith(
+            expect.any(TokenCancelAirdropTransaction),
+            expect.objectContaining({ transactionMemo: "cancel test" }),
+            expect.objectContaining({
+                type: "TokenCancelAirdrop",
+                serviceName: "TokenService",
+                methodName: "cancelAirdrop",
+            }),
+        );
     });
 
-    it("normalises and rethrows validation errors before touching the SDK", async () => {
+    it("normalises and rethrows validation errors before building a transaction", async () => {
         await expect(
             service.cancelAirdrop({
                 pendingAirdropIds: [],
             }),
         ).rejects.toThrow(/pendingAirdropIds must not be empty/);
 
-        expect(vi.mocked(TokenCancelAirdropTransaction)).not.toHaveBeenCalled();
+        expect(run).not.toHaveBeenCalled();
     });
 
     it("rejects null entries inside pendingAirdropIds", async () => {
@@ -136,6 +116,6 @@ describe("TokenCancelAirdropOperation (via TokenService)", () => {
             }),
         ).rejects.toThrow(/pendingAirdropIds\[1\] is required/);
 
-        expect(vi.mocked(TokenCancelAirdropTransaction)).not.toHaveBeenCalled();
+        expect(run).not.toHaveBeenCalled();
     });
 });

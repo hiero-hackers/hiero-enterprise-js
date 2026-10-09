@@ -1,94 +1,93 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { FileId } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+    FileId,
+    FileInfoQuery as SdkFileInfoQuery,
+    KeyList,
+    LedgerId,
+    Long,
+    PrivateKey,
+    Query,
+    Timestamp,
+    type FileInfo,
+} from "@hiero-ledger/sdk";
 import { FileService } from "../../../../../src/services/file/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = vi.hoisted(() => {
-    const mockQuery = {
-        setFileId: vi.fn().mockReturnThis(),
-        execute: vi.fn(),
-    };
-    return { mockQuery };
-});
+// Builds real SDK queries; only Query.execute, the network call, is stubbed.
+// Its response is plain data built from real SDK values, because FileInfo
+// has no public constructor.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        FileInfoQuery: vi.fn(function () {
-            return mocks.mockQuery;
-        }),
-    };
-});
+const keys = new KeyList([PrivateKey.generateED25519().publicKey]);
 
-// Re-imported after vi.mock so the SdkFileInfoQuery constructor is the mock.
-const { FileInfoQuery: SdkFileInfoQuery } = await import("@hiero-ledger/sdk");
-
-function buildSdkFileInfo(overrides: Record<string, unknown> = {}) {
+function fileInfo(overrides: Partial<FileInfo> = {}): FileInfo {
     return {
         fileId: FileId.fromString("0.0.555"),
-        size: { toNumber: () => 1024 },
-        expirationTime: {
-            toDate: () => new Date("2099-01-02T03:04:05.000Z"),
-        },
+        size: Long.fromNumber(1024),
+        expirationTime: Timestamp.fromDate(
+            new Date("2099-01-02T03:04:05.000Z"),
+        ),
         isDeleted: false,
-        keys: { _keyListSentinel: true },
+        keys,
         fileMemo: "demo file",
-        ledgerId: { toString: () => "mainnet" },
+        ledgerId: LedgerId.MAINNET,
         ...overrides,
-    };
+    } as FileInfo;
 }
 
 describe("FileInfoQuery (via FileService)", () => {
-    let context: IHieroContext;
     let service: FileService;
+    let execute: ReturnType<typeof vi.spyOn>;
+
+    /** The query sent to the network. */
+    const sentQuery = (call = 0) =>
+        execute.mock.contexts.at(call) as SdkFileInfoQuery;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        context = createMockContext();
-        service = new FileService(context);
+        execute = vi
+            .spyOn(Query.prototype, "execute")
+            .mockResolvedValue(fileInfo());
+        service = new FileService(createMockContext());
     });
 
-    it("fetches and projects file info to a plain object", async () => {
-        mocks.mockQuery.execute.mockResolvedValueOnce(buildSdkFileInfo());
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
 
+    it("queries the file and projects its info to a plain object", async () => {
         const info = await service.getFileInfo("0.0.555");
 
-        expect(mocks.mockQuery.setFileId).toHaveBeenCalledWith("0.0.555");
-        expect(mocks.mockQuery.execute).toHaveBeenCalledWith(context.client);
-
-        expect(info).toMatchObject({
+        expect(sentQuery()).toBeInstanceOf(SdkFileInfoQuery);
+        expect(sentQuery().fileId?.toString()).toBe("0.0.555");
+        expect(info).toEqual({
             fileId: "0.0.555",
             size: 1024,
             expirationTime: "2099-01-02T03:04:05.000Z",
             isDeleted: false,
+            // Keys pass through as the original SDK reference.
+            keys,
             fileMemo: "demo file",
             ledgerId: "mainnet",
         });
-        // Keys pass through as the original SDK reference.
-        expect(info.keys).toEqual({ _keyListSentinel: true });
+        expect(info.keys).toBe(keys);
     });
 
     it("accepts a FileId instance", async () => {
         const fileId = FileId.fromString("0.0.999");
-        mocks.mockQuery.execute.mockResolvedValueOnce(
-            buildSdkFileInfo({ fileId }),
-        );
+        execute.mockResolvedValueOnce(fileInfo({ fileId }));
 
         const info = await service.getFileInfo(fileId);
 
-        expect(mocks.mockQuery.setFileId).toHaveBeenCalledWith(fileId);
+        expect(sentQuery().fileId?.toString()).toBe("0.0.999");
         expect(info.fileId).toBe("0.0.999");
     });
 
-    it("returns null for optional fields when the SDK reports them as null", async () => {
-        mocks.mockQuery.execute.mockResolvedValueOnce(
-            buildSdkFileInfo({
+    it("returns null for optional fields the network leaves unset", async () => {
+        execute.mockResolvedValueOnce(
+            fileInfo({
                 expirationTime: null,
                 keys: null,
                 ledgerId: null,
-            }),
+            } as unknown as Partial<FileInfo>),
         );
 
         const info = await service.getFileInfo("0.0.555");
@@ -99,11 +98,8 @@ describe("FileInfoQuery (via FileService)", () => {
     });
 
     it("reflects isDeleted when the file has been deleted", async () => {
-        mocks.mockQuery.execute.mockResolvedValueOnce(
-            buildSdkFileInfo({
-                isDeleted: true,
-                size: { toNumber: () => 0 },
-            }),
+        execute.mockResolvedValueOnce(
+            fileInfo({ isDeleted: true, size: Long.ZERO }),
         );
 
         const info = await service.getFileInfo("0.0.555");
@@ -112,10 +108,8 @@ describe("FileInfoQuery (via FileService)", () => {
         expect(info.size).toBe(0);
     });
 
-    it("normalises SDK errors with the FileService.getFileInfo context", async () => {
-        mocks.mockQuery.execute.mockRejectedValueOnce(
-            new Error("boom from network"),
-        );
+    it("normalises network errors with the FileService.getFileInfo context", async () => {
+        execute.mockRejectedValueOnce(new Error("boom from network"));
 
         await expect(service.getFileInfo("0.0.555")).rejects.toMatchObject({
             name: "HieroError",
@@ -124,12 +118,11 @@ describe("FileInfoQuery (via FileService)", () => {
         });
     });
 
-    it("constructs a fresh SdkFileInfoQuery on every execute call", async () => {
-        mocks.mockQuery.execute.mockResolvedValue(buildSdkFileInfo());
-
+    it("builds a new query for every call", async () => {
         await service.getFileInfo("0.0.1");
         await service.getFileInfo("0.0.2");
 
-        expect(vi.mocked(SdkFileInfoQuery)).toHaveBeenCalledTimes(2);
+        expect(sentQuery(0)).not.toBe(sentQuery(1));
+        expect(sentQuery(1).fileId?.toString()).toBe("0.0.2");
     });
 });

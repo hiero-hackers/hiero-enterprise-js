@@ -1,35 +1,34 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TokenDissociateTransaction, PrivateKey } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { ScheduleId, TokenDissociateTransaction } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle(["setAccountId", "setTokenIds"]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenDissociateTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TokenDissociateOperation (via TokenService)", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as TokenDissociateTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TokenService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new TokenService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it("dissociates a single token from an account", async () => {
@@ -38,10 +37,10 @@ describe("TokenDissociateOperation (via TokenService)", () => {
             tokenIds: ["0.0.500"],
         });
 
-        const tx = vi.mocked(TokenDissociateTransaction).mock.results[0].value;
-        expect(tx.setAccountId).toHaveBeenCalledWith("0.0.700");
-        expect(tx.setTokenIds).toHaveBeenCalledWith(["0.0.500"]);
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        const tx = sentTx();
+        expect(tx).toBeInstanceOf(TokenDissociateTransaction);
+        expect(tx.accountId?.toString()).toBe("0.0.700");
+        expect(tx.tokenIds?.map(String)).toEqual(["0.0.500"]);
     });
 
     it("dissociates multiple tokens in a single transaction", async () => {
@@ -50,35 +49,39 @@ describe("TokenDissociateOperation (via TokenService)", () => {
             tokenIds: ["0.0.500", "0.0.501", "0.0.502"],
         });
 
-        const tx = vi.mocked(TokenDissociateTransaction).mock.results[0].value;
-        expect(tx.setTokenIds).toHaveBeenCalledWith([
+        expect(run).toHaveBeenCalledTimes(1);
+        expect(sentTx().tokenIds?.map(String)).toEqual([
             "0.0.500",
             "0.0.501",
             "0.0.502",
         ]);
     });
 
-    it("applies base TransactionOptions and additionalSigners", async () => {
-        const signer = PrivateKey.generateED25519();
-
+    it("sends the TokenDissociate event", async () => {
         await service.dissociateToken({
             accountId: "0.0.700",
             tokenIds: ["0.0.500"],
             transactionMemo: "dissociate memo",
-            transactionValidDuration: 60,
-            regenerateTransactionId: false,
-            additionalSigners: [signer],
         });
 
-        const tx = vi.mocked(TokenDissociateTransaction).mock.results[0].value;
-        expect(tx.setTransactionMemo).toHaveBeenCalledWith("dissociate memo");
-        expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(60);
-        expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(tx.sign).toHaveBeenCalledWith(signer);
+        expect(run).toHaveBeenCalledWith(
+            expect.any(TokenDissociateTransaction),
+            expect.objectContaining({ transactionMemo: "dissociate memo" }),
+            expect.objectContaining({
+                type: "TokenDissociate",
+                serviceName: "TokenService",
+                methodName: "dissociateToken",
+            }),
+        );
     });
 
-    it("wraps dissociation in ScheduleCreateTransaction", async () => {
+    it("schedules the built transaction with the schedule options", async () => {
+        const scheduleRun = vi
+            .spyOn(TransactionExecutor.prototype, "scheduleRun")
+            .mockResolvedValue({
+                scheduleId: ScheduleId.fromString("0.0.777"),
+            } as never);
+
         const result = await service.scheduleDissociateToken(
             {
                 accountId: "0.0.700",
@@ -87,10 +90,11 @@ describe("TokenDissociateOperation (via TokenService)", () => {
             { scheduleMemo: "pending approval" },
         );
 
-        expect(mocks.tx.schedule).toHaveBeenCalled();
-        expect(mocks.scheduleTx.setScheduleMemo).toHaveBeenCalledWith(
-            "pending approval",
-        );
+        const [tx, , , scheduleOptions] = scheduleRun.mock.calls[0];
+        expect(
+            (tx as TokenDissociateTransaction).tokenIds?.map(String),
+        ).toEqual(["0.0.500"]);
+        expect(scheduleOptions).toEqual({ scheduleMemo: "pending approval" });
         expect(result.scheduleId.toString()).toBe("0.0.777");
     });
 
@@ -101,6 +105,7 @@ describe("TokenDissociateOperation (via TokenService)", () => {
                 tokenIds: ["0.0.500"],
             }),
         ).rejects.toThrow(/accountId cannot be empty/i);
+        expect(run).not.toHaveBeenCalled();
     });
 
     it("throws when tokenIds is missing", async () => {
@@ -122,11 +127,17 @@ describe("TokenDissociateOperation (via TokenService)", () => {
     });
 
     it("validates before scheduling", async () => {
+        const scheduleRun = vi.spyOn(
+            TransactionExecutor.prototype,
+            "scheduleRun",
+        );
+
         await expect(
             service.scheduleDissociateToken({
                 accountId: "",
                 tokenIds: ["0.0.500"],
             }),
         ).rejects.toThrow(/accountId cannot be empty/i);
+        expect(scheduleRun).not.toHaveBeenCalled();
     });
 });

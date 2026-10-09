@@ -1,85 +1,95 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { AccountDeleteTransaction, PrivateKey } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+    AccountDeleteTransaction,
+    PrivateKey,
+    ScheduleId,
+} from "@hiero-ledger/sdk";
 import { AccountService } from "../../../../../src/services/account/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle(["setAccountId", "setTransferAccountId"]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        AccountDeleteTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("DeleteAccountOperation (via AccountService)", () => {
-    let context: IHieroContext;
     let service: AccountService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as AccountDeleteTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new AccountService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new AccountService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     describe("deleteAccount", () => {
-        it("deletes an account and defaults transfer target to operator", async () => {
-            const mockKey = PrivateKey.generateED25519();
+        it("deletes an account and defaults the transfer target to the operator", async () => {
             await service.deleteAccount({
                 accountId: "0.0.999",
-                accountKey: mockKey,
+                accountKey: PrivateKey.generateED25519(),
             });
 
-            const tx = vi.mocked(AccountDeleteTransaction).mock.results[0]
-                .value;
-            expect(tx.setAccountId).toHaveBeenCalledWith("0.0.999");
-            expect(tx.setTransferAccountId).toHaveBeenCalledWith("0.0.2");
+            const tx = sentTx();
+            expect(tx).toBeInstanceOf(AccountDeleteTransaction);
+            expect(tx.accountId?.toString()).toBe("0.0.999");
+            expect(tx.transferAccountId?.toString()).toBe("0.0.2");
         });
 
         it("deletes an account with a custom transfer target", async () => {
-            const mockKey = PrivateKey.generateED25519();
             await service.deleteAccount({
                 accountId: "0.0.999",
-                accountKey: mockKey,
+                accountKey: PrivateKey.generateED25519(),
                 transferAccountId: "0.0.555",
             });
 
-            const tx = vi.mocked(AccountDeleteTransaction).mock.results[0]
-                .value;
-            expect(tx.setTransferAccountId).toHaveBeenCalledWith("0.0.555");
+            expect(sentTx().transferAccountId?.toString()).toBe("0.0.555");
         });
 
-        it("freezes and signs with accountKey before execute", async () => {
-            const mockKey = PrivateKey.generateED25519();
+        it("adds accountKey as the first additional signer", async () => {
+            const accountKey = PrivateKey.generateED25519();
+            const extraKey = PrivateKey.generateED25519();
+
             await service.deleteAccount({
                 accountId: "0.0.999",
-                accountKey: mockKey,
+                accountKey,
+                additionalSigners: [extraKey],
             });
 
-            const tx = vi.mocked(AccountDeleteTransaction).mock.results[0]
-                .value;
-            expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-            expect(tx.sign).toHaveBeenCalledWith(mockKey);
+            const options = run.mock.calls[0][1] as {
+                additionalSigners: PrivateKey[];
+            };
+            expect(options.additionalSigners).toEqual([accountKey, extraKey]);
         });
     });
 
     describe("scheduleDeleteAccount", () => {
         it("schedules deletion without requiring accountKey", async () => {
+            const scheduleRun = vi
+                .spyOn(TransactionExecutor.prototype, "scheduleRun")
+                .mockResolvedValue({
+                    scheduleId: ScheduleId.fromString("0.0.777"),
+                } as never);
+
             const result = await service.scheduleDeleteAccount({
                 accountId: "0.0.999",
             });
 
-            expect(mocks.tx.schedule).toHaveBeenCalled();
+            const tx = scheduleRun.mock.calls[0][0] as AccountDeleteTransaction;
+            expect(tx.accountId?.toString()).toBe("0.0.999");
+            expect(tx.transferAccountId?.toString()).toBe("0.0.2");
             expect(result.scheduleId.toString()).toBe("0.0.777");
         });
     });

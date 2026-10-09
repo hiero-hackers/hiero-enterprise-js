@@ -1,93 +1,108 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TokenId, TokenType, TokenSupplyType } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+    AccountId,
+    LedgerId,
+    Long,
+    PrivateKey,
+    Query,
+    Timestamp,
+    TokenId,
+    TokenInfoQuery as SdkTokenInfoQuery,
+    TokenSupplyType,
+    TokenType,
+    type TokenInfo,
+} from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = vi.hoisted(() => {
-    const mockQuery = {
-        setTokenId: vi.fn().mockReturnThis(),
-        execute: vi.fn(),
-    };
-    return { mockQuery };
-});
+// Builds real SDK queries; only Query.execute, the network call, is stubbed.
+// Its response is plain data built from real SDK values, because TokenInfo
+// has no public constructor.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenInfoQuery: vi.fn(function () {
-            return mocks.mockQuery;
-        }),
-    };
-});
+const adminKey = PrivateKey.generateED25519().publicKey;
+const supplyKey = PrivateKey.generateED25519().publicKey;
 
-// Re-imported after vi.mock so the SdkTokenInfoQuery constructor is the mock.
-const { TokenInfoQuery: SdkTokenInfoQuery } = await import("@hiero-ledger/sdk");
-
-function buildSdkTokenInfo(overrides: Record<string, unknown> = {}) {
+function tokenInfo(overrides: Partial<TokenInfo> = {}): TokenInfo {
     return {
         tokenId: TokenId.fromString("0.0.1234"),
         name: "Acme Coin",
         symbol: "ACME",
         decimals: 2,
-        totalSupply: { toString: () => "1000000" },
-        treasuryAccountId: { toString: () => "0.0.555" },
-        adminKey: { _adminKeySentinel: true },
+        totalSupply: Long.fromNumber(1_000_000),
+        treasuryAccountId: AccountId.fromString("0.0.555"),
+        adminKey,
         kycKey: null,
         freezeKey: null,
         pauseKey: null,
         wipeKey: null,
-        supplyKey: { _supplyKeySentinel: true },
+        supplyKey,
         feeScheduleKey: null,
         metadataKey: null,
         defaultFreezeStatus: null,
         defaultKycStatus: null,
         pauseStatus: null,
         isDeleted: false,
-        autoRenewAccountId: { toString: () => "0.0.555" },
-        autoRenewPeriod: { seconds: { toNumber: () => 7776000 } },
-        expirationTime: {
-            toDate: () => new Date("2099-01-02T03:04:05.000Z"),
-        },
+        autoRenewAccountId: AccountId.fromString("0.0.555"),
+        autoRenewPeriod: { seconds: Long.fromNumber(7_776_000) },
+        expirationTime: Timestamp.fromDate(
+            new Date("2099-01-02T03:04:05.000Z"),
+        ),
         tokenMemo: "demo memo",
         customFees: [],
         tokenType: TokenType.FungibleCommon,
         supplyType: TokenSupplyType.Infinite,
         maxSupply: null,
-        ledgerId: { toString: () => "mainnet" },
+        ledgerId: LedgerId.MAINNET,
         metadata: null,
         ...overrides,
-    };
+    } as TokenInfo;
 }
 
 describe("TokenInfoQuery (via TokenService)", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let execute: ReturnType<typeof vi.spyOn>;
+
+    /** The query sent to the network. */
+    const sentQuery = (call = 0) =>
+        execute.mock.contexts.at(call) as SdkTokenInfoQuery;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        context = createMockContext();
-        service = new TokenService(context);
+        execute = vi
+            .spyOn(Query.prototype, "execute")
+            .mockResolvedValue(tokenInfo());
+        service = new TokenService(createMockContext());
     });
 
-    it("fetches and projects fungible token info to a plain object", async () => {
-        mocks.mockQuery.execute.mockResolvedValueOnce(buildSdkTokenInfo());
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
 
+    it("queries the token and projects its info to a plain object", async () => {
         const info = await service.getTokenInfo("0.0.1234");
 
-        expect(mocks.mockQuery.setTokenId).toHaveBeenCalledWith("0.0.1234");
-        expect(mocks.mockQuery.execute).toHaveBeenCalledWith(context.client);
-
-        expect(info).toMatchObject({
+        expect(sentQuery()).toBeInstanceOf(SdkTokenInfoQuery);
+        expect(sentQuery().tokenId?.toString()).toBe("0.0.1234");
+        expect(info).toEqual({
             tokenId: "0.0.1234",
             name: "Acme Coin",
             symbol: "ACME",
             decimals: 2,
             totalSupply: "1000000",
             treasuryAccountId: "0.0.555",
+            adminKey,
+            kycKey: null,
+            freezeKey: null,
+            pauseKey: null,
+            wipeKey: null,
+            supplyKey,
+            feeScheduleKey: null,
+            metadataKey: null,
+            defaultFreezeStatus: null,
+            defaultKycStatus: null,
+            pauseStatus: null,
+            isDeleted: false,
             autoRenewAccountId: "0.0.555",
-            autoRenewPeriod: 7776000,
+            autoRenewPeriod: 7_776_000,
             expirationTime: "2099-01-02T03:04:05.000Z",
             tokenMemo: "demo memo",
             customFees: [],
@@ -96,29 +111,16 @@ describe("TokenInfoQuery (via TokenService)", () => {
             maxSupply: null,
             ledgerId: "mainnet",
             metadata: null,
-            isDeleted: false,
-            defaultFreezeStatus: null,
-            defaultKycStatus: null,
-            pauseStatus: null,
         });
-        // Keys pass through as the original SDK references.
-        expect(info.adminKey).toEqual({ _adminKeySentinel: true });
-        expect(info.supplyKey).toEqual({ _supplyKeySentinel: true });
-        expect(info.kycKey).toBeNull();
-        expect(info.freezeKey).toBeNull();
-        expect(info.pauseKey).toBeNull();
-        expect(info.wipeKey).toBeNull();
-        expect(info.feeScheduleKey).toBeNull();
-        expect(info.metadataKey).toBeNull();
     });
 
-    it("accepts a TokenId instance and stringifies maxSupply when set", async () => {
+    it("accepts a TokenId and stringifies maxSupply when set", async () => {
         const tokenId = TokenId.fromString("0.0.999");
-        mocks.mockQuery.execute.mockResolvedValueOnce(
-            buildSdkTokenInfo({
+        execute.mockResolvedValueOnce(
+            tokenInfo({
                 tokenId,
                 supplyType: TokenSupplyType.Finite,
-                maxSupply: { toString: () => "123456789" },
+                maxSupply: Long.fromString("123456789"),
                 tokenType: TokenType.NonFungibleUnique,
                 decimals: 0,
                 pauseStatus: true,
@@ -128,7 +130,7 @@ describe("TokenInfoQuery (via TokenService)", () => {
 
         const info = await service.getTokenInfo(tokenId);
 
-        expect(mocks.mockQuery.setTokenId).toHaveBeenCalledWith(tokenId);
+        expect(sentQuery().tokenId?.toString()).toBe("0.0.999");
         expect(info).toMatchObject({
             tokenId: "0.0.999",
             tokenType: TokenType.NonFungibleUnique,
@@ -140,9 +142,9 @@ describe("TokenInfoQuery (via TokenService)", () => {
         });
     });
 
-    it("returns null for optional fields when the SDK reports them as null", async () => {
-        mocks.mockQuery.execute.mockResolvedValueOnce(
-            buildSdkTokenInfo({
+    it("returns null for optional fields the network leaves unset", async () => {
+        execute.mockResolvedValueOnce(
+            tokenInfo({
                 treasuryAccountId: null,
                 autoRenewAccountId: null,
                 autoRenewPeriod: null,
@@ -160,10 +162,16 @@ describe("TokenInfoQuery (via TokenService)", () => {
         expect(info.ledgerId).toBeNull();
     });
 
-    it("normalises SDK errors with the TokenService.getTokenInfo context", async () => {
-        mocks.mockQuery.execute.mockRejectedValueOnce(
-            new Error("boom from network"),
-        );
+    it("applies QueryOptions to the query", async () => {
+        await service.getTokenInfo("0.0.1234", { nodeAccountIds: ["0.0.3"] });
+
+        expect(sentQuery().nodeAccountIds?.map((id) => id.toString())).toEqual([
+            "0.0.3",
+        ]);
+    });
+
+    it("normalises network errors with the TokenService.getTokenInfo context", async () => {
+        execute.mockRejectedValueOnce(new Error("boom from network"));
 
         await expect(service.getTokenInfo("0.0.1234")).rejects.toMatchObject({
             name: "HieroError",
@@ -172,12 +180,11 @@ describe("TokenInfoQuery (via TokenService)", () => {
         });
     });
 
-    it("constructs a fresh SdkTokenInfoQuery on every execute call", async () => {
-        mocks.mockQuery.execute.mockResolvedValue(buildSdkTokenInfo());
-
+    it("builds a new query for every call", async () => {
         await service.getTokenInfo("0.0.1");
         await service.getTokenInfo("0.0.2");
 
-        expect(vi.mocked(SdkTokenInfoQuery)).toHaveBeenCalledTimes(2);
+        expect(sentQuery(0)).not.toBe(sentQuery(1));
+        expect(sentQuery(1).tokenId?.toString()).toBe("0.0.2");
     });
 });

@@ -1,39 +1,38 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { Long } from "@hiero-ledger/sdk";
-import { PrivateKey, TokenAirdropTransaction } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { TokenAirdropTransaction } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle([
-        "addTokenTransfer",
-        "addTokenTransferWithDecimals",
-    ]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenAirdropTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TokenAirdropOperation (via TokenService)", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as TokenAirdropTransaction;
+
+    /** Net transfer of one token for one account, as a string. */
+    const transfer = (tokenId: string, accountId: string) =>
+        sentTx().tokenTransfers.get(tokenId)?.get(accountId)?.toString();
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TokenService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new TokenService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it("airdrops a single entry with a negated sender entry and positive receiver entry", async () => {
@@ -48,24 +47,10 @@ describe("TokenAirdropOperation (via TokenService)", () => {
             ],
         });
 
-        const tx = vi.mocked(TokenAirdropTransaction).mock.results[0].value;
-
-        const calls = tx.addTokenTransfer.mock.calls;
-        expect(calls).toHaveLength(2);
-
-        const [senderArgs, receiverArgs] = calls as [
-            [string, string, Long],
-            [string, string, Long],
-        ];
-        expect(senderArgs[0]).toBe("0.0.500");
-        expect(senderArgs[1]).toBe("0.0.700");
-        expect((senderArgs[2] as Long).toString()).toBe("-100");
-
-        expect(receiverArgs[0]).toBe("0.0.500");
-        expect(receiverArgs[1]).toBe("0.0.800");
-        expect((receiverArgs[2] as Long).toString()).toBe("100");
-
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        expect(sentTx()).toBeInstanceOf(TokenAirdropTransaction);
+        expect(sentTx().tokenTransfers.get("0.0.500")?.size).toBe(2);
+        expect(transfer("0.0.500", "0.0.700")).toBe("-100");
+        expect(transfer("0.0.500", "0.0.800")).toBe("100");
     });
 
     it("batches multiple airdrops across tokens, senders, and receivers in one transaction", async () => {
@@ -92,39 +77,16 @@ describe("TokenAirdropOperation (via TokenService)", () => {
             ],
         });
 
-        const tx = vi.mocked(TokenAirdropTransaction).mock.results[0].value;
-        const calls = tx.addTokenTransfer.mock.calls as Array<
-            [string, string, Long]
-        >;
-
-        // 3 airdrops × 2 entries (sender + receiver) = 6 calls
-        expect(calls).toHaveLength(6);
-
-        expect(calls[0]).toEqual([
-            "0.0.500",
-            "0.0.700",
-            expect.objectContaining({}),
-        ]);
-        expect(calls[0][2].toString()).toBe("-10");
-        expect(calls[1][1]).toBe("0.0.801");
-        expect(calls[1][2].toString()).toBe("10");
-
-        expect(calls[2][1]).toBe("0.0.700");
-        expect(calls[2][2].toString()).toBe("-20");
-        expect(calls[3][1]).toBe("0.0.802");
-        expect(calls[3][2].toString()).toBe("20");
-
-        expect(calls[4][0]).toBe("0.0.600");
-        expect(calls[4][1]).toBe("0.0.701");
-        expect(calls[4][2].toString()).toBe("-30");
-        expect(calls[5][0]).toBe("0.0.600");
-        expect(calls[5][1]).toBe("0.0.803");
-        expect(calls[5][2].toString()).toBe("30");
-
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        expect(run).toHaveBeenCalledTimes(1);
+        // The SDK nets transfers per token and account.
+        expect(transfer("0.0.500", "0.0.700")).toBe("-30");
+        expect(transfer("0.0.500", "0.0.801")).toBe("10");
+        expect(transfer("0.0.500", "0.0.802")).toBe("20");
+        expect(transfer("0.0.600", "0.0.701")).toBe("-30");
+        expect(transfer("0.0.600", "0.0.803")).toBe("30");
     });
 
-    it("uses addTokenTransferWithDecimals when expectedDecimals is provided", async () => {
+    it("sets the expected decimals when expectedDecimals is provided", async () => {
         await service.airdropFungibleToken({
             airdrops: [
                 {
@@ -137,24 +99,9 @@ describe("TokenAirdropOperation (via TokenService)", () => {
             ],
         });
 
-        const tx = vi.mocked(TokenAirdropTransaction).mock.results[0].value;
-
-        expect(tx.addTokenTransfer).not.toHaveBeenCalled();
-        const calls = tx.addTokenTransferWithDecimals.mock.calls;
-        expect(calls).toHaveLength(2);
-
-        const [senderArgs, receiverArgs] = calls as [
-            [string, string, Long, number],
-            [string, string, Long, number],
-        ];
-        expect(senderArgs[0]).toBe("0.0.500");
-        expect(senderArgs[1]).toBe("0.0.700");
-        expect((senderArgs[2] as Long).toString()).toBe("-250");
-        expect(senderArgs[3]).toBe(2);
-
-        expect(receiverArgs[1]).toBe("0.0.800");
-        expect((receiverArgs[2] as Long).toString()).toBe("250");
-        expect(receiverArgs[3]).toBe(2);
+        expect(transfer("0.0.500", "0.0.700")).toBe("-250");
+        expect(transfer("0.0.500", "0.0.800")).toBe("250");
+        expect(sentTx().tokenIdDecimals.get("0.0.500")).toBe(2);
     });
 
     it("mixes plain and decimals-checked airdrops in a single batch", async () => {
@@ -176,14 +123,14 @@ describe("TokenAirdropOperation (via TokenService)", () => {
             ],
         });
 
-        const tx = vi.mocked(TokenAirdropTransaction).mock.results[0].value;
-        expect(tx.addTokenTransfer.mock.calls).toHaveLength(2);
-        expect(tx.addTokenTransferWithDecimals.mock.calls).toHaveLength(2);
+        const tx = sentTx();
+        expect(transfer("0.0.500", "0.0.801")).toBe("5");
+        expect(transfer("0.0.600", "0.0.802")).toBe("6");
+        expect(tx.tokenIdDecimals.get("0.0.500")).toBeNull();
+        expect(tx.tokenIdDecimals.get("0.0.600")).toBe(3);
     });
 
-    it("applies base TransactionOptions and additionalSigners", async () => {
-        const signer = PrivateKey.generateED25519();
-
+    it("sends the TokenAirdrop event", async () => {
         await service.airdropFungibleToken({
             airdrops: [
                 {
@@ -194,23 +141,24 @@ describe("TokenAirdropOperation (via TokenService)", () => {
                 },
             ],
             transactionMemo: "airdrop memo",
-            transactionValidDuration: 60,
-            regenerateTransactionId: false,
-            additionalSigners: [signer],
         });
 
-        const tx = vi.mocked(TokenAirdropTransaction).mock.results[0].value;
-        expect(tx.setTransactionMemo).toHaveBeenCalledWith("airdrop memo");
-        expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(60);
-        expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(tx.sign).toHaveBeenCalledWith(signer);
+        expect(run).toHaveBeenCalledWith(
+            expect.any(TokenAirdropTransaction),
+            expect.objectContaining({ transactionMemo: "airdrop memo" }),
+            expect.objectContaining({
+                type: "TokenAirdrop",
+                serviceName: "TokenService",
+                methodName: "airdropFungibleToken",
+            }),
+        );
     });
 
     it("throws when airdrops is empty", async () => {
         await expect(
             service.airdropFungibleToken({ airdrops: [] }),
         ).rejects.toThrow(/airdrops must not be empty/);
+        expect(run).not.toHaveBeenCalled();
     });
 
     it("throws when an airdrop's tokenId is empty", async () => {

@@ -1,69 +1,41 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
     AccountId,
     NftId,
     PrivateKey,
     TokenId,
     TokenRejectFlow,
+    TransactionId,
 } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
 import type { IHieroContext } from "../../../../../src/context/index.js";
 
-interface MockFlow {
-    setOwnerId: ReturnType<typeof vi.fn>;
-    setTokenIds: ReturnType<typeof vi.fn>;
-    setNftIds: ReturnType<typeof vi.fn>;
-    freezeWith: ReturnType<typeof vi.fn>;
-    sign: ReturnType<typeof vi.fn>;
-    execute: ReturnType<typeof vi.fn>;
-}
+// Builds a real SDK TokenRejectFlow; only its execute(), which sends the
+// reject and dissociate transactions, is stubbed.
 
-const mocks = await vi.hoisted(async () => {
-    const { vi: viHoisted } = await import("vitest");
-
-    const response = {
-        transactionId: { toString: () => "0.0.123@1234567890.000000000" },
-    };
-
-    const flow: MockFlow = {
-        setOwnerId: viHoisted.fn().mockReturnThis(),
-        setTokenIds: viHoisted.fn().mockReturnThis(),
-        setNftIds: viHoisted.fn().mockReturnThis(),
-        freezeWith: viHoisted.fn().mockReturnThis(),
-        sign: viHoisted.fn().mockReturnThis(),
-        execute: viHoisted.fn().mockResolvedValue(response),
-    };
-
-    return { flow, response };
-});
-
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenRejectFlow: vi.fn(function () {
-            return mocks.flow;
-        }),
-    };
-});
+const response = {
+    transactionId: TransactionId.fromString("0.0.123@1234567890.000000000"),
+};
 
 describe("TokenRejectOperation (via TokenService.rejectTokensFlow)", () => {
     let context: IHieroContext;
     let service: TokenService;
+    let execute: ReturnType<typeof vi.spyOn>;
+
+    /** The flow that was executed. */
+    const sentFlow = () => execute.mock.contexts[0] as TokenRejectFlow;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        // Re-attach the fluent chain that clearAllMocks() wipes
-        mocks.flow.setOwnerId.mockReturnThis();
-        mocks.flow.setTokenIds.mockReturnThis();
-        mocks.flow.setNftIds.mockReturnThis();
-        mocks.flow.freezeWith.mockReturnThis();
-        mocks.flow.sign.mockReturnThis();
-        mocks.flow.execute.mockResolvedValue(mocks.response);
-
+        execute = vi
+            .spyOn(TokenRejectFlow.prototype, "execute")
+            .mockResolvedValue(response as never);
         context = createMockContext();
         service = new TokenService(context);
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it("rejects fungible tokens through TokenRejectFlow", async () => {
@@ -74,14 +46,13 @@ describe("TokenRejectOperation (via TokenService.rejectTokensFlow)", () => {
             fungibleTokenIds: [tokenId],
         });
 
-        expect(TokenRejectFlow).toHaveBeenCalledTimes(1);
-        expect(mocks.flow.setOwnerId).toHaveBeenCalledWith(
-            AccountId.fromString("0.0.700"),
-        );
-        expect(mocks.flow.setTokenIds).toHaveBeenCalledWith([tokenId]);
-        expect(mocks.flow.setNftIds).not.toHaveBeenCalled();
-        expect(mocks.flow.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(mocks.flow.execute).toHaveBeenCalledWith(context.client);
+        expect(execute).toHaveBeenCalledTimes(1);
+        expect(execute).toHaveBeenCalledWith(context.client);
+        const flow = sentFlow();
+        expect(flow).toBeInstanceOf(TokenRejectFlow);
+        expect(flow.ownerId).toEqual(AccountId.fromString("0.0.700"));
+        expect(flow.tokenIds).toEqual([tokenId]);
+        expect(flow.nftIds).toEqual([]);
     });
 
     it("rejects NFT serials through TokenRejectFlow", async () => {
@@ -92,8 +63,8 @@ describe("TokenRejectOperation (via TokenService.rejectTokensFlow)", () => {
             nftIds: [nftId],
         });
 
-        expect(mocks.flow.setNftIds).toHaveBeenCalledWith([nftId]);
-        expect(mocks.flow.setTokenIds).not.toHaveBeenCalled();
+        expect(sentFlow().nftIds).toEqual([nftId]);
+        expect(sentFlow().tokenIds).toEqual([]);
     });
 
     it("rejects fungible tokens and NFT serials in a single flow", async () => {
@@ -106,8 +77,8 @@ describe("TokenRejectOperation (via TokenService.rejectTokensFlow)", () => {
             nftIds: [nftId],
         });
 
-        expect(mocks.flow.setTokenIds).toHaveBeenCalledWith([fungibleId]);
-        expect(mocks.flow.setNftIds).toHaveBeenCalledWith([nftId]);
+        expect(sentFlow().tokenIds).toEqual([fungibleId]);
+        expect(sentFlow().nftIds).toEqual([nftId]);
     });
 
     it("accepts an AccountId instance for ownerId without conversion", async () => {
@@ -118,10 +89,13 @@ describe("TokenRejectOperation (via TokenService.rejectTokensFlow)", () => {
             fungibleTokenIds: ["0.0.500"],
         });
 
-        expect(mocks.flow.setOwnerId).toHaveBeenCalledWith(ownerId);
+        expect(sentFlow().ownerId).toBe(ownerId);
     });
 
     it("applies ownerKey via flow.sign() after freezing", async () => {
+        // The flow has no getters for its client or key, so spy on the calls.
+        const freezeWith = vi.spyOn(TokenRejectFlow.prototype, "freezeWith");
+        const sign = vi.spyOn(TokenRejectFlow.prototype, "sign");
         const ownerKey = PrivateKey.generateED25519();
 
         await service.rejectTokensFlow({
@@ -131,40 +105,38 @@ describe("TokenRejectOperation (via TokenService.rejectTokensFlow)", () => {
         });
 
         // Freeze must come before sign so the signature attaches to a stable hash.
-        expect(mocks.flow.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(mocks.flow.sign).toHaveBeenCalledWith(ownerKey);
-
-        const freezeOrder = mocks.flow.freezeWith.mock.invocationCallOrder[0];
-        const signOrder = mocks.flow.sign.mock.invocationCallOrder[0];
-        expect(freezeOrder).toBeLessThan(signOrder);
+        expect(freezeWith).toHaveBeenCalledWith(context.client);
+        expect(sign).toHaveBeenCalledWith(ownerKey);
+        expect(freezeWith.mock.invocationCallOrder[0]).toBeLessThan(
+            sign.mock.invocationCallOrder[0],
+        );
     });
 
     it("does not call sign() when ownerKey is omitted", async () => {
+        const sign = vi.spyOn(TokenRejectFlow.prototype, "sign");
+
         await service.rejectTokensFlow({
             ownerId: "0.0.700",
             fungibleTokenIds: ["0.0.500"],
         });
 
-        expect(mocks.flow.sign).not.toHaveBeenCalled();
+        expect(sign).not.toHaveBeenCalled();
     });
 
     it("emits before/after transaction events", async () => {
-        const beforeSpy = vi.spyOn(context, "emitBeforeTransaction");
-        const afterSpy = vi.spyOn(context, "emitAfterTransaction");
-
         await service.rejectTokensFlow({
             ownerId: "0.0.700",
             fungibleTokenIds: ["0.0.500"],
         });
 
-        expect(beforeSpy).toHaveBeenCalledWith(
+        expect(context.emitBeforeTransaction).toHaveBeenCalledWith(
             expect.objectContaining({
                 type: "TokenRejectFlow",
                 serviceName: "TokenService",
                 methodName: "rejectTokensFlow",
             }),
         );
-        expect(afterSpy).toHaveBeenCalledWith(
+        expect(context.emitAfterTransaction).toHaveBeenCalledWith(
             expect.objectContaining({
                 type: "TokenRejectFlow",
                 status: "SUCCESS",
@@ -190,9 +162,7 @@ describe("TokenRejectOperation (via TokenService.rejectTokensFlow)", () => {
 
     it("emits the after-event with the error and rethrows when the flow fails", async () => {
         const failure = new Error("network down");
-        mocks.flow.execute.mockRejectedValueOnce(failure);
-
-        const afterSpy = vi.spyOn(context, "emitAfterTransaction");
+        execute.mockRejectedValueOnce(failure);
 
         await expect(
             service.rejectTokensFlow({
@@ -201,7 +171,7 @@ describe("TokenRejectOperation (via TokenService.rejectTokensFlow)", () => {
             }),
         ).rejects.toThrow(/network down/);
 
-        expect(afterSpy).toHaveBeenCalledWith(
+        expect(context.emitAfterTransaction).toHaveBeenCalledWith(
             expect.objectContaining({
                 type: "TokenRejectFlow",
                 error: failure,

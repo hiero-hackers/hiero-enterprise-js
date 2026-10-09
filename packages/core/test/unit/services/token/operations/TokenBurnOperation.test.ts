@@ -1,35 +1,34 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TokenBurnTransaction, PrivateKey } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { Long, ScheduleId, TokenBurnTransaction } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle(["setTokenId", "setAmount", "setSerials"]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenBurnTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: { totalSupply: Long.fromNumber(1000) },
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TokenBurnOperation (via TokenService)", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as TokenBurnTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TokenService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new TokenService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it("burns fungible supply with amount", async () => {
@@ -38,11 +37,11 @@ describe("TokenBurnOperation (via TokenService)", () => {
             amount: 1_000,
         });
 
-        const tx = vi.mocked(TokenBurnTransaction).mock.results[0].value;
-        expect(tx.setTokenId).toHaveBeenCalledWith("0.0.500");
-        expect(tx.setAmount).toHaveBeenCalledWith(1_000);
-        expect(tx.setSerials).not.toHaveBeenCalled();
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        const tx = sentTx();
+        expect(tx).toBeInstanceOf(TokenBurnTransaction);
+        expect(tx.tokenId?.toString()).toBe("0.0.500");
+        expect(tx.amount?.toNumber()).toBe(1_000);
+        expect(tx.serials).toEqual([]);
     });
 
     it("burns NFT serials", async () => {
@@ -51,33 +50,37 @@ describe("TokenBurnOperation (via TokenService)", () => {
             serials: [1, 2, 3],
         });
 
-        const tx = vi.mocked(TokenBurnTransaction).mock.results[0].value;
-        expect(tx.setTokenId).toHaveBeenCalledWith("0.0.500");
-        expect(tx.setSerials).toHaveBeenCalledWith([1, 2, 3]);
-        expect(tx.setAmount).not.toHaveBeenCalled();
+        const tx = sentTx();
+        expect(tx.tokenId?.toString()).toBe("0.0.500");
+        expect(tx.serials.map(Number)).toEqual([1, 2, 3]);
+        expect(tx.amount).toEqual(new TokenBurnTransaction().amount);
     });
 
-    it("applies base TransactionOptions and additionalSigners", async () => {
-        const signer = PrivateKey.generateED25519();
-
+    it("sends the TokenBurn event", async () => {
         await service.burnToken({
             tokenId: "0.0.500",
             amount: 5,
             transactionMemo: "burn memo",
-            transactionValidDuration: 120,
-            regenerateTransactionId: false,
-            additionalSigners: [signer],
         });
 
-        const tx = vi.mocked(TokenBurnTransaction).mock.results[0].value;
-        expect(tx.setTransactionMemo).toHaveBeenCalledWith("burn memo");
-        expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(120);
-        expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(tx.sign).toHaveBeenCalledWith(signer);
+        expect(run).toHaveBeenCalledWith(
+            expect.any(TokenBurnTransaction),
+            expect.objectContaining({ transactionMemo: "burn memo" }),
+            expect.objectContaining({
+                type: "TokenBurn",
+                serviceName: "TokenService",
+                methodName: "burnToken",
+            }),
+        );
     });
 
-    it("wraps burn in ScheduleCreateTransaction", async () => {
+    it("schedules the built transaction with the schedule options", async () => {
+        const scheduleRun = vi
+            .spyOn(TransactionExecutor.prototype, "scheduleRun")
+            .mockResolvedValue({
+                scheduleId: ScheduleId.fromString("0.0.777"),
+            } as never);
+
         const result = await service.scheduleBurnToken(
             {
                 tokenId: "0.0.500",
@@ -86,10 +89,9 @@ describe("TokenBurnOperation (via TokenService)", () => {
             { scheduleMemo: "pending approval" },
         );
 
-        expect(mocks.tx.schedule).toHaveBeenCalled();
-        expect(mocks.scheduleTx.setScheduleMemo).toHaveBeenCalledWith(
-            "pending approval",
-        );
+        const [tx, , , scheduleOptions] = scheduleRun.mock.calls[0];
+        expect((tx as TokenBurnTransaction).amount?.toNumber()).toBe(10);
+        expect(scheduleOptions).toEqual({ scheduleMemo: "pending approval" });
         expect(result.scheduleId.toString()).toBe("0.0.777");
     });
 
@@ -100,18 +102,17 @@ describe("TokenBurnOperation (via TokenService)", () => {
         });
 
         expect(result).toMatchObject({
-            transactionId: "0.0.123@1234567890.000000000",
+            transactionId: receipt.transactionId,
             status: "SUCCESS",
             totalSupply: "1000",
         });
     });
 
     it("throws when the receipt is missing totalSupply", async () => {
-        // Simulate a malformed receipt with no `totalSupply` field.
-        mocks.response.getReceipt.mockResolvedValueOnce({
-            ...mocks.receipt,
-            totalSupply: null,
-        });
+        run.mockResolvedValueOnce({
+            ...receipt,
+            receipt: { totalSupply: null },
+        } as never);
 
         await expect(
             service.burnToken({
@@ -127,6 +128,7 @@ describe("TokenBurnOperation (via TokenService)", () => {
                 tokenId: "0.0.500",
             }),
         ).rejects.toThrow(/requires either amount \(fungible\) or serials/i);
+        expect(run).not.toHaveBeenCalled();
     });
 
     it("throws when both amount and serials are provided", async () => {

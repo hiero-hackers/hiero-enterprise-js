@@ -1,46 +1,65 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
     AccountId,
     Hbar,
     PrivateKey,
+    ScheduleId,
     TokenId,
     TransferTransaction,
 } from "@hiero-ledger/sdk";
 import { AccountService } from "../../../../../src/services/account/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle([
-        "addHbarTransfer",
-        "addTokenTransfer",
-        "addTokenTransferWithDecimals",
-        "addNftTransfer",
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
+
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
+
+/** HBAR transfers of a transaction as account -> HBAR. */
+const hbarTransfers = (tx: TransferTransaction) =>
+    tx.hbarTransfersList.map((t) => [
+        t.accountId.toString(),
+        t.amount.toBigNumber().toNumber(),
     ]);
-});
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TransferTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+/** Token transfers of a transaction as token -> account -> amount. */
+const tokenTransfers = (tx: TransferTransaction) =>
+    JSON.parse(JSON.stringify(tx.tokenTransfers)) as Record<
+        string,
+        Record<string, string>
+    >;
 
 describe("TransferOperation (via AccountService)", () => {
-    let context: IHieroContext;
     let service: AccountService;
+    let run: ReturnType<typeof vi.spyOn>;
+    let scheduleRun: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as TransferTransaction;
+
+    /** The transaction handed to the executor to schedule. */
+    const scheduledTx = () =>
+        scheduleRun.mock.calls[0][0] as TransferTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new AccountService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        scheduleRun = vi
+            .spyOn(TransactionExecutor.prototype, "scheduleRun")
+            .mockResolvedValue({
+                scheduleId: ScheduleId.fromString("0.0.777"),
+            } as never);
+        service = new AccountService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     // HBAR transfers
@@ -49,37 +68,29 @@ describe("TransferOperation (via AccountService)", () => {
             const result = await service.transferHbar("0.0.200", 5, "0.0.100");
 
             expect(result).toMatchObject({
-                transactionId: expect.any(String),
+                transactionId: receipt.transactionId,
                 status: "SUCCESS",
             });
         });
 
-        it("emits two addHbarTransfer calls: negated sender, positive receiver", async () => {
+        it("debits the sender and credits the receiver", async () => {
             await service.transferHbar("0.0.200", 5, "0.0.100");
 
-            const tx = vi.mocked(TransferTransaction).mock.results[0].value;
-            expect(tx.addHbarTransfer).toHaveBeenCalledTimes(2);
-
-            const senderCall = tx.addHbarTransfer.mock.calls[0];
-            expect(senderCall[0]).toBe("0.0.100");
-            expect(senderCall[1]).toBeInstanceOf(Hbar);
-            expect(senderCall[1].toBigNumber().toNumber()).toBe(-5);
-
-            const receiverCall = tx.addHbarTransfer.mock.calls[1];
-            expect(receiverCall[0]).toBe("0.0.200");
-            expect(receiverCall[1]).toBeInstanceOf(Hbar);
-            expect(receiverCall[1].toBigNumber().toNumber()).toBe(5);
+            const tx = sentTx();
+            expect(tx).toBeInstanceOf(TransferTransaction);
+            expect(hbarTransfers(tx)).toEqual([
+                ["0.0.100", -5],
+                ["0.0.200", 5],
+            ]);
         });
 
-        it("forwards a caller-supplied Hbar amount untouched", async () => {
-            const amount = new Hbar(7);
-            await service.transferHbar("0.0.200", amount, "0.0.100");
+        it("accepts an Hbar amount", async () => {
+            await service.transferHbar("0.0.200", new Hbar(7), "0.0.100");
 
-            const tx = vi.mocked(TransferTransaction).mock.results[0].value;
-            expect(tx.addHbarTransfer.mock.calls[1][1]).toBeInstanceOf(Hbar);
-            expect(
-                tx.addHbarTransfer.mock.calls[1][1].toBigNumber().toNumber(),
-            ).toBe(7);
+            expect(hbarTransfers(sentTx())).toEqual([
+                ["0.0.100", -7],
+                ["0.0.200", 7],
+            ]);
         });
 
         it("accepts AccountId instances for sender and receiver", async () => {
@@ -87,26 +98,33 @@ describe("TransferOperation (via AccountService)", () => {
             const receiver = AccountId.fromString("0.0.200");
             await service.transferHbar(receiver, 1, sender);
 
-            const tx = vi.mocked(TransferTransaction).mock.results[0].value;
-            expect(tx.addHbarTransfer.mock.calls[0][0]).toBe(sender);
-            expect(tx.addHbarTransfer.mock.calls[1][0]).toBe(receiver);
+            expect(hbarTransfers(sentTx())).toEqual([
+                ["0.0.100", -1],
+                ["0.0.200", 1],
+            ]);
         });
 
-        it("forwards additionalSigners to tx.sign", async () => {
+        it("forwards additionalSigners to the executor", async () => {
             const senderKey = PrivateKey.generateED25519();
             await service.transferHbar("0.0.200", 5, "0.0.100", {
                 additionalSigners: [senderKey],
             });
 
-            const tx = vi.mocked(TransferTransaction).mock.results[0].value;
-            expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-            expect(tx.sign).toHaveBeenCalledWith(senderKey);
+            expect(run).toHaveBeenCalledWith(
+                expect.any(TransferTransaction),
+                expect.objectContaining({ additionalSigners: [senderKey] }),
+                expect.objectContaining({
+                    type: "CryptoTransfer",
+                    methodName: "transferHbar",
+                }),
+            );
         });
 
         it("rejects when sender equals receiver", async () => {
             await expect(
                 service.transferHbar("0.0.100", 5, "0.0.100"),
             ).rejects.toThrow(/must be different/);
+            expect(run).not.toHaveBeenCalled();
         });
 
         it("rejects when amount is zero", async () => {
@@ -123,14 +141,18 @@ describe("TransferOperation (via AccountService)", () => {
     });
 
     describe("scheduleTransferHbar", () => {
-        it("returns the scheduleId from the receipt", async () => {
+        it("schedules the transfer and returns the scheduleId", async () => {
             const result = await service.scheduleTransferHbar(
                 "0.0.200",
                 5,
                 "0.0.100",
             );
 
-            expect(mocks.tx.schedule).toHaveBeenCalledTimes(1);
+            expect(scheduleRun).toHaveBeenCalledTimes(1);
+            expect(hbarTransfers(scheduledTx())).toEqual([
+                ["0.0.100", -5],
+                ["0.0.200", 5],
+            ]);
             expect(result.scheduleId.toString()).toBe("0.0.777");
         });
 
@@ -142,14 +164,11 @@ describe("TransferOperation (via AccountService)", () => {
                 scheduleMemo: "rent",
             });
 
-            expect(mocks.scheduleTx.setPayerAccountId).toHaveBeenCalledTimes(1);
-            const payerArg =
-                mocks.scheduleTx.setPayerAccountId.mock.calls[0][0];
-            expect(payerArg.toString()).toBe("0.0.999");
-            expect(mocks.scheduleTx.setAdminKey).toHaveBeenCalledWith(adminKey);
-            expect(mocks.scheduleTx.setScheduleMemo).toHaveBeenCalledWith(
-                "rent",
-            );
+            expect(scheduleRun.mock.calls[0][3]).toEqual({
+                payerAccountId: "0.0.999",
+                adminKey,
+                scheduleMemo: "rent",
+            });
         });
 
         it("does not pass schedule options into the inner transaction", async () => {
@@ -159,58 +178,34 @@ describe("TransferOperation (via AccountService)", () => {
                 maxTransactionFee: 3,
             });
 
-            // The base setTransactionMemo on the inner tx should NOT receive
-            // the schedule memo — that goes to setScheduleMemo on scheduleTx.
-            expect(mocks.tx.setTransactionMemo).not.toHaveBeenCalledWith(
-                "rent",
-            );
+            expect(scheduleRun.mock.calls[0][1]).toEqual({
+                maxTransactionFee: 3,
+            });
         });
     });
 
     // Fungible token transfers
     describe("transferToken", () => {
-        it("uses addTokenTransfer (no decimals) by default", async () => {
+        it("adds token transfers without decimals by default", async () => {
             await service.transferToken("0.0.456", "0.0.200", 100, "0.0.100");
 
-            const tx = vi.mocked(TransferTransaction).mock.results[0].value;
-            expect(tx.addTokenTransfer).toHaveBeenCalledTimes(2);
-            expect(tx.addTokenTransfer).toHaveBeenNthCalledWith(
-                1,
-                "0.0.456",
-                "0.0.100",
-                -100,
-            );
-            expect(tx.addTokenTransfer).toHaveBeenNthCalledWith(
-                2,
-                "0.0.456",
-                "0.0.200",
-                100,
-            );
-            expect(tx.addTokenTransferWithDecimals).not.toHaveBeenCalled();
+            const tx = sentTx();
+            expect(tokenTransfers(tx)).toEqual({
+                "0.0.456": { "0.0.100": "-100", "0.0.200": "100" },
+            });
+            expect(tx.tokenIdDecimals.get("0.0.456")).toBeNull();
         });
 
-        it("uses addTokenTransferWithDecimals when expectedDecimals is set", async () => {
+        it("adds token transfers with decimals when expectedDecimals is set", async () => {
             await service.transferToken("0.0.456", "0.0.200", 100, "0.0.100", {
                 expectedDecimals: 6,
             });
 
-            const tx = vi.mocked(TransferTransaction).mock.results[0].value;
-            expect(tx.addTokenTransferWithDecimals).toHaveBeenCalledTimes(2);
-            expect(tx.addTokenTransferWithDecimals).toHaveBeenNthCalledWith(
-                1,
-                "0.0.456",
-                "0.0.100",
-                -100,
-                6,
-            );
-            expect(tx.addTokenTransferWithDecimals).toHaveBeenNthCalledWith(
-                2,
-                "0.0.456",
-                "0.0.200",
-                100,
-                6,
-            );
-            expect(tx.addTokenTransfer).not.toHaveBeenCalled();
+            const tx = sentTx();
+            expect(tokenTransfers(tx)).toEqual({
+                "0.0.456": { "0.0.100": "-100", "0.0.200": "100" },
+            });
+            expect(tx.tokenIdDecimals.get("0.0.456")).toBe(6);
         });
 
         it("accepts TokenId and AccountId instances", async () => {
@@ -220,19 +215,9 @@ describe("TransferOperation (via AccountService)", () => {
 
             await service.transferToken(tokenId, receiver, 50, sender);
 
-            const tx = vi.mocked(TransferTransaction).mock.results[0].value;
-            expect(tx.addTokenTransfer).toHaveBeenNthCalledWith(
-                1,
-                tokenId,
-                sender,
-                -50,
-            );
-            expect(tx.addTokenTransfer).toHaveBeenNthCalledWith(
-                2,
-                tokenId,
-                receiver,
-                50,
-            );
+            expect(tokenTransfers(sentTx())).toEqual({
+                "0.0.456": { "0.0.100": "-50", "0.0.200": "50" },
+            });
         });
 
         it("rejects non-integer amount", async () => {
@@ -270,9 +255,10 @@ describe("TransferOperation (via AccountService)", () => {
             );
 
             expect(result.scheduleId.toString()).toBe("0.0.777");
-            expect(mocks.scheduleTx.setScheduleMemo).toHaveBeenCalledWith(
-                "subscription",
-            );
+            expect(scheduleRun.mock.calls[0][3]).toMatchObject({
+                payerAccountId: "0.0.999",
+                scheduleMemo: "subscription",
+            });
         });
 
         it("preserves expectedDecimals in the scheduled inner transaction", async () => {
@@ -284,44 +270,45 @@ describe("TransferOperation (via AccountService)", () => {
                 { expectedDecimals: 8 },
             );
 
-            const tx = vi.mocked(TransferTransaction).mock.results[0].value;
-            expect(tx.addTokenTransferWithDecimals).toHaveBeenCalledTimes(2);
+            const tx = scheduledTx();
+            expect(tokenTransfers(tx)).toEqual({
+                "0.0.456": { "0.0.100": "-100", "0.0.200": "100" },
+            });
+            expect(tx.tokenIdDecimals.get("0.0.456")).toBe(8);
         });
     });
 
     // NFT transfers
     describe("transferNft", () => {
-        it("calls addNftTransfer with NftId built from tokenId and serial", async () => {
+        it("adds an NFT transfer for the token serial", async () => {
             await service.transferNft("0.0.789", 7, "0.0.200", "0.0.100");
 
-            const tx = vi.mocked(TransferTransaction).mock.results[0].value;
-            expect(tx.addNftTransfer).toHaveBeenCalledTimes(1);
-
-            const [nftIdArg, sender, receiver] =
-                tx.addNftTransfer.mock.calls[0];
-            expect(nftIdArg.tokenId.toString()).toBe("0.0.789");
-            expect(nftIdArg.serial.toNumber()).toBe(7);
-            expect(sender).toBe("0.0.100");
-            expect(receiver).toBe("0.0.200");
+            const transfers = sentTx().nftTransfers.get("0.0.789");
+            expect(transfers).toHaveLength(1);
+            const [transfer] = transfers!;
+            expect(transfer.serial.toNumber()).toBe(7);
+            expect(transfer.sender.toString()).toBe("0.0.100");
+            expect(transfer.recipient.toString()).toBe("0.0.200");
         });
 
         it("accepts a TokenId instance for tokenId", async () => {
             const tokenId = TokenId.fromString("0.0.789");
             await service.transferNft(tokenId, 1, "0.0.200", "0.0.100");
 
-            const tx = vi.mocked(TransferTransaction).mock.results[0].value;
-            const [nftIdArg] = tx.addNftTransfer.mock.calls[0];
-            expect(nftIdArg.tokenId.toString()).toBe("0.0.789");
+            expect(sentTx().nftTransfers.get("0.0.789")).toHaveLength(1);
         });
 
-        it("forwards additionalSigners to tx.sign", async () => {
+        it("forwards additionalSigners to the executor", async () => {
             const senderKey = PrivateKey.generateED25519();
             await service.transferNft("0.0.789", 1, "0.0.200", "0.0.100", {
                 additionalSigners: [senderKey],
             });
 
-            const tx = vi.mocked(TransferTransaction).mock.results[0].value;
-            expect(tx.sign).toHaveBeenCalledWith(senderKey);
+            expect(run).toHaveBeenCalledWith(
+                expect.any(TransferTransaction),
+                expect.objectContaining({ additionalSigners: [senderKey] }),
+                expect.objectContaining({ methodName: "transferNft" }),
+            );
         });
 
         it("rejects when serial is zero", async () => {
@@ -354,9 +341,10 @@ describe("TransferOperation (via AccountService)", () => {
             );
 
             expect(result.scheduleId.toString()).toBe("0.0.777");
-            expect(mocks.scheduleTx.setScheduleMemo).toHaveBeenCalledWith(
-                "nft handoff",
-            );
+            expect(scheduledTx().nftTransfers.get("0.0.789")).toHaveLength(1);
+            expect(scheduleRun.mock.calls[0][3]).toMatchObject({
+                scheduleMemo: "nft handoff",
+            });
         });
     });
 });

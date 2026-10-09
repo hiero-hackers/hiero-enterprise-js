@@ -1,68 +1,58 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+    AccountId,
+    AccountInfoQuery as SdkAccountInfoQuery,
+    ContractId,
+    KeyList,
+    PrivateKey,
+    Query,
+    TransactionId,
+    TransferTransaction,
+    type AccountInfo,
+    type Key,
+} from "@hiero-ledger/sdk";
 import { AccountService } from "../../../../../src/services/account/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = vi.hoisted(() => {
-    const verify = vi.fn().mockReturnValue(true);
-    const verifyTransaction = vi.fn().mockReturnValue(true);
-    const publicKey = { verify, verifyTransaction };
+// Builds real SDK queries and verifies with real keys; only Query.execute,
+// the network call, is stubbed. Its response is plain data, because
+// AccountInfo has no public constructor.
 
-    const fakeKeyList = { __isKeyList: true };
-    const fakeContractId = { __isContractId: true };
+const accountKey = PrivateKey.generateED25519();
+const message = new Uint8Array([1, 2, 3]);
+const signature = accountKey.sign(message);
 
-    const mockQuery = {
-        setAccountId: vi.fn().mockReturnThis(),
-        execute: vi.fn().mockResolvedValue({ key: publicKey }),
-    };
+const accountInfo = (key: Key) => ({ key }) as AccountInfo;
 
-    return {
-        mockQuery,
-        publicKey,
-        verify,
-        verifyTransaction,
-        fakeKeyList,
-        fakeContractId,
-    };
-});
-
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    // A minimal PublicKey stand-in so `instanceof PublicKey` discriminates
-    // the single-sig branch without depending on the SDK's full implementation.
-    // Any other `Key` subtype (KeyList, ContractId, …) is represented as a
-    // plain object that naturally fails the `instanceof` check.
-    class FakePublicKey {}
-    Object.setPrototypeOf(mocks.publicKey, FakePublicKey.prototype);
-
-    return {
-        ...actual,
-        AccountInfoQuery: vi.fn(function () {
-            return mocks.mockQuery;
-        }),
-        PublicKey: FakePublicKey,
-    };
-});
+/** A frozen transaction signed by the account key. */
+async function signedTransaction() {
+    const tx = new TransferTransaction()
+        .setNodeAccountIds([AccountId.fromString("0.0.3")])
+        .setTransactionId(TransactionId.generate("0.0.999"))
+        .freeze();
+    return await tx.sign(accountKey);
+}
 
 describe("AccountSignatureQuery (via AccountService)", () => {
-    let context: IHieroContext;
     let service: AccountService;
+    let execute: ReturnType<typeof vi.spyOn>;
+
+    /** The query sent to the network. */
+    const sentQuery = () => execute.mock.contexts[0] as SdkAccountInfoQuery;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        mocks.mockQuery.execute.mockResolvedValue({ key: mocks.publicKey });
-        mocks.verify.mockReturnValue(true);
-        mocks.verifyTransaction.mockReturnValue(true);
+        execute = vi
+            .spyOn(Query.prototype, "execute")
+            .mockResolvedValue(accountInfo(accountKey.publicKey));
+        service = new AccountService(createMockContext());
+    });
 
-        context = createMockContext();
-        service = new AccountService(context);
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     describe("verifyAccountSignature", () => {
-        it("returns true when the public key verifies the signature", async () => {
-            const message = new Uint8Array([1, 2, 3]);
-            const signature = new Uint8Array([9, 9, 9]);
-
+        it("returns true when the account key verifies the signature", async () => {
             const result = await service.verifyAccountSignature(
                 "0.0.999",
                 message,
@@ -70,74 +60,68 @@ describe("AccountSignatureQuery (via AccountService)", () => {
             );
 
             expect(result).toBe(true);
-            expect(mocks.mockQuery.setAccountId).toHaveBeenCalledWith(
-                "0.0.999",
-            );
-            expect(mocks.verify).toHaveBeenCalledWith(message, signature);
+            expect(sentQuery()).toBeInstanceOf(SdkAccountInfoQuery);
+            expect(sentQuery().accountId?.toString()).toBe("0.0.999");
         });
 
-        it("returns false when the public key rejects the signature", async () => {
-            mocks.verify.mockReturnValue(false);
+        it("returns false when the account key rejects the signature", async () => {
+            const otherSignature = PrivateKey.generateED25519().sign(message);
 
             const result = await service.verifyAccountSignature(
                 "0.0.999",
-                new Uint8Array([1]),
-                new Uint8Array([2]),
+                message,
+                otherSignature,
             );
 
             expect(result).toBe(false);
         });
 
         it("returns false when the account is multi-sig (KeyList)", async () => {
-            mocks.mockQuery.execute.mockResolvedValueOnce({
-                key: mocks.fakeKeyList,
-            });
+            // The signature is valid for a key in the list, so false means
+            // the list was not verified at all.
+            execute.mockResolvedValueOnce(
+                accountInfo(new KeyList([accountKey.publicKey])),
+            );
 
             const result = await service.verifyAccountSignature(
                 "0.0.999",
-                new Uint8Array([1]),
-                new Uint8Array([2]),
+                message,
+                signature,
             );
 
             expect(result).toBe(false);
-            expect(mocks.verify).not.toHaveBeenCalled();
         });
 
         it("returns false when the account is contract-controlled (ContractId)", async () => {
-            mocks.mockQuery.execute.mockResolvedValueOnce({
-                key: mocks.fakeContractId,
-            });
+            execute.mockResolvedValueOnce(
+                accountInfo(ContractId.fromString("0.0.5")),
+            );
 
             const result = await service.verifyAccountSignature(
                 "0.0.999",
-                new Uint8Array([1]),
-                new Uint8Array([2]),
+                message,
+                signature,
             );
 
             expect(result).toBe(false);
-            expect(mocks.verify).not.toHaveBeenCalled();
         });
 
         it("wraps query failures with a normalized error", async () => {
-            mocks.mockQuery.execute.mockRejectedValueOnce(
-                new Error("network down"),
-            );
+            execute.mockRejectedValueOnce(new Error("network down"));
 
             await expect(
-                service.verifyAccountSignature(
-                    "0.0.999",
-                    new Uint8Array([1]),
-                    new Uint8Array([2]),
-                ),
-            ).rejects.toThrow(/network down/);
+                service.verifyAccountSignature("0.0.999", message, signature),
+            ).rejects.toMatchObject({
+                name: "HieroError",
+                context: "AccountService.verifyAccountSignature",
+                message: expect.stringMatching(/network down/),
+            });
         });
     });
 
     describe("verifyAccountTransaction", () => {
-        it("returns true when the public key verifies the transaction", async () => {
-            const tx = { __tx: true } as unknown as Parameters<
-                typeof service.verifyAccountTransaction
-            >[1];
+        it("returns true when the account key signed the transaction", async () => {
+            const tx = await signedTransaction();
 
             const result = await service.verifyAccountTransaction(
                 "0.0.999",
@@ -145,38 +129,35 @@ describe("AccountSignatureQuery (via AccountService)", () => {
             );
 
             expect(result).toBe(true);
-            expect(mocks.verifyTransaction).toHaveBeenCalledWith(tx);
+            expect(sentQuery().accountId?.toString()).toBe("0.0.999");
         });
 
         it("returns false when the account is multi-sig (KeyList)", async () => {
-            mocks.mockQuery.execute.mockResolvedValueOnce({
-                key: mocks.fakeKeyList,
-            });
+            execute.mockResolvedValueOnce(
+                accountInfo(new KeyList([accountKey.publicKey])),
+            );
 
             const result = await service.verifyAccountTransaction(
                 "0.0.999",
-                {} as unknown as Parameters<
-                    typeof service.verifyAccountTransaction
-                >[1],
+                await signedTransaction(),
             );
 
             expect(result).toBe(false);
-            expect(mocks.verifyTransaction).not.toHaveBeenCalled();
         });
 
         it("wraps query failures with a normalized error", async () => {
-            mocks.mockQuery.execute.mockRejectedValueOnce(
-                new Error("query failed"),
-            );
+            execute.mockRejectedValueOnce(new Error("query failed"));
 
             await expect(
                 service.verifyAccountTransaction(
                     "0.0.999",
-                    {} as unknown as Parameters<
-                        typeof service.verifyAccountTransaction
-                    >[1],
+                    await signedTransaction(),
                 ),
-            ).rejects.toThrow(/query failed/);
+            ).rejects.toMatchObject({
+                name: "HieroError",
+                context: "AccountService.verifyAccountTransaction",
+                message: expect.stringMatching(/query failed/),
+            });
         });
     });
 });

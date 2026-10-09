@@ -1,39 +1,54 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-    TokenUpdateNftsTransaction,
-    PrivateKey,
     Long,
+    PrivateKey,
+    TokenUpdateNftsTransaction,
 } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle(["setTokenId", "setSerialNumbers", "setMetadata"]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed. TokenUpdateNftsTransaction has no getters, so its setters are
+// spied on to read what was set.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenUpdateNftsTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TokenUpdateNftsOperation (via TokenService)", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let run: ReturnType<typeof vi.spyOn>;
+    let setTokenId: ReturnType<typeof vi.spyOn>;
+    let setSerialNumbers: ReturnType<typeof vi.spyOn>;
+    let setMetadata: ReturnType<typeof vi.spyOn>;
+
+    /** The serials set on the transaction. */
+    const sentSerials = () => setSerialNumbers.mock.calls[0][0] as Long[];
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TokenService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        setTokenId = vi.spyOn(
+            TokenUpdateNftsTransaction.prototype,
+            "setTokenId",
+        );
+        setSerialNumbers = vi.spyOn(
+            TokenUpdateNftsTransaction.prototype,
+            "setSerialNumbers",
+        );
+        setMetadata = vi.spyOn(
+            TokenUpdateNftsTransaction.prototype,
+            "setMetadata",
+        );
+        service = new TokenService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it("submits with a single numeric serial coerced to Long", async () => {
@@ -45,18 +60,14 @@ describe("TokenUpdateNftsOperation (via TokenService)", () => {
             metadata,
         });
 
-        const tx = vi.mocked(TokenUpdateNftsTransaction).mock.results[0].value;
+        expect(run.mock.calls[0][0]).toBeInstanceOf(TokenUpdateNftsTransaction);
+        expect(setTokenId).toHaveBeenCalledWith("0.0.500");
+        expect(setMetadata).toHaveBeenCalledWith(metadata);
 
-        expect(tx.setTokenId).toHaveBeenCalledWith("0.0.500");
-        expect(tx.setMetadata).toHaveBeenCalledWith(metadata);
-
-        const passedSerials = tx.setSerialNumbers.mock.calls[0][0];
-        expect(Array.isArray(passedSerials)).toBe(true);
-        expect(passedSerials).toHaveLength(1);
-        expect(Long.isLong(passedSerials[0])).toBe(true);
-        expect((passedSerials[0] as Long).toNumber()).toBe(7);
-
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        const serials = sentSerials();
+        expect(serials).toHaveLength(1);
+        expect(Long.isLong(serials[0])).toBe(true);
+        expect(serials[0].toNumber()).toBe(7);
     });
 
     it("passes Long serials through unchanged", async () => {
@@ -68,12 +79,9 @@ describe("TokenUpdateNftsOperation (via TokenService)", () => {
             metadata: new Uint8Array([9]),
         });
 
-        const tx = vi.mocked(TokenUpdateNftsTransaction).mock.results[0].value;
-        const passedSerials = tx.setSerialNumbers.mock.calls[0][0] as Long[];
-
-        expect(passedSerials).toHaveLength(2);
-        expect(passedSerials[0]).toBe(serials[0]);
-        expect(passedSerials[1]).toBe(serials[1]);
+        expect(sentSerials()).toHaveLength(2);
+        expect(sentSerials()[0]).toBe(serials[0]);
+        expect(sentSerials()[1]).toBe(serials[1]);
     });
 
     it("supports a mixed array of numbers and Long instances", async () => {
@@ -85,18 +93,16 @@ describe("TokenUpdateNftsOperation (via TokenService)", () => {
             metadata: new Uint8Array([1]),
         });
 
-        const tx = vi.mocked(TokenUpdateNftsTransaction).mock.results[0].value;
-        const passedSerials = tx.setSerialNumbers.mock.calls[0][0] as Long[];
-
-        expect(passedSerials).toHaveLength(3);
-        expect(Long.isLong(passedSerials[0])).toBe(true);
-        expect(passedSerials[0].toNumber()).toBe(1);
-        expect(passedSerials[1]).toBe(longSerial);
-        expect(Long.isLong(passedSerials[2])).toBe(true);
-        expect(passedSerials[2].toNumber()).toBe(3);
+        const serials = sentSerials();
+        expect(serials).toHaveLength(3);
+        expect(Long.isLong(serials[0])).toBe(true);
+        expect(serials[0].toNumber()).toBe(1);
+        expect(serials[1]).toBe(longSerial);
+        expect(Long.isLong(serials[2])).toBe(true);
+        expect(serials[2].toNumber()).toBe(3);
     });
 
-    it("applies base TransactionOptions and additionalSigners", async () => {
+    it("passes the options to the executor with the TokenUpdateNfts event", async () => {
         const metadataSigner = PrivateKey.generateED25519();
 
         await service.updateNfts({
@@ -104,21 +110,24 @@ describe("TokenUpdateNftsOperation (via TokenService)", () => {
             serialNumbers: [1],
             metadata: new Uint8Array([1]),
             transactionMemo: "rotate metadata",
-            transactionValidDuration: 60,
-            regenerateTransactionId: false,
             additionalSigners: [metadataSigner],
         });
 
-        const tx = vi.mocked(TokenUpdateNftsTransaction).mock.results[0].value;
-
-        expect(tx.setTransactionMemo).toHaveBeenCalledWith("rotate metadata");
-        expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(60);
-        expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(tx.sign).toHaveBeenCalledWith(metadataSigner);
+        expect(run).toHaveBeenCalledWith(
+            expect.any(TokenUpdateNftsTransaction),
+            expect.objectContaining({
+                transactionMemo: "rotate metadata",
+                additionalSigners: [metadataSigner],
+            }),
+            expect.objectContaining({
+                type: "TokenUpdateNfts",
+                serviceName: "TokenService",
+                methodName: "updateNfts",
+            }),
+        );
     });
 
-    it("throws and never constructs the transaction when serialNumbers is empty", async () => {
+    it("throws and never builds the transaction when serialNumbers is empty", async () => {
         await expect(
             service.updateNfts({
                 tokenId: "0.0.500",
@@ -127,10 +136,11 @@ describe("TokenUpdateNftsOperation (via TokenService)", () => {
             }),
         ).rejects.toThrow(/serialNumbers must not be empty/);
 
-        expect(TokenUpdateNftsTransaction).not.toHaveBeenCalled();
+        expect(setTokenId).not.toHaveBeenCalled();
+        expect(run).not.toHaveBeenCalled();
     });
 
-    it("throws and never constructs the transaction when metadata is missing", async () => {
+    it("throws and never builds the transaction when metadata is missing", async () => {
         await expect(
             service.updateNfts({
                 tokenId: "0.0.500",
@@ -139,6 +149,7 @@ describe("TokenUpdateNftsOperation (via TokenService)", () => {
             }),
         ).rejects.toThrow(/metadata is required/);
 
-        expect(TokenUpdateNftsTransaction).not.toHaveBeenCalled();
+        expect(setTokenId).not.toHaveBeenCalled();
+        expect(run).not.toHaveBeenCalled();
     });
 });

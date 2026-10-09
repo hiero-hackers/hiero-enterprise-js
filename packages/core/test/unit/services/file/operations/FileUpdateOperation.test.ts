@@ -1,95 +1,81 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-    FileUpdateTransaction,
     FileAppendTransaction,
+    FileUpdateTransaction,
     PrivateKey,
+    ScheduleId,
 } from "@hiero-ledger/sdk";
 import { FileService } from "../../../../../src/services/file/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import {
     HieroError,
     HieroErrorCodes,
 } from "../../../../../src/errors/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return {
-        update: buildMockTxBundle([
-            "setFileId",
-            "setContents",
-            "setKeys",
-            "setFileMemo",
-            "setExpirationTime",
-        ]),
-        append: buildMockTxBundle([
-            "setFileId",
-            "setContents",
-            "setMaxChunks",
-            "setChunkSize",
-            "setChunkInterval",
-        ]),
-    };
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        FileUpdateTransaction: vi.fn(function () {
-            return mocks.update.tx;
-        }),
-        FileAppendTransaction: vi.fn(function () {
-            return mocks.append.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("FileUpdateOperation (via FileService)", () => {
-    let context: IHieroContext;
     let service: FileService;
+    let run: ReturnType<typeof vi.spyOn>;
+    let scheduleRun: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor on the given call. */
+    const sentTx = (call = 0) => run.mock.calls.at(call)?.[0];
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks.update);
-        reattachMockChain(mocks.append);
-        context = createMockContext();
-        service = new FileService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        scheduleRun = vi
+            .spyOn(TransactionExecutor.prototype, "scheduleRun")
+            .mockResolvedValue({
+                scheduleId: ScheduleId.fromString("0.0.777"),
+            } as never);
+        service = new FileService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     describe("updateFile", () => {
-        it("submits a FileUpdateTransaction touching only changed fields", async () => {
+        it("builds a FileUpdateTransaction touching only changed fields", async () => {
             await service.updateFile({
                 fileId: "0.0.555",
                 fileMemo: "renamed",
             });
 
-            const tx = vi.mocked(FileUpdateTransaction).mock.results[0].value;
-            expect(tx.setFileId).toHaveBeenCalledWith("0.0.555");
-            expect(tx.setFileMemo).toHaveBeenCalledWith("renamed");
-            expect(tx.setContents).not.toHaveBeenCalled();
-            expect(tx.setKeys).not.toHaveBeenCalled();
-            expect(tx.setExpirationTime).not.toHaveBeenCalled();
-            expect(tx.execute).toHaveBeenCalledWith(context.client);
-            expect(vi.mocked(FileAppendTransaction)).not.toHaveBeenCalled();
+            const tx = sentTx() as FileUpdateTransaction;
+            const defaults = new FileUpdateTransaction();
+            expect(tx).toBeInstanceOf(FileUpdateTransaction);
+            expect(tx.fileId?.toString()).toBe("0.0.555");
+            expect(tx.fileMemo).toBe("renamed");
+            expect(tx.contents).toEqual(defaults.contents);
+            expect(tx.keys).toEqual(defaults.keys);
+            expect(tx.expirationTime).toEqual(defaults.expirationTime);
+            expect(run).toHaveBeenCalledTimes(1);
         });
 
         it("writes the empty-string memo sentinel when fileMemo is null", async () => {
-            // The SDK has no `clearFileMemo()`; the operation routes
-            // `null` through `setFileMemo("")` — the canonical Hedera
-            // clear sentinel.
+            // The operation routes `null` through `setFileMemo("")` — the
+            // canonical Hedera clear sentinel.
             await service.updateFile({
                 fileId: "0.0.555",
                 fileMemo: null,
             });
 
-            const tx = vi.mocked(FileUpdateTransaction).mock.results[0].value;
-            expect(tx.setFileMemo).toHaveBeenCalledWith("");
+            expect((sentTx() as FileUpdateTransaction).fileMemo).toBe("");
         });
 
-        it("forwards a new keys list", async () => {
+        it("sets a new keys list", async () => {
             const newKey = PrivateKey.generateED25519().publicKey;
 
             await service.updateFile({
@@ -97,21 +83,19 @@ describe("FileUpdateOperation (via FileService)", () => {
                 keys: [newKey],
             });
 
-            const tx = vi.mocked(FileUpdateTransaction).mock.results[0].value;
-            expect(tx.setKeys).toHaveBeenCalledWith([newKey]);
+            expect((sentTx() as FileUpdateTransaction).keys).toEqual([newKey]);
         });
 
-        it("forwards an empty keys list (rotate to unmodifiable)", async () => {
+        it("sets an empty keys list (rotate to unmodifiable)", async () => {
             await service.updateFile({
                 fileId: "0.0.555",
                 keys: [],
             });
 
-            const tx = vi.mocked(FileUpdateTransaction).mock.results[0].value;
-            expect(tx.setKeys).toHaveBeenCalledWith([]);
+            expect((sentTx() as FileUpdateTransaction).keys).toEqual([]);
         });
 
-        it("forwards expirationTime", async () => {
+        it("sets expirationTime", async () => {
             const expirationTime = new Date("2099-01-01T00:00:00Z");
 
             await service.updateFile({
@@ -119,19 +103,20 @@ describe("FileUpdateOperation (via FileService)", () => {
                 expirationTime,
             });
 
-            const tx = vi.mocked(FileUpdateTransaction).mock.results[0].value;
-            expect(tx.setExpirationTime).toHaveBeenCalledWith(expirationTime);
+            const tx = sentTx() as FileUpdateTransaction;
+            expect(tx.expirationTime?.toDate()).toEqual(expirationTime);
         });
 
-        it("submits contents-only updates that fit in a single tx without appending", async () => {
+        it("sends contents-only updates that fit in a single tx without appending", async () => {
             await service.updateFile({
                 fileId: "0.0.555",
                 contents: "small replacement",
             });
 
-            const tx = vi.mocked(FileUpdateTransaction).mock.results[0].value;
-            expect(tx.setContents).toHaveBeenCalledWith("small replacement");
-            expect(vi.mocked(FileAppendTransaction)).not.toHaveBeenCalled();
+            expect((sentTx() as FileUpdateTransaction).contents).toEqual(
+                Buffer.from("small replacement"),
+            );
+            expect(run).toHaveBeenCalledTimes(1);
         });
 
         it("chains a FileAppendTransaction when contents exceed the per-tx limit", async () => {
@@ -142,61 +127,45 @@ describe("FileUpdateOperation (via FileService)", () => {
                 contents: large,
             });
 
-            const updateTx = vi.mocked(FileUpdateTransaction).mock.results[0]
-                .value;
-            const appendTx = vi.mocked(FileAppendTransaction).mock.results[0]
-                .value;
+            expect(run).toHaveBeenCalledTimes(2);
+            const updateTx = sentTx(0) as FileUpdateTransaction;
+            expect(updateTx.contents?.byteLength).toBe(4096);
 
-            const updateArg = vi.mocked(updateTx.setContents).mock
-                .calls[0][0] as Uint8Array;
-            expect(updateArg.byteLength).toBe(4096);
-
-            expect(appendTx.setFileId).toHaveBeenCalledWith("0.0.555");
-            const appendArg = vi.mocked(appendTx.setContents).mock
-                .calls[0][0] as Uint8Array;
-            expect(appendArg.byteLength).toBe(4200 - 4096);
+            const appendTx = sentTx(1) as FileAppendTransaction;
+            expect(appendTx).toBeInstanceOf(FileAppendTransaction);
+            expect(appendTx.fileId?.toString()).toBe("0.0.555");
+            expect(appendTx.contents?.byteLength).toBe(4200 - 4096);
         });
 
-        it("applies base TransactionOptions to the update transaction", async () => {
+        it("sends the FileUpdate event", async () => {
             await service.updateFile({
                 fileId: "0.0.555",
                 fileMemo: "x",
                 transactionMemo: "base memo",
-                transactionValidDuration: 90,
-                regenerateTransactionId: false,
             });
 
-            const tx = vi.mocked(FileUpdateTransaction).mock.results[0].value;
-            expect(tx.setTransactionMemo).toHaveBeenCalledWith("base memo");
-            expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(90);
-            expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
+            expect(run).toHaveBeenCalledWith(
+                expect.any(FileUpdateTransaction),
+                expect.objectContaining({ transactionMemo: "base memo" }),
+                expect.objectContaining({
+                    type: "FileUpdate",
+                    serviceName: "FileService",
+                    methodName: "updateFile",
+                }),
+            );
         });
 
-        it("freezes and signs with additionalSigners before execute", async () => {
-            const key = PrivateKey.generateED25519();
-
-            await service.updateFile({
-                fileId: "0.0.555",
-                fileMemo: "signed update",
-                additionalSigners: [key],
-            });
-
-            const tx = vi.mocked(FileUpdateTransaction).mock.results[0].value;
-            expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-            expect(tx.sign).toHaveBeenCalledWith(key);
-        });
-
-        it("rejects a no-op update before touching the SDK", async () => {
+        it("rejects a no-op update before building a transaction", async () => {
             await expect(
                 service.updateFile({ fileId: "0.0.555" }),
             ).rejects.toThrow(
                 /updateFile requires at least one field to change/,
             );
 
-            expect(vi.mocked(FileUpdateTransaction)).not.toHaveBeenCalled();
+            expect(run).not.toHaveBeenCalled();
         });
 
-        it("rejects expirationTime: null before touching the SDK", async () => {
+        it("rejects expirationTime: null before building a transaction", async () => {
             await expect(
                 service.updateFile({
                     fileId: "0.0.555",
@@ -204,21 +173,25 @@ describe("FileUpdateOperation (via FileService)", () => {
                 } as unknown as Parameters<typeof service.updateFile>[0]),
             ).rejects.toThrow(/expirationTime cannot be null/);
 
-            expect(vi.mocked(FileUpdateTransaction)).not.toHaveBeenCalled();
+            expect(run).not.toHaveBeenCalled();
         });
     });
 
     describe("scheduleUpdateFile", () => {
         it("schedules a FileUpdate and returns the scheduleId", async () => {
-            const result = await service.scheduleUpdateFile({
-                fileId: "0.0.555",
-                fileMemo: "renamed",
-            });
+            const result = await service.scheduleUpdateFile(
+                { fileId: "0.0.555", fileMemo: "renamed" },
+                { scheduleMemo: "pending approval" },
+            );
 
             expect(result.scheduleId.toString()).toBe("0.0.777");
-
-            const tx = vi.mocked(FileUpdateTransaction).mock.results[0].value;
-            expect(tx.schedule).toHaveBeenCalled();
+            const [tx, , , scheduleOptions] = scheduleRun.mock.calls[0];
+            expect(tx).toBeInstanceOf(FileUpdateTransaction);
+            expect((tx as FileUpdateTransaction).fileMemo).toBe("renamed");
+            expect(scheduleOptions).toEqual({
+                scheduleMemo: "pending approval",
+            });
+            expect(run).not.toHaveBeenCalled();
         });
 
         it("rejects contents exceeding the per-tx limit (no atomic chunked scheduling)", async () => {
@@ -238,7 +211,7 @@ describe("FileUpdateOperation (via FileService)", () => {
                 ),
             });
 
-            expect(vi.mocked(FileUpdateTransaction)).not.toHaveBeenCalled();
+            expect(scheduleRun).not.toHaveBeenCalled();
         });
 
         it("passes small contents through (fits in single transaction)", async () => {
@@ -248,20 +221,18 @@ describe("FileUpdateOperation (via FileService)", () => {
             });
 
             expect(result.scheduleId.toString()).toBe("0.0.777");
-
-            const tx = vi.mocked(FileUpdateTransaction).mock.results[0].value;
-            expect(tx.setContents).toHaveBeenCalledWith("small update");
-            expect(tx.schedule).toHaveBeenCalled();
+            const tx = scheduleRun.mock.calls[0][0] as FileUpdateTransaction;
+            expect(tx.contents).toEqual(Buffer.from("small update"));
         });
 
-        it("propagates validator errors before touching the SDK", async () => {
+        it("propagates validator errors before building a transaction", async () => {
             await expect(
                 service.scheduleUpdateFile({ fileId: "0.0.555" }),
             ).rejects.toThrow(
                 /updateFile requires at least one field to change/,
             );
 
-            expect(vi.mocked(FileUpdateTransaction)).not.toHaveBeenCalled();
+            expect(scheduleRun).not.toHaveBeenCalled();
         });
     });
 });

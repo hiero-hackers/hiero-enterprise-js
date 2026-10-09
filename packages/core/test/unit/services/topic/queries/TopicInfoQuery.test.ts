@@ -1,102 +1,103 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TopicId } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+    AccountId,
+    LedgerId,
+    Long,
+    PrivateKey,
+    Query,
+    Timestamp,
+    TopicId,
+    TopicInfoQuery as SdkTopicInfoQuery,
+    type TopicInfo,
+} from "@hiero-ledger/sdk";
 import { TopicService } from "../../../../../src/services/topic/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = vi.hoisted(() => {
-    const mockQuery = {
-        setTopicId: vi.fn().mockReturnThis(),
-        execute: vi.fn(),
-    };
-    return { mockQuery };
-});
+// Builds real SDK queries; only Query.execute, the network call, is stubbed.
+// Its response is plain data built from real SDK values, because TopicInfo
+// has no public constructor.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TopicInfoQuery: vi.fn(function () {
-            return mocks.mockQuery;
-        }),
-    };
-});
+const adminKey = PrivateKey.generateED25519().publicKey;
+const submitKey = PrivateKey.generateED25519().publicKey;
+const feeScheduleKey = PrivateKey.generateED25519().publicKey;
+const exemptKey = PrivateKey.generateED25519().publicKey;
 
-// Re-imported after vi.mock so the SdkTopicInfoQuery constructor is the mock.
-const { TopicInfoQuery: SdkTopicInfoQuery } = await import("@hiero-ledger/sdk");
-
-function buildSdkTopicInfo(overrides: Record<string, unknown> = {}) {
+function topicInfo(overrides: Partial<TopicInfo> = {}): TopicInfo {
     return {
         topicId: TopicId.fromString("0.0.1234"),
         topicMemo: "demo topic",
         runningHash: new Uint8Array([1, 2, 3]),
-        sequenceNumber: { toString: () => "42" },
-        expirationTime: {
-            toDate: () => new Date("2099-01-02T03:04:05.000Z"),
-        },
-        adminKey: { _adminKeySentinel: true },
-        submitKey: { _submitKeySentinel: true },
-        feeScheduleKey: { _feeScheduleKeySentinel: true },
-        feeExemptKeys: [{ _exemptKeySentinel: true }],
-        autoRenewPeriod: { seconds: { toNumber: () => 7776000 } },
-        autoRenewAccountId: { toString: () => "0.0.555" },
+        sequenceNumber: Long.fromNumber(42),
+        expirationTime: Timestamp.fromDate(
+            new Date("2099-01-02T03:04:05.000Z"),
+        ),
+        adminKey,
+        submitKey,
+        feeScheduleKey,
+        feeExemptKeys: [exemptKey],
+        autoRenewPeriod: { seconds: Long.fromNumber(7_776_000) },
+        autoRenewAccountId: AccountId.fromString("0.0.555"),
         customFees: [],
-        ledgerId: { toString: () => "mainnet" },
+        ledgerId: LedgerId.MAINNET,
         ...overrides,
-    };
+    } as TopicInfo;
 }
 
 describe("TopicInfoQuery (via TopicService)", () => {
-    let context: IHieroContext;
     let service: TopicService;
+    let execute: ReturnType<typeof vi.spyOn>;
+
+    /** The query sent to the network. */
+    const sentQuery = (call = 0) =>
+        execute.mock.contexts.at(call) as SdkTopicInfoQuery;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        context = createMockContext();
-        service = new TopicService(context);
+        execute = vi
+            .spyOn(Query.prototype, "execute")
+            .mockResolvedValue(topicInfo());
+        service = new TopicService(createMockContext());
     });
 
-    it("fetches and projects topic info to a plain object", async () => {
-        mocks.mockQuery.execute.mockResolvedValueOnce(buildSdkTopicInfo());
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
 
+    it("queries the topic and projects its info to a plain object", async () => {
         const info = await service.getTopicInfo("0.0.1234");
 
-        expect(mocks.mockQuery.setTopicId).toHaveBeenCalledWith("0.0.1234");
-        expect(mocks.mockQuery.execute).toHaveBeenCalledWith(context.client);
-
-        expect(info).toMatchObject({
+        expect(sentQuery()).toBeInstanceOf(SdkTopicInfoQuery);
+        expect(sentQuery().topicId?.toString()).toBe("0.0.1234");
+        // Keys pass through as the original SDK references.
+        expect(info).toEqual({
             topicId: "0.0.1234",
             topicMemo: "demo topic",
+            runningHash: new Uint8Array([1, 2, 3]),
             sequenceNumber: "42",
             expirationTime: "2099-01-02T03:04:05.000Z",
+            adminKey,
+            submitKey,
+            feeScheduleKey,
+            feeExemptKeys: [exemptKey],
+            autoRenewPeriod: 7_776_000,
             autoRenewAccountId: "0.0.555",
-            autoRenewPeriod: 7776000,
             customFees: [],
             ledgerId: "mainnet",
         });
-        expect(info.runningHash).toEqual(new Uint8Array([1, 2, 3]));
-        // Keys pass through as the original SDK references.
-        expect(info.adminKey).toEqual({ _adminKeySentinel: true });
-        expect(info.submitKey).toEqual({ _submitKeySentinel: true });
-        expect(info.feeScheduleKey).toEqual({ _feeScheduleKeySentinel: true });
-        expect(info.feeExemptKeys).toEqual([{ _exemptKeySentinel: true }]);
     });
 
     it("accepts a TopicId instance", async () => {
         const topicId = TopicId.fromString("0.0.999");
-        mocks.mockQuery.execute.mockResolvedValueOnce(
-            buildSdkTopicInfo({ topicId }),
-        );
+        execute.mockResolvedValueOnce(topicInfo({ topicId }));
 
         const info = await service.getTopicInfo(topicId);
 
-        expect(mocks.mockQuery.setTopicId).toHaveBeenCalledWith(topicId);
+        expect(sentQuery().topicId?.toString()).toBe("0.0.999");
         expect(info.topicId).toBe("0.0.999");
     });
 
-    it("returns null for optional fields when the SDK reports them as null", async () => {
-        mocks.mockQuery.execute.mockResolvedValueOnce(
-            buildSdkTopicInfo({
+    it("returns null for optional fields the network leaves unset", async () => {
+        execute.mockResolvedValueOnce(
+            topicInfo({
                 expirationTime: null,
                 adminKey: null,
                 submitKey: null,
@@ -122,10 +123,8 @@ describe("TopicInfoQuery (via TopicService)", () => {
         expect(info.ledgerId).toBeNull();
     });
 
-    it("normalises SDK errors with the TopicService.getTopicInfo context", async () => {
-        mocks.mockQuery.execute.mockRejectedValueOnce(
-            new Error("boom from network"),
-        );
+    it("normalises network errors with the TopicService.getTopicInfo context", async () => {
+        execute.mockRejectedValueOnce(new Error("boom from network"));
 
         await expect(service.getTopicInfo("0.0.1234")).rejects.toMatchObject({
             name: "HieroError",
@@ -134,12 +133,11 @@ describe("TopicInfoQuery (via TopicService)", () => {
         });
     });
 
-    it("constructs a fresh SdkTopicInfoQuery on every execute call", async () => {
-        mocks.mockQuery.execute.mockResolvedValue(buildSdkTopicInfo());
-
+    it("builds a new query for every call", async () => {
         await service.getTopicInfo("0.0.1");
         await service.getTopicInfo("0.0.2");
 
-        expect(vi.mocked(SdkTopicInfoQuery)).toHaveBeenCalledTimes(2);
+        expect(sentQuery(0)).not.toBe(sentQuery(1));
+        expect(sentQuery(1).topicId?.toString()).toBe("0.0.2");
     });
 });

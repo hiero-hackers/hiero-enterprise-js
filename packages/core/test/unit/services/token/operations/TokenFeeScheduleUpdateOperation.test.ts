@@ -1,40 +1,38 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
     CustomFixedFee,
-    Hbar,
-    PrivateKey,
     TokenFeeScheduleUpdateTransaction,
 } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle(["setTokenId", "setCustomFees"]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenFeeScheduleUpdateTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TokenFeeScheduleUpdateOperation (via TokenService)", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () =>
+        run.mock.calls[0][0] as TokenFeeScheduleUpdateTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TokenService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new TokenService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it("updates a token's fee schedule with the supplied custom fees", async () => {
@@ -47,11 +45,10 @@ describe("TokenFeeScheduleUpdateOperation (via TokenService)", () => {
             customFees: [fee],
         });
 
-        const tx = vi.mocked(TokenFeeScheduleUpdateTransaction).mock.results[0]
-            .value;
-        expect(tx.setTokenId).toHaveBeenCalledWith("0.0.500");
-        expect(tx.setCustomFees).toHaveBeenCalledWith([fee]);
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        const tx = sentTx();
+        expect(tx).toBeInstanceOf(TokenFeeScheduleUpdateTransaction);
+        expect(tx.tokenId?.toString()).toBe("0.0.500");
+        expect(tx.customFees).toEqual([fee]);
     });
 
     it("clears all custom fees when an empty array is provided", async () => {
@@ -60,34 +57,27 @@ describe("TokenFeeScheduleUpdateOperation (via TokenService)", () => {
             customFees: [],
         });
 
-        const tx = vi.mocked(TokenFeeScheduleUpdateTransaction).mock.results[0]
-            .value;
-        expect(tx.setTokenId).toHaveBeenCalledWith("0.0.500");
-        expect(tx.setCustomFees).toHaveBeenCalledWith([]);
+        const tx = sentTx();
+        expect(tx.tokenId?.toString()).toBe("0.0.500");
+        expect(tx.customFees).toEqual([]);
     });
 
-    it("applies base TransactionOptions and additionalSigners", async () => {
-        const signer = PrivateKey.generateED25519();
-        const fee = new CustomFixedFee()
-            .setHbarAmount(new Hbar(1))
-            .setFeeCollectorAccountId("0.0.1001");
-
+    it("sends the TokenFeeScheduleUpdate event", async () => {
         await service.updateTokenFeeSchedule({
             tokenId: "0.0.500",
-            customFees: [fee],
+            customFees: [],
             transactionMemo: "fee schedule memo",
-            transactionValidDuration: 60,
-            regenerateTransactionId: false,
-            additionalSigners: [signer],
         });
 
-        const tx = vi.mocked(TokenFeeScheduleUpdateTransaction).mock.results[0]
-            .value;
-        expect(tx.setTransactionMemo).toHaveBeenCalledWith("fee schedule memo");
-        expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(60);
-        expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(tx.sign).toHaveBeenCalledWith(signer);
+        expect(run).toHaveBeenCalledWith(
+            expect.any(TokenFeeScheduleUpdateTransaction),
+            expect.objectContaining({ transactionMemo: "fee schedule memo" }),
+            expect.objectContaining({
+                type: "TokenFeeScheduleUpdate",
+                serviceName: "TokenService",
+                methodName: "updateTokenFeeSchedule",
+            }),
+        );
     });
 
     it("throws when tokenId is missing", async () => {
@@ -97,6 +87,7 @@ describe("TokenFeeScheduleUpdateOperation (via TokenService)", () => {
                 customFees: [],
             }),
         ).rejects.toThrow(/tokenId is required/);
+        expect(run).not.toHaveBeenCalled();
     });
 
     it("throws when tokenId is empty", async () => {

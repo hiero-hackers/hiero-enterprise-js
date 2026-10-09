@@ -1,62 +1,65 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TokenUnpauseTransaction, PrivateKey } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { PrivateKey, TokenUnpauseTransaction } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle(["setTokenId"]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenUnpauseTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TokenUnpauseOperation (via TokenService)", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as TokenUnpauseTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TokenService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new TokenService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it("unpauses a token", async () => {
         await service.unpauseToken({ tokenId: "0.0.500" });
 
-        const tx = vi.mocked(TokenUnpauseTransaction).mock.results[0].value;
-        expect(tx.setTokenId).toHaveBeenCalledWith("0.0.500");
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        const tx = sentTx();
+        expect(tx).toBeInstanceOf(TokenUnpauseTransaction);
+        expect(tx.tokenId?.toString()).toBe("0.0.500");
     });
 
-    it("applies base TransactionOptions and additionalSigners", async () => {
+    it("passes the options to the executor with the TokenUnpause event", async () => {
         const signer = PrivateKey.generateED25519();
 
         await service.unpauseToken({
             tokenId: "0.0.500",
             transactionMemo: "unpause memo",
-            transactionValidDuration: 60,
-            regenerateTransactionId: false,
             additionalSigners: [signer],
         });
 
-        const tx = vi.mocked(TokenUnpauseTransaction).mock.results[0].value;
-        expect(tx.setTransactionMemo).toHaveBeenCalledWith("unpause memo");
-        expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(60);
-        expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(tx.sign).toHaveBeenCalledWith(signer);
+        expect(run).toHaveBeenCalledWith(
+            expect.any(TokenUnpauseTransaction),
+            expect.objectContaining({
+                transactionMemo: "unpause memo",
+                additionalSigners: [signer],
+            }),
+            expect.objectContaining({
+                type: "TokenUnpause",
+                serviceName: "TokenService",
+                methodName: "unpauseToken",
+            }),
+        );
     });
 
     it("throws when tokenId is missing", async () => {
@@ -65,11 +68,15 @@ describe("TokenUnpauseOperation (via TokenService)", () => {
                 tokenId: undefined as unknown as string,
             }),
         ).rejects.toThrow(/tokenId is required/);
+
+        expect(run).not.toHaveBeenCalled();
     });
 
     it("throws when tokenId is empty", async () => {
         await expect(service.unpauseToken({ tokenId: "" })).rejects.toThrow(
             /tokenId cannot be empty/,
         );
+
+        expect(run).not.toHaveBeenCalled();
     });
 });

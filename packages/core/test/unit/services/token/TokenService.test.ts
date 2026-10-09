@@ -1,54 +1,42 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-    TokenCreateTransaction,
-    TokenType,
-    TokenSupplyType,
     PrivateKey,
+    TokenCreateTransaction,
+    TokenId,
+    TokenSupplyType,
+    TokenType,
 } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../src/services/token/index.js";
+import { TransactionExecutor } from "../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../src/context/index.js";
 
 // The facade tests verify the contract the service guarantees on top of the
 // operation: tokenType/decimals/initialSupply auto-injection and
-// supplyType auto-resolution. SDK calls are inspected to confirm the
-// translation happens before reaching the executor.
+// supplyType auto-resolution. The real transaction handed to the executor is
+// inspected; only the executor, which sends it, is stubbed.
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } = await import("../../../utils/sdk-mocks.js");
-    return buildMockTxBundle([
-        "setTokenName",
-        "setTokenSymbol",
-        "setTreasuryAccountId",
-        "setTokenType",
-        "setDecimals",
-        "setInitialSupply",
-        "setSupplyKey",
-        "setSupplyType",
-        "setMaxSupply",
-    ]);
-});
-
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenCreateTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: { tokenId: TokenId.fromString("0.0.500") },
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TokenService [facade contract]", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as TokenCreateTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TokenService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new TokenService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     describe("createFungibleToken", () => {
@@ -59,10 +47,7 @@ describe("TokenService [facade contract]", () => {
                 treasuryAccountId: "0.0.555",
             });
 
-            const tx = vi.mocked(TokenCreateTransaction).mock.results[0].value;
-            expect(tx.setTokenType).toHaveBeenCalledWith(
-                TokenType.FungibleCommon,
-            );
+            expect(sentTx().tokenType).toBe(TokenType.FungibleCommon);
         });
 
         it("auto-sets supplyType to Finite when maxSupply is provided", async () => {
@@ -73,10 +58,7 @@ describe("TokenService [facade contract]", () => {
                 maxSupply: 5_000,
             });
 
-            const tx = vi.mocked(TokenCreateTransaction).mock.results[0].value;
-            expect(tx.setSupplyType).toHaveBeenCalledWith(
-                TokenSupplyType.Finite,
-            );
+            expect(sentTx().supplyType).toBe(TokenSupplyType.Finite);
         });
 
         it("preserves an explicit supplyType over auto-resolution", async () => {
@@ -88,10 +70,7 @@ describe("TokenService [facade contract]", () => {
                 maxSupply: 5_000,
             });
 
-            const tx = vi.mocked(TokenCreateTransaction).mock.results[0].value;
-            expect(tx.setSupplyType).toHaveBeenCalledWith(
-                TokenSupplyType.Infinite,
-            );
+            expect(sentTx().supplyType).toBe(TokenSupplyType.Infinite);
         });
 
         it("leaves supplyType unset when neither maxSupply nor supplyType is given", async () => {
@@ -101,8 +80,9 @@ describe("TokenService [facade contract]", () => {
                 treasuryAccountId: "0.0.555",
             });
 
-            const tx = vi.mocked(TokenCreateTransaction).mock.results[0].value;
-            expect(tx.setSupplyType).not.toHaveBeenCalled();
+            expect(sentTx().supplyType).toBe(
+                new TokenCreateTransaction().supplyType,
+            );
         });
     });
 
@@ -117,10 +97,7 @@ describe("TokenService [facade contract]", () => {
                 supplyKey,
             });
 
-            const tx = vi.mocked(TokenCreateTransaction).mock.results[0].value;
-            expect(tx.setTokenType).toHaveBeenCalledWith(
-                TokenType.NonFungibleUnique,
-            );
+            expect(sentTx().tokenType).toBe(TokenType.NonFungibleUnique);
         });
 
         it("forces decimals and initialSupply to 0", async () => {
@@ -131,9 +108,9 @@ describe("TokenService [facade contract]", () => {
                 supplyKey,
             });
 
-            const tx = vi.mocked(TokenCreateTransaction).mock.results[0].value;
-            expect(tx.setDecimals).toHaveBeenCalledWith(0);
-            expect(tx.setInitialSupply).toHaveBeenCalledWith(0);
+            const tx = sentTx();
+            expect(tx.decimals?.toNumber()).toBe(0);
+            expect(tx.initialSupply?.toNumber()).toBe(0);
         });
 
         it("auto-sets supplyType to Finite when maxSupply is provided", async () => {
@@ -145,11 +122,9 @@ describe("TokenService [facade contract]", () => {
                 maxSupply: 1_000,
             });
 
-            const tx = vi.mocked(TokenCreateTransaction).mock.results[0].value;
-            expect(tx.setSupplyType).toHaveBeenCalledWith(
-                TokenSupplyType.Finite,
-            );
-            expect(tx.setMaxSupply).toHaveBeenCalledWith(1_000);
+            const tx = sentTx();
+            expect(tx.supplyType).toBe(TokenSupplyType.Finite);
+            expect(tx.maxSupply?.toNumber()).toBe(1_000);
         });
 
         it("requires supplyKey at the type level (validator confirms)", async () => {
@@ -165,6 +140,8 @@ describe("TokenService [facade contract]", () => {
                     >["publicKey"],
                 }),
             ).rejects.toThrow(/Non-fungible tokens require a supplyKey/);
+
+            expect(run).not.toHaveBeenCalled();
         });
     });
 });

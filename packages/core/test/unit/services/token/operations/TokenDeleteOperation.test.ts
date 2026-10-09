@@ -1,64 +1,59 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TokenDeleteTransaction, PrivateKey } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { TokenDeleteTransaction } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle(["setTokenId"]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenDeleteTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TokenDeleteOperation (via TokenService)", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as TokenDeleteTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TokenService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new TokenService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it("submits a deletion with tokenId", async () => {
         await service.deleteToken({ tokenId: "0.0.500" });
 
-        const tx = vi.mocked(TokenDeleteTransaction).mock.results[0].value;
-
-        expect(tx.setTokenId).toHaveBeenCalledWith("0.0.500");
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        const tx = sentTx();
+        expect(tx).toBeInstanceOf(TokenDeleteTransaction);
+        expect(tx.tokenId?.toString()).toBe("0.0.500");
     });
 
-    it("applies base TransactionOptions and additionalSigners", async () => {
-        const adminSigner = PrivateKey.generateED25519();
-
+    it("sends the TokenDelete event", async () => {
         await service.deleteToken({
             tokenId: "0.0.500",
             transactionMemo: "delete memo",
-            transactionValidDuration: 60,
-            regenerateTransactionId: false,
-            additionalSigners: [adminSigner],
         });
 
-        const tx = vi.mocked(TokenDeleteTransaction).mock.results[0].value;
-
-        expect(tx.setTransactionMemo).toHaveBeenCalledWith("delete memo");
-        expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(60);
-        expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(tx.sign).toHaveBeenCalledWith(adminSigner);
+        expect(run).toHaveBeenCalledWith(
+            expect.any(TokenDeleteTransaction),
+            expect.objectContaining({ transactionMemo: "delete memo" }),
+            expect.objectContaining({
+                type: "TokenDelete",
+                serviceName: "TokenService",
+                methodName: "deleteToken",
+            }),
+        );
     });
 
     it("throws when tokenId is missing", async () => {
@@ -67,11 +62,13 @@ describe("TokenDeleteOperation (via TokenService)", () => {
                 tokenId: undefined as unknown as string,
             }),
         ).rejects.toThrow(/tokenId is required/);
+        expect(run).not.toHaveBeenCalled();
     });
 
     it("throws when tokenId is empty", async () => {
         await expect(service.deleteToken({ tokenId: "" })).rejects.toThrow(
             /tokenId cannot be empty/,
         );
+        expect(run).not.toHaveBeenCalled();
     });
 });

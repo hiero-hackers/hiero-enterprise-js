@@ -1,20 +1,19 @@
 import { vi } from "vitest";
+import { AccountId, PrivateKey } from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../src/context/index.js";
 
 /**
- * Creates a mock HieroContext for unit testing service clients.
- * Satisfies the IHieroContext interface without needing the real SDK.
+ * Creates a mock HieroContext for unit testing service clients. The operator
+ * ID and key are real SDK values; the client and listener hooks are fakes.
  */
 export function createMockContext(): IHieroContext {
-    const mockPublicKey = { toString: () => "mock-public-key" };
-
     return {
         client: {
             setOperator: vi.fn(),
             close: vi.fn(),
         },
-        operatorAccountId: { toString: () => "0.0.2" },
-        operatorPublicKey: mockPublicKey,
+        operatorAccountId: AccountId.fromString("0.0.2"),
+        operatorPublicKey: PrivateKey.generateED25519().publicKey,
         signTransaction: vi
             .fn()
             .mockImplementation((tx) => Promise.resolve(tx)),

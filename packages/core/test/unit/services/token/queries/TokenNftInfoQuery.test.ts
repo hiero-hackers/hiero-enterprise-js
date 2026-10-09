@@ -1,65 +1,58 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { NftId, TokenId } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+    AccountId,
+    LedgerId,
+    NftId,
+    Query,
+    Timestamp,
+    TokenId,
+    TokenNftInfoQuery as SdkTokenNftInfoQuery,
+    type TokenNftInfo,
+} from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = vi.hoisted(() => {
-    const mockQuery = {
-        setNftId: vi.fn().mockReturnThis(),
-        execute: vi.fn(),
-    };
-    return { mockQuery };
-});
+// Builds real SDK queries; only Query.execute, the network call, is stubbed.
+// Its response is plain data built from real SDK values, because
+// TokenNftInfo has no public constructor.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
+function nftInfo(overrides: Partial<TokenNftInfo> = {}): TokenNftInfo {
     return {
-        ...actual,
-        TokenNftInfoQuery: vi.fn(function () {
-            return mocks.mockQuery;
-        }),
-    };
-});
-
-// Re-imported after vi.mock so the SdkTokenNftInfoQuery constructor is the mock.
-const { TokenNftInfoQuery: SdkTokenNftInfoQuery } =
-    await import("@hiero-ledger/sdk");
-
-function buildSdkNftInfo(overrides: Record<string, unknown> = {}) {
-    const tokenId = TokenId.fromString("0.0.1234");
-    return {
-        nftId: new NftId(tokenId, 7),
-        accountId: { toString: () => "0.0.555" },
-        creationTime: {
-            toDate: () => new Date("2024-01-02T03:04:05.000Z"),
-        },
+        nftId: new NftId(TokenId.fromString("0.0.1234"), 7),
+        accountId: AccountId.fromString("0.0.555"),
+        creationTime: Timestamp.fromDate(new Date("2024-01-02T03:04:05.000Z")),
         metadata: new Uint8Array([1, 2, 3]),
-        spenderId: { toString: () => "0.0.999" },
-        ledgerId: { toString: () => "testnet" },
+        spenderId: AccountId.fromString("0.0.999"),
+        ledgerId: LedgerId.TESTNET,
         ...overrides,
-    };
+    } as TokenNftInfo;
 }
 
 describe("TokenNftInfoQuery (via TokenService)", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let execute: ReturnType<typeof vi.spyOn>;
+
+    /** The query sent to the network. */
+    const sentQuery = (call = 0) =>
+        execute.mock.contexts.at(call) as SdkTokenNftInfoQuery;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        context = createMockContext();
-        service = new TokenService(context);
+        execute = vi
+            .spyOn(Query.prototype, "execute")
+            .mockResolvedValue([nftInfo()]);
+        service = new TokenService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it("fetches and projects the first NFT info entry to a plain object", async () => {
-        mocks.mockQuery.execute.mockResolvedValueOnce([buildSdkNftInfo()]);
-
         const info = await service.getNftInfo("0.0.1234/7");
 
-        expect(mocks.mockQuery.setNftId).toHaveBeenCalledWith("0.0.1234/7");
-        expect(mocks.mockQuery.execute).toHaveBeenCalledWith(context.client);
-
-        expect(info).toMatchObject({
+        expect(sentQuery()).toBeInstanceOf(SdkTokenNftInfoQuery);
+        expect(sentQuery().nftId?.toString()).toBe("0.0.1234/7");
+        expect(info).toEqual({
             nftId: "0.0.1234/7",
             tokenId: "0.0.1234",
             serial: "7",
@@ -73,16 +66,13 @@ describe("TokenNftInfoQuery (via TokenService)", () => {
 
     it("accepts an NftId instance", async () => {
         const nftId = new NftId(TokenId.fromString("0.0.4321"), 3);
-        mocks.mockQuery.execute.mockResolvedValueOnce([
-            buildSdkNftInfo({
-                nftId,
-                accountId: { toString: () => "0.0.700" },
-            }),
+        execute.mockResolvedValueOnce([
+            nftInfo({ nftId, accountId: AccountId.fromString("0.0.700") }),
         ]);
 
         const info = await service.getNftInfo(nftId);
 
-        expect(mocks.mockQuery.setNftId).toHaveBeenCalledWith(nftId);
+        expect(sentQuery().nftId?.toString()).toBe("0.0.4321/3");
         expect(info.nftId).toBe("0.0.4321/3");
         expect(info.tokenId).toBe("0.0.4321");
         expect(info.serial).toBe("3");
@@ -90,12 +80,8 @@ describe("TokenNftInfoQuery (via TokenService)", () => {
     });
 
     it("returns null for optional fields when the SDK reports them as null", async () => {
-        mocks.mockQuery.execute.mockResolvedValueOnce([
-            buildSdkNftInfo({
-                metadata: null,
-                spenderId: null,
-                ledgerId: null,
-            }),
+        execute.mockResolvedValueOnce([
+            nftInfo({ metadata: null, spenderId: null, ledgerId: null }),
         ]);
 
         const info = await service.getNftInfo("0.0.1234/7");
@@ -106,7 +92,7 @@ describe("TokenNftInfoQuery (via TokenService)", () => {
     });
 
     it("throws a NotFound HieroError when the SDK returns an empty list", async () => {
-        mocks.mockQuery.execute.mockResolvedValueOnce([]);
+        execute.mockResolvedValueOnce([]);
 
         await expect(service.getNftInfo("0.0.1234/7")).rejects.toMatchObject({
             name: "HieroError",
@@ -116,9 +102,7 @@ describe("TokenNftInfoQuery (via TokenService)", () => {
     });
 
     it("normalises SDK errors with the TokenService.getNftInfo context", async () => {
-        mocks.mockQuery.execute.mockRejectedValueOnce(
-            new Error("network is down"),
-        );
+        execute.mockRejectedValueOnce(new Error("network is down"));
 
         await expect(service.getNftInfo("0.0.1234/7")).rejects.toMatchObject({
             name: "HieroError",
@@ -127,12 +111,11 @@ describe("TokenNftInfoQuery (via TokenService)", () => {
         });
     });
 
-    it("constructs a fresh SdkTokenNftInfoQuery on every execute call", async () => {
-        mocks.mockQuery.execute.mockResolvedValue([buildSdkNftInfo()]);
-
+    it("builds a new query for every call", async () => {
         await service.getNftInfo("0.0.1/1");
         await service.getNftInfo("0.0.2/2");
 
-        expect(vi.mocked(SdkTokenNftInfoQuery)).toHaveBeenCalledTimes(2);
+        expect(sentQuery(0)).not.toBe(sentQuery(1));
+        expect(sentQuery(1).nftId?.toString()).toBe("0.0.2/2");
     });
 });

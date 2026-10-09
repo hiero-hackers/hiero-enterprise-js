@@ -1,40 +1,34 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TokenWipeTransaction, PrivateKey } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { Long, PrivateKey, TokenWipeTransaction } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle([
-        "setTokenId",
-        "setAccountId",
-        "setAmount",
-        "setSerials",
-    ]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenWipeTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: { totalSupply: Long.fromNumber(1000) },
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TokenWipeOperation (via TokenService)", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as TokenWipeTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TokenService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new TokenService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it("wipes fungible supply from an account", async () => {
@@ -44,12 +38,12 @@ describe("TokenWipeOperation (via TokenService)", () => {
             amount: 1_000,
         });
 
-        const tx = vi.mocked(TokenWipeTransaction).mock.results[0].value;
-        expect(tx.setTokenId).toHaveBeenCalledWith("0.0.500");
-        expect(tx.setAccountId).toHaveBeenCalledWith("0.0.700");
-        expect(tx.setAmount).toHaveBeenCalledWith(1_000);
-        expect(tx.setSerials).not.toHaveBeenCalled();
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        const tx = sentTx();
+        expect(tx).toBeInstanceOf(TokenWipeTransaction);
+        expect(tx.tokenId?.toString()).toBe("0.0.500");
+        expect(tx.accountId?.toString()).toBe("0.0.700");
+        expect(tx.amount?.toNumber()).toBe(1_000);
+        expect(tx.serials).toEqual(new TokenWipeTransaction().serials);
     });
 
     it("wipes NFT serials from an account", async () => {
@@ -59,14 +53,16 @@ describe("TokenWipeOperation (via TokenService)", () => {
             serials: [1, 2, 3],
         });
 
-        const tx = vi.mocked(TokenWipeTransaction).mock.results[0].value;
-        expect(tx.setTokenId).toHaveBeenCalledWith("0.0.500");
-        expect(tx.setAccountId).toHaveBeenCalledWith("0.0.700");
-        expect(tx.setSerials).toHaveBeenCalledWith([1, 2, 3]);
-        expect(tx.setAmount).not.toHaveBeenCalled();
+        const tx = sentTx();
+        expect(tx.tokenId?.toString()).toBe("0.0.500");
+        expect(tx.accountId?.toString()).toBe("0.0.700");
+        expect(tx.serials?.map((serial) => serial.toNumber())).toEqual([
+            1, 2, 3,
+        ]);
+        expect(tx.amount).toEqual(new TokenWipeTransaction().amount);
     });
 
-    it("applies base TransactionOptions and additionalSigners", async () => {
+    it("passes the options to the executor with the TokenWipe event", async () => {
         const signer = PrivateKey.generateED25519();
 
         await service.wipeToken({
@@ -74,17 +70,21 @@ describe("TokenWipeOperation (via TokenService)", () => {
             accountId: "0.0.700",
             amount: 5,
             transactionMemo: "wipe memo",
-            transactionValidDuration: 120,
-            regenerateTransactionId: false,
             additionalSigners: [signer],
         });
 
-        const tx = vi.mocked(TokenWipeTransaction).mock.results[0].value;
-        expect(tx.setTransactionMemo).toHaveBeenCalledWith("wipe memo");
-        expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(120);
-        expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(tx.sign).toHaveBeenCalledWith(signer);
+        expect(run).toHaveBeenCalledWith(
+            expect.any(TokenWipeTransaction),
+            expect.objectContaining({
+                transactionMemo: "wipe memo",
+                additionalSigners: [signer],
+            }),
+            expect.objectContaining({
+                type: "TokenWipe",
+                serviceName: "TokenService",
+                methodName: "wipeToken",
+            }),
+        );
     });
 
     it("returns the transaction floor and the new total supply", async () => {
@@ -95,17 +95,17 @@ describe("TokenWipeOperation (via TokenService)", () => {
         });
 
         expect(result).toMatchObject({
-            transactionId: "0.0.123@1234567890.000000000",
+            transactionId: receipt.transactionId,
             status: "SUCCESS",
             totalSupply: "1000",
         });
     });
 
     it("throws when the receipt is missing totalSupply", async () => {
-        mocks.response.getReceipt.mockResolvedValueOnce({
-            ...mocks.receipt,
-            totalSupply: null,
-        });
+        run.mockResolvedValueOnce({
+            ...receipt,
+            receipt: { totalSupply: null },
+        } as never);
 
         await expect(
             service.wipeToken({

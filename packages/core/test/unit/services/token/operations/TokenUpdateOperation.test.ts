@@ -1,84 +1,65 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-    TokenUpdateTransaction,
-    TokenKeyValidation,
     PrivateKey,
+    ScheduleId,
+    TokenKeyValidation,
+    TokenUpdateTransaction,
 } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle([
-        "setTokenId",
-        "setTokenName",
-        "setTokenSymbol",
-        "setTreasuryAccountId",
-        "setAdminKey",
-        "setKycKey",
-        "setFreezeKey",
-        "setWipeKey",
-        "setSupplyKey",
-        "setAutoRenewAccountId",
-        "setExpirationTime",
-        "setAutoRenewPeriod",
-        "setTokenMemo",
-        "setFeeScheduleKey",
-        "setPauseKey",
-        "setMetadataKey",
-        "setMetadata",
-        "setKeyVerificationMode",
-    ]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenUpdateTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TokenUpdateOperation (via TokenService)", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as TokenUpdateTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TokenService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new TokenService(createMockContext());
     });
 
-    it("submits an update with only tokenId and skips all optional setters", async () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it("submits an update with only tokenId and keeps the SDK defaults", async () => {
         await service.updateToken({ tokenId: "0.0.500" });
 
-        const tx = vi.mocked(TokenUpdateTransaction).mock.results[0].value;
-
-        expect(tx.setTokenId).toHaveBeenCalledWith("0.0.500");
-        expect(tx.setTokenName).not.toHaveBeenCalled();
-        expect(tx.setTokenSymbol).not.toHaveBeenCalled();
-        expect(tx.setTreasuryAccountId).not.toHaveBeenCalled();
-        expect(tx.setAdminKey).not.toHaveBeenCalled();
-        expect(tx.setKycKey).not.toHaveBeenCalled();
-        expect(tx.setFreezeKey).not.toHaveBeenCalled();
-        expect(tx.setWipeKey).not.toHaveBeenCalled();
-        expect(tx.setSupplyKey).not.toHaveBeenCalled();
-        expect(tx.setAutoRenewAccountId).not.toHaveBeenCalled();
-        expect(tx.setExpirationTime).not.toHaveBeenCalled();
-        expect(tx.setAutoRenewPeriod).not.toHaveBeenCalled();
-        expect(tx.setTokenMemo).not.toHaveBeenCalled();
-        expect(tx.setFeeScheduleKey).not.toHaveBeenCalled();
-        expect(tx.setPauseKey).not.toHaveBeenCalled();
-        expect(tx.setMetadataKey).not.toHaveBeenCalled();
-        expect(tx.setMetadata).not.toHaveBeenCalled();
-        expect(tx.setKeyVerificationMode).not.toHaveBeenCalled();
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        const tx = sentTx();
+        const defaults = new TokenUpdateTransaction();
+        expect(tx).toBeInstanceOf(TokenUpdateTransaction);
+        expect(tx.tokenId?.toString()).toBe("0.0.500");
+        expect(tx.tokenName).toEqual(defaults.tokenName);
+        expect(tx.tokenSymbol).toEqual(defaults.tokenSymbol);
+        expect(tx.treasuryAccountId).toEqual(defaults.treasuryAccountId);
+        expect(tx.adminKey).toEqual(defaults.adminKey);
+        expect(tx.kycKey).toEqual(defaults.kycKey);
+        expect(tx.freezeKey).toEqual(defaults.freezeKey);
+        expect(tx.wipeKey).toEqual(defaults.wipeKey);
+        expect(tx.supplyKey).toEqual(defaults.supplyKey);
+        expect(tx.autoRenewAccountId).toEqual(defaults.autoRenewAccountId);
+        expect(tx.expirationTime).toEqual(defaults.expirationTime);
+        expect(tx.autoRenewPeriod).toEqual(defaults.autoRenewPeriod);
+        expect(tx.tokenMemo).toEqual(defaults.tokenMemo);
+        expect(tx.feeScheduleKey).toEqual(defaults.feeScheduleKey);
+        expect(tx.pauseKey).toEqual(defaults.pauseKey);
+        expect(tx.metadataKey).toEqual(defaults.metadataKey);
+        expect(tx.metadata).toEqual(defaults.metadata);
+        expect(tx.keyVerificationMode).toEqual(defaults.keyVerificationMode);
     });
 
     it("applies all provided update fields", async () => {
@@ -90,7 +71,7 @@ describe("TokenUpdateOperation (via TokenService)", () => {
         const feeScheduleKey = PrivateKey.generateED25519().publicKey;
         const pauseKey = PrivateKey.generateED25519().publicKey;
         const metadataKey = PrivateKey.generateED25519().publicKey;
-        const expirationTime = new Date();
+        const expirationTime = new Date("2099-01-02T03:04:05.000Z");
         const metadata = new Uint8Array([1, 2, 3]);
 
         await service.updateToken({
@@ -114,52 +95,58 @@ describe("TokenUpdateOperation (via TokenService)", () => {
             keyVerificationMode: TokenKeyValidation.FullValidation,
         });
 
-        const tx = vi.mocked(TokenUpdateTransaction).mock.results[0].value;
-
-        expect(tx.setTokenId).toHaveBeenCalledWith("0.0.500");
-        expect(tx.setTokenName).toHaveBeenCalledWith("Renamed");
-        expect(tx.setTokenSymbol).toHaveBeenCalledWith("RNM");
-        expect(tx.setTreasuryAccountId).toHaveBeenCalledWith("0.0.999");
-        expect(tx.setAdminKey).toHaveBeenCalledWith(adminKey);
-        expect(tx.setKycKey).toHaveBeenCalledWith(kycKey);
-        expect(tx.setFreezeKey).toHaveBeenCalledWith(freezeKey);
-        expect(tx.setWipeKey).toHaveBeenCalledWith(wipeKey);
-        expect(tx.setSupplyKey).toHaveBeenCalledWith(supplyKey);
-        expect(tx.setAutoRenewAccountId).toHaveBeenCalledWith("0.0.888");
-        expect(tx.setExpirationTime).toHaveBeenCalledWith(expirationTime);
-        expect(tx.setAutoRenewPeriod).toHaveBeenCalledWith(7_776_000);
-        expect(tx.setTokenMemo).toHaveBeenCalledWith("updated memo");
-        expect(tx.setFeeScheduleKey).toHaveBeenCalledWith(feeScheduleKey);
-        expect(tx.setPauseKey).toHaveBeenCalledWith(pauseKey);
-        expect(tx.setMetadataKey).toHaveBeenCalledWith(metadataKey);
-        expect(tx.setMetadata).toHaveBeenCalledWith(metadata);
-        expect(tx.setKeyVerificationMode).toHaveBeenCalledWith(
-            TokenKeyValidation.FullValidation,
-        );
+        const tx = sentTx();
+        expect(tx.tokenId?.toString()).toBe("0.0.500");
+        expect(tx.tokenName).toBe("Renamed");
+        expect(tx.tokenSymbol).toBe("RNM");
+        expect(tx.treasuryAccountId?.toString()).toBe("0.0.999");
+        expect(tx.adminKey).toBe(adminKey);
+        expect(tx.kycKey).toBe(kycKey);
+        expect(tx.freezeKey).toBe(freezeKey);
+        expect(tx.wipeKey).toBe(wipeKey);
+        expect(tx.supplyKey).toBe(supplyKey);
+        expect(tx.autoRenewAccountId?.toString()).toBe("0.0.888");
+        expect(tx.expirationTime?.toDate()).toEqual(expirationTime);
+        expect(tx.autoRenewPeriod?.seconds.toNumber()).toBe(7_776_000);
+        expect(tx.tokenMemo).toBe("updated memo");
+        expect(tx.feeScheduleKey).toBe(feeScheduleKey);
+        expect(tx.pauseKey).toBe(pauseKey);
+        expect(tx.metadataKey).toBe(metadataKey);
+        expect(tx.metadata).toEqual(metadata);
+        expect(tx.keyVerificationMode).toBe(TokenKeyValidation.FullValidation);
     });
 
-    it("applies base TransactionOptions and additionalSigners", async () => {
+    it("passes the options to the executor with the TokenUpdate event", async () => {
         const adminSigner = PrivateKey.generateED25519();
 
         await service.updateToken({
             tokenId: "0.0.500",
             tokenName: "Renamed",
             transactionMemo: "update memo",
-            transactionValidDuration: 60,
-            regenerateTransactionId: false,
             additionalSigners: [adminSigner],
         });
 
-        const tx = vi.mocked(TokenUpdateTransaction).mock.results[0].value;
-
-        expect(tx.setTransactionMemo).toHaveBeenCalledWith("update memo");
-        expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(60);
-        expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(tx.sign).toHaveBeenCalledWith(adminSigner);
+        expect(run).toHaveBeenCalledWith(
+            expect.any(TokenUpdateTransaction),
+            expect.objectContaining({
+                transactionMemo: "update memo",
+                additionalSigners: [adminSigner],
+            }),
+            expect.objectContaining({
+                type: "TokenUpdate",
+                serviceName: "TokenService",
+                methodName: "updateToken",
+            }),
+        );
     });
 
-    it("wraps the update in a ScheduleCreateTransaction", async () => {
+    it("schedules the built update with the schedule options", async () => {
+        const scheduleRun = vi
+            .spyOn(TransactionExecutor.prototype, "scheduleRun")
+            .mockResolvedValue({
+                scheduleId: ScheduleId.fromString("0.0.777"),
+            } as never);
+
         const result = await service.scheduleUpdateToken(
             {
                 tokenId: "0.0.500",
@@ -168,10 +155,10 @@ describe("TokenUpdateOperation (via TokenService)", () => {
             { scheduleMemo: "pending approval" },
         );
 
-        expect(mocks.tx.schedule).toHaveBeenCalled();
-        expect(mocks.scheduleTx.setScheduleMemo).toHaveBeenCalledWith(
-            "pending approval",
-        );
+        const [tx, , , scheduleOptions] = scheduleRun.mock.calls[0];
+        expect(tx).toBeInstanceOf(TokenUpdateTransaction);
+        expect((tx as TokenUpdateTransaction).tokenName).toBe("Renamed");
+        expect(scheduleOptions).toEqual({ scheduleMemo: "pending approval" });
         expect(result.scheduleId.toString()).toBe("0.0.777");
     });
 

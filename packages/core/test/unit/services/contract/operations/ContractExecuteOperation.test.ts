@@ -1,78 +1,109 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
+    AccountId,
     ContractExecuteTransaction,
     ContractFunctionParameters,
     ContractId,
     Hbar,
-    PrivateKey,
+    Long,
+    Query,
+    ScheduleId,
+    TransactionId,
+    TransactionRecordQuery,
+    TransactionResponse,
+    type TransactionRecord,
 } from "@hiero-ledger/sdk";
 import { ContractService } from "../../../../../src/services/contract/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import {
-    reattachMockChain,
-    buildMockRecord,
-} from "../../../../utils/sdk-mocks.js";
 import {
     HieroError,
     HieroErrorCodes,
 } from "../../../../../src/errors/index.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle([
-        "setContractId",
-        "setGas",
-        "setFunction",
-        "setFunctionParameters",
-        "setPayableAmount",
-    ]);
-});
+// Builds real SDK transactions; only the network steps are stubbed: the
+// executor, which sends the transaction, and Query.execute, which fetches
+// the record. The record is plain data, as TransactionRecord has no public
+// constructor.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        ContractExecuteTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const transactionId = "0.0.123@1234567890.000000000";
+
+const receipt = {
+    response: new TransactionResponse({
+        nodeId: AccountId.fromString("0.0.3"),
+        transactionHash: new Uint8Array(),
+        transactionId: TransactionId.fromString(transactionId),
+    }),
+    receipt: {},
+    status: "SUCCESS",
+    transactionId,
+};
+
+function record(contractFunctionResult: unknown): TransactionRecord {
+    return { contractFunctionResult } as unknown as TransactionRecord;
+}
+
+/** The function call bytes the SDK encodes for `name(params)`. */
+function encoded(name: string, params?: ContractFunctionParameters) {
+    return new ContractExecuteTransaction().setFunction(name, params)
+        .functionParameters;
+}
 
 describe("ContractExecuteOperation (via ContractService)", () => {
-    let context: IHieroContext;
     let service: ContractService;
+    let run: ReturnType<typeof vi.spyOn>;
+    let recordQuery: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as ContractExecuteTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new ContractService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        recordQuery = vi.spyOn(Query.prototype, "execute");
+        service = new ContractService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     describe("executeContract", () => {
-        it("invokes a named function with no parameters and resolves successfully", async () => {
+        it("calls a named function with no parameters", async () => {
             const result = await service.executeContract({
                 contractId: "0.0.12345",
                 gas: 100_000,
                 functionName: "increment",
             });
 
-            expect(result).toMatchObject({
-                transactionId: expect.any(String),
-                status: "SUCCESS",
+            expect(result).toMatchObject({ transactionId, status: "SUCCESS" });
+            const tx = sentTx();
+            expect(tx).toBeInstanceOf(ContractExecuteTransaction);
+            expect(tx.contractId?.toString()).toBe("0.0.12345");
+            expect(tx.gas?.toNumber()).toBe(100_000);
+            expect(tx.functionParameters).toEqual(encoded("increment"));
+            expect(tx.payableAmount).toEqual(
+                new ContractExecuteTransaction().payableAmount,
+            );
+        });
+
+        it("sends the ContractExecute event", async () => {
+            await service.executeContract({
+                contractId: "0.0.12345",
+                gas: 100_000,
+                functionName: "set",
+                transactionMemo: "ctx memo",
             });
 
-            const tx = vi.mocked(ContractExecuteTransaction).mock.results[0]
-                .value;
-            expect(tx.setContractId).toHaveBeenCalledWith("0.0.12345");
-            expect(tx.setGas).toHaveBeenCalledWith(100_000);
-            expect(tx.setFunction).toHaveBeenCalledWith("increment", undefined);
-            expect(tx.setFunctionParameters).not.toHaveBeenCalled();
-            expect(tx.setPayableAmount).not.toHaveBeenCalled();
-            expect(mocks.response.getReceipt).toHaveBeenCalledWith(
-                context.client,
+            expect(run).toHaveBeenCalledWith(
+                expect.any(ContractExecuteTransaction),
+                expect.objectContaining({ transactionMemo: "ctx memo" }),
+                expect.objectContaining({
+                    type: "ContractExecute",
+                    serviceName: "ContractService",
+                    methodName: "executeContract",
+                }),
             );
         });
 
@@ -83,7 +114,7 @@ describe("ContractExecuteOperation (via ContractService)", () => {
                 functionName: "increment",
             });
 
-            expect(mocks.response.recordExecute).not.toHaveBeenCalled();
+            expect(recordQuery).not.toHaveBeenCalled();
         });
 
         it("returns functionResult: null when not requested — the field is always present", async () => {
@@ -97,13 +128,11 @@ describe("ContractExecuteOperation (via ContractService)", () => {
         });
 
         it("withFunctionResult: true fetches the record once and distills the EVM outcome", async () => {
-            mocks.response.recordExecute.mockResolvedValueOnce(
-                buildMockRecord({
-                    contractFunctionResult: {
-                        bytes: new Uint8Array([0xde, 0xad, 0xbe, 0xef]),
-                        gasUsed: { toNumber: () => 21_000 },
-                        errorMessage: null,
-                    },
+            recordQuery.mockResolvedValueOnce(
+                record({
+                    bytes: new Uint8Array([0xde, 0xad, 0xbe, 0xef]),
+                    gasUsed: Long.fromNumber(21_000),
+                    errorMessage: null,
                 }),
             );
 
@@ -114,7 +143,11 @@ describe("ContractExecuteOperation (via ContractService)", () => {
                 withFunctionResult: true,
             });
 
-            expect(mocks.response.recordExecute).toHaveBeenCalledTimes(1);
+            expect(recordQuery).toHaveBeenCalledTimes(1);
+            const query = recordQuery.mock
+                .contexts[0] as TransactionRecordQuery;
+            expect(query).toBeInstanceOf(TransactionRecordQuery);
+            expect(query.transactionId?.toString()).toBe(transactionId);
             expect(result.functionResult).toEqual({
                 returnDataHex: "0xdeadbeef",
                 gasUsed: 21_000,
@@ -123,13 +156,11 @@ describe("ContractExecuteOperation (via ContractService)", () => {
         });
 
         it("surfaces the EVM revert message on functionResult.errorMessage", async () => {
-            mocks.response.recordExecute.mockResolvedValueOnce(
-                buildMockRecord({
-                    contractFunctionResult: {
-                        bytes: new Uint8Array([]),
-                        gasUsed: { toNumber: () => 50_000 },
-                        errorMessage: "execution reverted: not owner",
-                    },
+            recordQuery.mockResolvedValueOnce(
+                record({
+                    bytes: new Uint8Array([]),
+                    gasUsed: Long.fromNumber(50_000),
+                    errorMessage: "execution reverted: not owner",
                 }),
             );
 
@@ -146,9 +177,7 @@ describe("ContractExecuteOperation (via ContractService)", () => {
         });
 
         it("returns functionResult: null when the record carries no contract function result", async () => {
-            mocks.response.recordExecute.mockResolvedValueOnce(
-                buildMockRecord({ contractFunctionResult: null }),
-            );
+            recordQuery.mockResolvedValueOnce(record(null));
 
             const result = await service.executeContract({
                 contractId: "0.0.12345",
@@ -161,9 +190,7 @@ describe("ContractExecuteOperation (via ContractService)", () => {
         });
 
         it("a failed opt-in record fetch throws the post-consensus error — the call landed, do not resubmit", async () => {
-            mocks.response.recordExecute.mockRejectedValueOnce(
-                new Error("network blip"),
-            );
+            recordQuery.mockRejectedValueOnce(new Error("network blip"));
 
             const attempt = service.executeContract({
                 contractId: "0.0.12345",
@@ -175,12 +202,12 @@ describe("ContractExecuteOperation (via ContractService)", () => {
             await expect(attempt).rejects.toBeInstanceOf(HieroError);
             await expect(attempt).rejects.toMatchObject({
                 code: HieroErrorCodes.ResultMappingFailed,
-                transactionId: "0.0.123@1234567890.000000000",
+                transactionId,
                 message: expect.stringContaining("Do not resubmit"),
             });
         });
 
-        it("forwards ABI-typed function parameters", async () => {
+        it("encodes ABI-typed function parameters", async () => {
             const params = new ContractFunctionParameters().addUint256(42);
 
             await service.executeContract({
@@ -190,12 +217,10 @@ describe("ContractExecuteOperation (via ContractService)", () => {
                 functionParameters: params,
             });
 
-            const tx = vi.mocked(ContractExecuteTransaction).mock.results[0]
-                .value;
-            expect(tx.setFunction).toHaveBeenCalledWith("set", params);
+            expect(sentTx().functionParameters).toEqual(encoded("set", params));
         });
 
-        it("falls back to setFunctionParameters when only raw bytes are supplied", async () => {
+        it("sends raw function parameters as-is when no functionName is given", async () => {
             const raw = new Uint8Array([0x60, 0xfe, 0x47, 0xb1]);
 
             await service.executeContract({
@@ -204,13 +229,10 @@ describe("ContractExecuteOperation (via ContractService)", () => {
                 rawFunctionParameters: raw,
             });
 
-            const tx = vi.mocked(ContractExecuteTransaction).mock.results[0]
-                .value;
-            expect(tx.setFunctionParameters).toHaveBeenCalledWith(raw);
-            expect(tx.setFunction).not.toHaveBeenCalled();
+            expect(sentTx().functionParameters).toEqual(raw);
         });
 
-        it("forwards payableAmount when provided", async () => {
+        it("sets payableAmount when provided", async () => {
             const amount = new Hbar(2);
 
             await service.executeContract({
@@ -220,9 +242,7 @@ describe("ContractExecuteOperation (via ContractService)", () => {
                 payableAmount: amount,
             });
 
-            const tx = vi.mocked(ContractExecuteTransaction).mock.results[0]
-                .value;
-            expect(tx.setPayableAmount).toHaveBeenCalledWith(amount);
+            expect(sentTx().payableAmount?.toString()).toBe(amount.toString());
         });
 
         it("accepts a ContractId instance", async () => {
@@ -234,43 +254,10 @@ describe("ContractExecuteOperation (via ContractService)", () => {
                 functionName: "ping",
             });
 
-            const tx = vi.mocked(ContractExecuteTransaction).mock.results[0]
-                .value;
-            expect(tx.setContractId).toHaveBeenCalledWith(contractId);
+            expect(sentTx().contractId?.toString()).toBe("0.0.12345");
         });
 
-        it("freezes and signs with additionalSigners before execute", async () => {
-            const signerKey = PrivateKey.generateED25519();
-
-            await service.executeContract({
-                contractId: "0.0.12345",
-                gas: 100_000,
-                functionName: "set",
-                additionalSigners: [signerKey],
-            });
-
-            const tx = vi.mocked(ContractExecuteTransaction).mock.results[0]
-                .value;
-            expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-            expect(tx.sign).toHaveBeenCalledWith(signerKey);
-        });
-
-        it("applies base TransactionOptions to the transaction", async () => {
-            await service.executeContract({
-                contractId: "0.0.12345",
-                gas: 100_000,
-                functionName: "set",
-                transactionMemo: "ctx memo",
-                transactionValidDuration: 120,
-            });
-
-            const tx = vi.mocked(ContractExecuteTransaction).mock.results[0]
-                .value;
-            expect(tx.setTransactionMemo).toHaveBeenCalledWith("ctx memo");
-            expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(120);
-        });
-
-        it("propagates validator errors before touching the SDK", async () => {
+        it("propagates validator errors before building a transaction", async () => {
             await expect(
                 service.executeContract({
                     contractId: "0.0.12345",
@@ -278,29 +265,19 @@ describe("ContractExecuteOperation (via ContractService)", () => {
                 } as unknown as Parameters<typeof service.executeContract>[0]),
             ).rejects.toThrow(/functionName or rawFunctionParameters/);
 
-            expect(
-                vi.mocked(ContractExecuteTransaction),
-            ).not.toHaveBeenCalled();
+            expect(run).not.toHaveBeenCalled();
         });
     });
 
     describe("scheduleExecuteContract", () => {
-        it("schedules a contract execution and returns the scheduleId", async () => {
-            const result = await service.scheduleExecuteContract({
-                contractId: "0.0.12345",
-                gas: 100_000,
-                functionName: "set",
-            });
+        it("schedules the built transaction with the schedule options and returns the scheduleId", async () => {
+            const scheduleRun = vi
+                .spyOn(TransactionExecutor.prototype, "scheduleRun")
+                .mockResolvedValue({
+                    scheduleId: ScheduleId.fromString("0.0.777"),
+                } as never);
 
-            expect(result.scheduleId.toString()).toBe("0.0.777");
-
-            const tx = vi.mocked(ContractExecuteTransaction).mock.results[0]
-                .value;
-            expect(tx.schedule).toHaveBeenCalled();
-        });
-
-        it("forwards schedule options to the scheduling transaction", async () => {
-            await service.scheduleExecuteContract(
+            const result = await service.scheduleExecuteContract(
                 {
                     contractId: "0.0.12345",
                     gas: 100_000,
@@ -312,10 +289,16 @@ describe("ContractExecuteOperation (via ContractService)", () => {
                 },
             );
 
-            expect(mocks.scheduleTx.setPayerAccountId).toHaveBeenCalled();
-            expect(mocks.scheduleTx.setScheduleMemo).toHaveBeenCalledWith(
-                "execute via multisig",
-            );
+            const [tx, , , scheduleOptions] = scheduleRun.mock.calls[0];
+            expect(tx).toBeInstanceOf(ContractExecuteTransaction);
+            expect(
+                (tx as ContractExecuteTransaction).functionParameters,
+            ).toEqual(encoded("set"));
+            expect(scheduleOptions).toEqual({
+                payerAccountId: "0.0.999",
+                scheduleMemo: "execute via multisig",
+            });
+            expect(result.scheduleId.toString()).toBe("0.0.777");
         });
     });
 });

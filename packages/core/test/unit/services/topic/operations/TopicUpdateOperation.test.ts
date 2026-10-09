@@ -1,107 +1,85 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TopicUpdateTransaction, PrivateKey, KeyList } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+    CustomFixedFee,
+    KeyList,
+    PrivateKey,
+    TopicUpdateTransaction,
+} from "@hiero-ledger/sdk";
 import { TopicService } from "../../../../../src/services/topic/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle([
-        "setTopicId",
-        "setTopicMemo",
-        "clearTopicMemo",
-        "setAdminKey",
-        "clearAdminKey",
-        "setSubmitKey",
-        "clearSubmitKey",
-        "setFeeScheduleKey",
-        "clearFeeScheduleKey",
-        "setFeeExemptKeys",
-        "clearFeeExemptKeys",
-        "setAutoRenewAccountId",
-        "clearAutoRenewAccountId",
-        "setAutoRenewPeriod",
-        "setCustomFees",
-        "clearCustomFees",
-        "setExpirationTime",
-    ]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TopicUpdateTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TopicUpdateOperation (via TopicService)", () => {
-    let context: IHieroContext;
     let service: TopicService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as TopicUpdateTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TopicService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new TopicService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     describe("updateTopic", () => {
-        it("submits a TopicUpdateTransaction touching only the changed field", async () => {
+        it("builds a TopicUpdateTransaction touching only the changed field", async () => {
             const result = await service.updateTopic({
                 topicId: "0.0.12345",
                 topicMemo: "renamed feed",
             });
 
-            expect(result).toMatchObject({
-                transactionId: expect.any(String),
-                status: "SUCCESS",
-            });
+            expect(result).toBe(receipt);
+            const tx = sentTx();
+            expect(tx).toBeInstanceOf(TopicUpdateTransaction);
+            expect(tx.topicId?.toString()).toBe("0.0.12345");
+            expect(tx.topicMemo).toBe("renamed feed");
 
-            const tx = vi.mocked(TopicUpdateTransaction).mock.results[0].value;
-            expect(tx.setTopicId).toHaveBeenCalledWith("0.0.12345");
-            expect(tx.setTopicMemo).toHaveBeenCalledWith("renamed feed");
-            expect(tx.execute).toHaveBeenCalledWith(context.client);
-
-            // No other optional setters touched.
-            expect(tx.clearTopicMemo).not.toHaveBeenCalled();
-            expect(tx.setAdminKey).not.toHaveBeenCalled();
-            expect(tx.clearAdminKey).not.toHaveBeenCalled();
-            expect(tx.setSubmitKey).not.toHaveBeenCalled();
-            expect(tx.clearSubmitKey).not.toHaveBeenCalled();
-            expect(tx.setFeeScheduleKey).not.toHaveBeenCalled();
-            expect(tx.clearFeeScheduleKey).not.toHaveBeenCalled();
-            expect(tx.setFeeExemptKeys).not.toHaveBeenCalled();
-            expect(tx.clearFeeExemptKeys).not.toHaveBeenCalled();
-            expect(tx.setAutoRenewAccountId).not.toHaveBeenCalled();
-            expect(tx.clearAutoRenewAccountId).not.toHaveBeenCalled();
-            expect(tx.setAutoRenewPeriod).not.toHaveBeenCalled();
-            expect(tx.setCustomFees).not.toHaveBeenCalled();
-            expect(tx.clearCustomFees).not.toHaveBeenCalled();
-            expect(tx.setExpirationTime).not.toHaveBeenCalled();
+            // Every other optional field keeps the SDK default.
+            const defaults = new TopicUpdateTransaction();
+            expect(tx.adminKey).toBe(defaults.adminKey);
+            expect(tx.submitKey).toBe(defaults.submitKey);
+            expect(tx.getFeeScheduleKey()).toBe(defaults.getFeeScheduleKey());
+            expect(tx.getFeeExemptKeys()).toBe(defaults.getFeeExemptKeys());
+            expect(tx.autoRenewAccountId).toBe(defaults.autoRenewAccountId);
+            expect(tx.autoRenewPeriod).toBe(defaults.autoRenewPeriod);
+            expect(tx.getCustomFees()).toBe(defaults.getCustomFees());
+            expect(tx.expirationTime).toBe(defaults.expirationTime);
         });
 
-        it("rejects a no-op update (only topicId, no other field) before touching the SDK", async () => {
+        it("rejects a no-op update (only topicId, no other field) before building a transaction", async () => {
             await expect(
                 service.updateTopic({ topicId: "0.0.12345" }),
             ).rejects.toThrow(
                 /updateTopic requires at least one field to change/,
             );
 
-            expect(vi.mocked(TopicUpdateTransaction)).not.toHaveBeenCalled();
+            expect(run).not.toHaveBeenCalled();
         });
 
-        it("forwards every optional setter when fields are provided", async () => {
+        it("sets every optional field that is provided", async () => {
             const adminKey = PrivateKey.generateED25519().publicKey;
             const submitKey = PrivateKey.generateED25519().publicKey;
             const feeScheduleKey = PrivateKey.generateED25519().publicKey;
             const exemptKey = PrivateKey.generateED25519().publicKey;
-            const customFees: never[] = [];
-            const expirationTime = new Date(Date.now() + 7 * 86400 * 1000);
+            const fee = new CustomFixedFee()
+                .setAmount(10)
+                .setFeeCollectorAccountId("0.0.555");
+            const expirationTime = new Date("2099-01-02T03:04:05.000Z");
 
             await service.updateTopic({
                 topicId: "0.0.12345",
@@ -112,34 +90,31 @@ describe("TopicUpdateOperation (via TopicService)", () => {
                 feeExemptKeys: [exemptKey],
                 autoRenewAccountId: "0.0.99",
                 autoRenewPeriod: 7_776_000,
-                customFees,
+                customFees: [fee],
                 expirationTime,
             });
 
-            const tx = vi.mocked(TopicUpdateTransaction).mock.results[0].value;
-            expect(tx.setTopicMemo).toHaveBeenCalledWith("renamed");
-            expect(tx.setAdminKey).toHaveBeenCalledWith(adminKey);
-            expect(tx.setSubmitKey).toHaveBeenCalledWith(submitKey);
-            expect(tx.setFeeScheduleKey).toHaveBeenCalledWith(feeScheduleKey);
-            expect(tx.setFeeExemptKeys).toHaveBeenCalledWith([exemptKey]);
-            expect(tx.setAutoRenewAccountId).toHaveBeenCalledWith("0.0.99");
-            expect(tx.setAutoRenewPeriod).toHaveBeenCalledWith(7_776_000);
-            expect(tx.setCustomFees).toHaveBeenCalledWith(customFees);
-            expect(tx.setExpirationTime).toHaveBeenCalledWith(expirationTime);
+            const tx = sentTx();
+            expect(tx.topicMemo).toBe("renamed");
+            expect(tx.adminKey).toBe(adminKey);
+            expect(tx.submitKey).toBe(submitKey);
+            expect(tx.getFeeScheduleKey()).toBe(feeScheduleKey);
+            expect(tx.getFeeExemptKeys()).toEqual([exemptKey]);
+            expect(tx.autoRenewAccountId?.toString()).toBe("0.0.99");
+            expect(tx.autoRenewPeriod?.seconds.toNumber()).toBe(7_776_000);
+            expect(tx.getCustomFees()).toEqual([fee]);
+            expect(tx.expirationTime?.toDate()).toEqual(expirationTime);
         });
 
         it("writes the empty-string memo sentinel when topicMemo is null", async () => {
-            // The JS SDK's `clearTopicMemo()` is buggy (no-op on the
-            // network), so the operation routes `null` through
-            // `setTopicMemo("")` — the canonical Hedera clear sentinel.
+            // The SDK's `clearTopicMemo()` unsets the field, which is a
+            // no-op on the network; `""` is the clear sentinel.
             await service.updateTopic({
                 topicId: "0.0.12345",
                 topicMemo: null,
             });
 
-            const tx = vi.mocked(TopicUpdateTransaction).mock.results[0].value;
-            expect(tx.setTopicMemo).toHaveBeenCalledWith("");
-            expect(tx.clearTopicMemo).not.toHaveBeenCalled();
+            expect(sentTx().topicMemo).toBe("");
         });
 
         it("writes an empty KeyList when adminKey is null", async () => {
@@ -148,12 +123,9 @@ describe("TopicUpdateOperation (via TopicService)", () => {
                 adminKey: null,
             });
 
-            const tx = vi.mocked(TopicUpdateTransaction).mock.results[0].value;
-            expect(tx.setAdminKey).toHaveBeenCalledTimes(1);
-            const arg = vi.mocked(tx.setAdminKey).mock.calls[0][0];
-            expect(arg).toBeInstanceOf(KeyList);
-            expect((arg as KeyList).toArray()).toHaveLength(0);
-            expect(tx.clearAdminKey).not.toHaveBeenCalled();
+            const key = sentTx().adminKey;
+            expect(key).toBeInstanceOf(KeyList);
+            expect((key as KeyList).toArray()).toHaveLength(0);
         });
 
         it("writes an empty KeyList when submitKey is null", async () => {
@@ -162,12 +134,9 @@ describe("TopicUpdateOperation (via TopicService)", () => {
                 submitKey: null,
             });
 
-            const tx = vi.mocked(TopicUpdateTransaction).mock.results[0].value;
-            expect(tx.setSubmitKey).toHaveBeenCalledTimes(1);
-            const arg = vi.mocked(tx.setSubmitKey).mock.calls[0][0];
-            expect(arg).toBeInstanceOf(KeyList);
-            expect((arg as KeyList).toArray()).toHaveLength(0);
-            expect(tx.clearSubmitKey).not.toHaveBeenCalled();
+            const key = sentTx().submitKey;
+            expect(key).toBeInstanceOf(KeyList);
+            expect((key as KeyList).toArray()).toHaveLength(0);
         });
 
         it("writes an empty KeyList when feeScheduleKey is null", async () => {
@@ -176,25 +145,18 @@ describe("TopicUpdateOperation (via TopicService)", () => {
                 feeScheduleKey: null,
             });
 
-            const tx = vi.mocked(TopicUpdateTransaction).mock.results[0].value;
-            expect(tx.setFeeScheduleKey).toHaveBeenCalledTimes(1);
-            const arg = vi.mocked(tx.setFeeScheduleKey).mock.calls[0][0];
-            expect(arg).toBeInstanceOf(KeyList);
-            expect((arg as KeyList).toArray()).toHaveLength(0);
-            expect(tx.clearFeeScheduleKey).not.toHaveBeenCalled();
+            const key = sentTx().getFeeScheduleKey();
+            expect(key).toBeInstanceOf(KeyList);
+            expect((key as KeyList).toArray()).toHaveLength(0);
         });
 
-        it("invokes clearFeeExemptKeys when feeExemptKeys is null", async () => {
-            // `clearFeeExemptKeys()` correctly emits the empty-list
-            // sentinel — no need to route around it.
+        it("writes an empty fee-exempt key list when feeExemptKeys is null", async () => {
             await service.updateTopic({
                 topicId: "0.0.12345",
                 feeExemptKeys: null,
             });
 
-            const tx = vi.mocked(TopicUpdateTransaction).mock.results[0].value;
-            expect(tx.clearFeeExemptKeys).toHaveBeenCalled();
-            expect(tx.setFeeExemptKeys).not.toHaveBeenCalled();
+            expect(sentTx().getFeeExemptKeys()).toEqual([]);
         });
 
         it("writes the 0.0.0 sentinel when autoRenewAccountId is null", async () => {
@@ -203,74 +165,53 @@ describe("TopicUpdateOperation (via TopicService)", () => {
                 autoRenewAccountId: null,
             });
 
-            const tx = vi.mocked(TopicUpdateTransaction).mock.results[0].value;
-            expect(tx.setAutoRenewAccountId).toHaveBeenCalledWith("0.0.0");
-            expect(tx.clearAutoRenewAccountId).not.toHaveBeenCalled();
+            expect(sentTx().autoRenewAccountId?.toString()).toBe("0.0.0");
         });
 
-        it("invokes clearCustomFees when customFees is null", async () => {
-            // `clearCustomFees()` correctly emits the empty-list
-            // sentinel — no need to route around it.
+        it("writes an empty custom fee list when customFees is null", async () => {
             await service.updateTopic({
                 topicId: "0.0.12345",
                 customFees: null,
             });
 
-            const tx = vi.mocked(TopicUpdateTransaction).mock.results[0].value;
-            expect(tx.clearCustomFees).toHaveBeenCalled();
-            expect(tx.setCustomFees).not.toHaveBeenCalled();
+            expect(sentTx().getCustomFees()).toEqual([]);
         });
 
-        it("forwards an empty-string memo verbatim (same network effect as null)", async () => {
-            // `""` and `null` both reach the network as the clear
-            // sentinel; callers may use either.
+        it("keeps an empty-string memo verbatim (same network effect as null)", async () => {
             await service.updateTopic({
                 topicId: "0.0.12345",
                 topicMemo: "",
             });
 
-            const tx = vi.mocked(TopicUpdateTransaction).mock.results[0].value;
-            expect(tx.setTopicMemo).toHaveBeenCalledWith("");
-            expect(tx.clearTopicMemo).not.toHaveBeenCalled();
+            expect(sentTx().topicMemo).toBe("");
         });
 
-        it("applies base TransactionOptions to the transaction", async () => {
+        it("sends the TopicUpdate event", async () => {
             await service.updateTopic({
                 topicId: "0.0.12345",
                 topicMemo: "renamed",
                 transactionMemo: "base memo",
-                transactionValidDuration: 90,
-                regenerateTransactionId: false,
             });
 
-            const tx = vi.mocked(TopicUpdateTransaction).mock.results[0].value;
-            expect(tx.setTransactionMemo).toHaveBeenCalledWith("base memo");
-            expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(90);
-            expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
+            expect(run).toHaveBeenCalledWith(
+                expect.any(TopicUpdateTransaction),
+                expect.objectContaining({ transactionMemo: "base memo" }),
+                expect.objectContaining({
+                    type: "TopicUpdate",
+                    serviceName: "TopicService",
+                    methodName: "updateTopic",
+                }),
+            );
         });
 
-        it("freezes and signs with additionalSigners before execute", async () => {
-            const adminKey = PrivateKey.generateED25519();
-
-            await service.updateTopic({
-                topicId: "0.0.12345",
-                topicMemo: "renamed",
-                additionalSigners: [adminKey],
-            });
-
-            const tx = vi.mocked(TopicUpdateTransaction).mock.results[0].value;
-            expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-            expect(tx.sign).toHaveBeenCalledWith(adminKey);
-        });
-
-        it("propagates validator errors before touching the SDK", async () => {
+        it("rejects a missing topicId before building a transaction", async () => {
             await expect(
                 service.updateTopic(
                     {} as unknown as Parameters<typeof service.updateTopic>[0],
                 ),
             ).rejects.toThrow(/topicId is required/);
 
-            expect(vi.mocked(TopicUpdateTransaction)).not.toHaveBeenCalled();
+            expect(run).not.toHaveBeenCalled();
         });
     });
 });

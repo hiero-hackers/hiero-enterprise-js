@@ -1,47 +1,40 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { AccountCreateTransaction, PrivateKey } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+    AccountCreateTransaction,
+    AccountId,
+    PrivateKey,
+    ScheduleId,
+} from "@hiero-ledger/sdk";
 import { AccountService } from "../../../../../src/services/account/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { AccountType } from "../../../../../src/types/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle([
-        "setKeyWithoutAlias",
-        "setECDSAKeyWithAlias",
-        "setKeyWithAlias",
-        "setInitialBalance",
-        "setMaxAutomaticTokenAssociations",
-        "setAccountMemo",
-        "setReceiverSignatureRequired",
-        "setStakedAccountId",
-        "setStakedNodeId",
-        "setDeclineStakingReward",
-    ]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        AccountCreateTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: { accountId: AccountId.fromString("0.0.999") },
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("CreateAccountOperation (via AccountService)", () => {
-    let context: IHieroContext;
     let service: AccountService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as AccountCreateTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new AccountService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new AccountService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     describe("createAccount", () => {
@@ -50,47 +43,47 @@ describe("CreateAccountOperation (via AccountService)", () => {
             const account = await service.createAccount({ publicKey: pubKey });
 
             expect(account.accountId.toString()).toBe("0.0.999");
-            expect(account.publicKey).toBeDefined();
+            expect(account.publicKey).toBe(pubKey);
             expect(account.evmAddress).toBeUndefined();
 
-            const tx = vi.mocked(AccountCreateTransaction).mock.results[0]
-                .value;
-            expect(tx.setKeyWithoutAlias).toHaveBeenCalled();
-            expect(tx.setInitialBalance).toHaveBeenCalled();
-            expect(tx.execute).toHaveBeenCalledWith(context.client);
+            const tx = sentTx();
+            expect(tx).toBeInstanceOf(AccountCreateTransaction);
+            expect(tx.key?.toString()).toBe(pubKey);
+            expect(tx.alias).toBeNull();
+            expect(tx.initialBalance?.toTinybars().toNumber()).toBe(0);
         });
 
         it("creates an ECDSA account with alias derived from the key", async () => {
-            const pubKey = PrivateKey.generateECDSA().publicKey.toString();
-            await service.createAccount({
-                publicKey: pubKey,
+            const publicKey = PrivateKey.generateECDSA().publicKey;
+            const account = await service.createAccount({
+                publicKey: publicKey.toString(),
                 keyType: AccountType.ECDSA,
                 alias: true,
                 initialBalance: 5,
             });
 
-            const tx = vi.mocked(AccountCreateTransaction).mock.results[0]
-                .value;
-            expect(tx.setECDSAKeyWithAlias).toHaveBeenCalled();
-            expect(tx.setKeyWithoutAlias).not.toHaveBeenCalled();
+            expect(account.evmAddress).toBe(publicKey.toEvmAddress());
+            const tx = sentTx();
+            expect(tx.key?.toString()).toBe(publicKey.toString());
+            expect(tx.alias?.toString()).toBe(publicKey.toEvmAddress());
+            expect(tx.initialBalance?.toBigNumber().toNumber()).toBe(5);
         });
 
         it("creates an account with a separate alias key (two-key pattern)", async () => {
             const primaryKey =
                 PrivateKey.generateED25519().publicKey.toString();
-            const aliasKey = PrivateKey.generateECDSA().publicKey.toString();
+            const aliasKey = PrivateKey.generateECDSA().publicKey;
 
-            await service.createAccount({
+            const account = await service.createAccount({
                 publicKey: primaryKey,
                 keyType: AccountType.ED25519,
-                alias: { ecdsaPublicKey: aliasKey },
+                alias: { ecdsaPublicKey: aliasKey.toString() },
             });
 
-            const tx = vi.mocked(AccountCreateTransaction).mock.results[0]
-                .value;
-            expect(tx.setKeyWithAlias).toHaveBeenCalled();
-            expect(tx.setKeyWithoutAlias).not.toHaveBeenCalled();
-            expect(tx.setECDSAKeyWithAlias).not.toHaveBeenCalled();
+            expect(account.evmAddress).toBe(aliasKey.toEvmAddress());
+            const tx = sentTx();
+            expect(tx.key?.toString()).toBe(primaryKey);
+            expect(tx.alias?.toString()).toBe(aliasKey.toEvmAddress());
         });
 
         it("throws if alias: true is used with an ED25519 key", async () => {
@@ -103,6 +96,7 @@ describe("CreateAccountOperation (via AccountService)", () => {
                     alias: true,
                 }),
             ).rejects.toThrow(/requires keyType AccountType.ECDSA/);
+            expect(run).not.toHaveBeenCalled();
         });
 
         it("sets all optional properties when provided", async () => {
@@ -117,13 +111,33 @@ describe("CreateAccountOperation (via AccountService)", () => {
                 declineStakingReward: true,
             });
 
-            const tx = vi.mocked(AccountCreateTransaction).mock.results[0]
-                .value;
-            expect(tx.setReceiverSignatureRequired).toHaveBeenCalledWith(true);
-            expect(tx.setAccountMemo).toHaveBeenCalledWith("test memo");
-            expect(tx.setMaxAutomaticTokenAssociations).toHaveBeenCalledWith(5);
-            expect(tx.setStakedNodeId).toHaveBeenCalledWith(3);
-            expect(tx.setDeclineStakingReward).toHaveBeenCalledWith(true);
+            const tx = sentTx();
+            expect(tx.initialBalance?.toBigNumber().toNumber()).toBe(10);
+            expect(tx.receiverSignatureRequired).toBe(true);
+            expect(tx.accountMemo).toBe("test memo");
+            expect(tx.maxAutomaticTokenAssociations?.toNumber()).toBe(5);
+            expect(tx.stakedNodeId?.toNumber()).toBe(3);
+            expect(tx.declineStakingRewards).toBe(true);
+        });
+
+        it("keeps the SDK defaults for omitted optional properties", async () => {
+            const pubKey = PrivateKey.generateED25519().publicKey.toString();
+            await service.createAccount({ publicKey: pubKey });
+
+            const tx = sentTx();
+            const defaults = new AccountCreateTransaction();
+            expect(tx.receiverSignatureRequired).toBe(
+                defaults.receiverSignatureRequired,
+            );
+            expect(tx.accountMemo).toBe(defaults.accountMemo);
+            expect(tx.maxAutomaticTokenAssociations).toEqual(
+                defaults.maxAutomaticTokenAssociations,
+            );
+            expect(tx.stakedAccountId).toEqual(defaults.stakedAccountId);
+            expect(tx.stakedNodeId).toEqual(defaults.stakedNodeId);
+            expect(tx.declineStakingRewards).toBe(
+                defaults.declineStakingRewards,
+            );
         });
 
         it("sets stakedAccountId when provided", async () => {
@@ -133,12 +147,10 @@ describe("CreateAccountOperation (via AccountService)", () => {
                 stakedAccountId: "0.0.800",
             });
 
-            const tx = vi.mocked(AccountCreateTransaction).mock.results[0]
-                .value;
-            expect(tx.setStakedAccountId).toHaveBeenCalledWith("0.0.800");
+            expect(sentTx().stakedAccountId?.toString()).toBe("0.0.800");
         });
 
-        it("applies base TransactionOptions to the transaction", async () => {
+        it("forwards base TransactionOptions to the executor", async () => {
             const pubKey = PrivateKey.generateED25519().publicKey.toString();
             await service.createAccount({
                 publicKey: pubKey,
@@ -147,41 +159,44 @@ describe("CreateAccountOperation (via AccountService)", () => {
                 regenerateTransactionId: false,
             });
 
-            const tx = vi.mocked(AccountCreateTransaction).mock.results[0]
-                .value;
-            expect(tx.setTransactionMemo).toHaveBeenCalledWith("base memo");
-            expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(90);
-            expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        });
-
-        it("freezes and signs with additionalSigners before execute", async () => {
-            const pubKey = PrivateKey.generateED25519().publicKey.toString();
-            const extraKey = PrivateKey.generateED25519();
-
-            await service.createAccount({
-                publicKey: pubKey,
-                additionalSigners: [extraKey],
-            });
-
-            const tx = vi.mocked(AccountCreateTransaction).mock.results[0]
-                .value;
-            expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-            expect(tx.sign).toHaveBeenCalledWith(extraKey);
+            expect(run).toHaveBeenCalledWith(
+                expect.any(AccountCreateTransaction),
+                expect.objectContaining({
+                    transactionMemo: "base memo",
+                    transactionValidDuration: 90,
+                    regenerateTransactionId: false,
+                }),
+                expect.objectContaining({
+                    type: "AccountCreate",
+                    serviceName: "AccountService",
+                    methodName: "createAccount",
+                }),
+            );
         });
     });
 
     describe("scheduleCreateAccount", () => {
-        it("wraps the transaction in a ScheduleCreateTransaction", async () => {
+        it("schedules the built transaction with the schedule options", async () => {
+            const scheduleRun = vi
+                .spyOn(TransactionExecutor.prototype, "scheduleRun")
+                .mockResolvedValue({
+                    scheduleId: ScheduleId.fromString("0.0.777"),
+                } as never);
             const pubKey = PrivateKey.generateED25519().publicKey.toString();
+
             const result = await service.scheduleCreateAccount(
                 { publicKey: pubKey },
                 { scheduleMemo: "pending approval" },
             );
 
-            expect(mocks.tx.schedule).toHaveBeenCalled();
-            expect(mocks.scheduleTx.setScheduleMemo).toHaveBeenCalledWith(
-                "pending approval",
+            const [tx, , , scheduleOptions] = scheduleRun.mock.calls[0];
+            expect(tx).toBeInstanceOf(AccountCreateTransaction);
+            expect((tx as AccountCreateTransaction).key?.toString()).toBe(
+                pubKey,
             );
+            expect(scheduleOptions).toEqual({
+                scheduleMemo: "pending approval",
+            });
             expect(result.scheduleId.toString()).toBe("0.0.777");
         });
     });

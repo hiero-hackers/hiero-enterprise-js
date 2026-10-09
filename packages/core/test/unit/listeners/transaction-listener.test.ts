@@ -1,100 +1,71 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+    AccountId,
+    PrivateKey,
+    Status,
+    Transaction,
+    TransactionId,
+} from "@hiero-ledger/sdk";
 import { AccountService } from "../../../src/services/account/index.js";
-import { createMockContext } from "../../utils/mock-context.js";
-import type { IHieroContext } from "../../../src/context/index.js";
+import { HieroContext } from "../../../src/context/index.js";
+import { OperatorKeyType } from "../../../src/types/index.js";
 import type {
     TransactionListener,
     TransactionEvent,
 } from "../../../src/listeners/index.js";
-import { PrivateKey } from "@hiero-ledger/sdk";
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
+// Uses a real HieroContext and builds real SDK transactions; only
+// Transaction.execute, the network call, is stubbed.
 
-    const mockTx = {
-        // AccountCreateTransaction setters
-        setKeyWithoutAlias: vi.fn().mockReturnThis(),
-        setInitialBalance: vi.fn().mockReturnThis(),
-        setMaxAutomaticTokenAssociations: vi.fn().mockReturnThis(),
-        setAccountMemo: vi.fn().mockReturnThis(),
-        setAlias: vi.fn().mockReturnThis(),
-        // Base Transaction methods the executor may call
-        setMaxTransactionFee: vi.fn().mockReturnThis(),
-        setTransactionMemo: vi.fn().mockReturnThis(),
-        setTransactionValidDuration: vi.fn().mockReturnThis(),
-        setRegenerateTransactionId: vi.fn().mockReturnThis(),
-        setHighVolume: vi.fn().mockReturnThis(),
-        setNodeAccountIds: vi.fn().mockReturnThis(),
-        _addSignatureLegacy: vi.fn().mockReturnThis(),
-        freezeWith: vi.fn().mockReturnThis(),
-        sign: vi.fn().mockResolvedValue(undefined),
-        signWith: vi.fn().mockResolvedValue(undefined),
-        schedule: vi.fn(),
-        execute: vi.fn().mockResolvedValue({
-            transactionId: { toString: () => "0.0.123@1234567890.000000000" },
-            getReceipt: vi.fn().mockResolvedValue({
-                status: { toString: () => "SUCCESS" },
-                accountId: { toString: () => "0.0.12345" },
-            }),
+const response = {
+    transactionId: TransactionId.fromString("0.0.123@1234567890.000000000"),
+    getReceipt: () =>
+        Promise.resolve({
+            status: Status.Success,
+            accountId: AccountId.fromString("0.0.12345"),
         }),
-    };
-
-    return {
-        ...actual,
-        AccountCreateTransaction: vi.fn(function () {
-            return mockTx;
-        }),
-    };
-});
+};
 
 describe("Transaction Listeners", () => {
-    let context: IHieroContext;
+    let context: HieroContext;
     let client: AccountService;
+    let execute: ReturnType<typeof vi.spyOn>;
     const beforeEvents: TransactionEvent[] = [];
     const afterEvents: TransactionEvent[] = [];
     const testPubKey = PrivateKey.generateED25519().publicKey.toString();
 
+    const listener: TransactionListener = {
+        onBeforeTransaction: (event) => {
+            beforeEvents.push(event);
+        },
+        onAfterTransaction: (event) => {
+            afterEvents.push(event);
+        },
+    };
+
     beforeEach(() => {
-        vi.clearAllMocks();
         beforeEvents.length = 0;
         afterEvents.length = 0;
 
-        context = createMockContext();
-        // Wire up real listener behavior on the mock
-        const listeners: TransactionListener[] = [];
-        vi.mocked(context.addTransactionListener).mockImplementation((l) => {
-            listeners.push(l);
+        execute = vi
+            .spyOn(Transaction.prototype, "execute")
+            .mockResolvedValue(response as never);
+        context = new HieroContext({
+            network: "testnet",
+            operatorId: "0.0.2",
+            operatorKey:
+                "302e020100300506032b6570042204203b054ddd0c62d577ce0fbb0e92dcce0d5bea42a98a5c9663271939881ce19208",
+            operatorKeyType: OperatorKeyType.DER,
         });
-        vi.mocked(context.removeTransactionListener).mockImplementation((l) => {
-            const idx = listeners.indexOf(l);
-            if (idx !== -1) listeners.splice(idx, 1);
-        });
-        vi.mocked(context.emitBeforeTransaction).mockImplementation((event) => {
-            for (const l of listeners) {
-                l.onBeforeTransaction?.(event);
-            }
-            return Promise.resolve();
-        });
-        vi.mocked(context.emitAfterTransaction).mockImplementation((event) => {
-            for (const l of listeners) {
-                l.onAfterTransaction?.(event);
-            }
-            return Promise.resolve();
-        });
-
         client = new AccountService(context);
     });
 
-    it("registers and calls listener on successful transaction", async () => {
-        const listener: TransactionListener = {
-            onBeforeTransaction: (event) => {
-                beforeEvents.push(event);
-            },
-            onAfterTransaction: (event) => {
-                afterEvents.push(event);
-            },
-        };
+    afterEach(() => {
+        context.close();
+        vi.restoreAllMocks();
+    });
 
+    it("registers and calls listener on successful transaction", async () => {
         context.addTransactionListener(listener);
         await client.createAccount({ publicKey: testPubKey });
 
@@ -105,15 +76,6 @@ describe("Transaction Listeners", () => {
     });
 
     it("allows removing listeners", async () => {
-        const listener: TransactionListener = {
-            onBeforeTransaction: (event) => {
-                beforeEvents.push(event);
-            },
-            onAfterTransaction: (event) => {
-                afterEvents.push(event);
-            },
-        };
-
         context.addTransactionListener(listener);
         context.removeTransactionListener(listener);
 
@@ -124,36 +86,7 @@ describe("Transaction Listeners", () => {
     });
 
     it("handles failing transactions and captures errors", async () => {
-        // Override execute to throw
-        const { AccountCreateTransaction } = await import("@hiero-ledger/sdk");
-        vi.mocked(AccountCreateTransaction).mockImplementationOnce(function () {
-            return {
-                setKeyWithoutAlias: vi.fn().mockReturnThis(),
-                setInitialBalance: vi.fn().mockReturnThis(),
-                setMaxTransactionFee: vi.fn().mockReturnThis(),
-                setTransactionMemo: vi.fn().mockReturnThis(),
-                setTransactionValidDuration: vi.fn().mockReturnThis(),
-                setRegenerateTransactionId: vi.fn().mockReturnThis(),
-                setHighVolume: vi.fn().mockReturnThis(),
-                setNodeAccountIds: vi.fn().mockReturnThis(),
-                _addSignatureLegacy: vi.fn().mockReturnThis(),
-                freezeWith: vi.fn().mockReturnThis(),
-                sign: vi.fn().mockResolvedValue(undefined),
-                signWith: vi.fn().mockResolvedValue(undefined),
-                execute: vi.fn().mockRejectedValue(new Error("TX_FAILED")),
-            };
-        } as unknown as new () => InstanceType<
-            typeof AccountCreateTransaction
-        >);
-
-        const listener: TransactionListener = {
-            onBeforeTransaction: (event) => {
-                beforeEvents.push(event);
-            },
-            onAfterTransaction: (event) => {
-                afterEvents.push(event);
-            },
-        };
+        execute.mockRejectedValueOnce(new Error("TX_FAILED"));
         context.addTransactionListener(listener);
 
         await expect(

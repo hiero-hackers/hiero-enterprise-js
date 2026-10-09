@@ -1,35 +1,39 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TokenMintTransaction, PrivateKey } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+    Long,
+    PrivateKey,
+    ScheduleId,
+    TokenMintTransaction,
+} from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle(["setTokenId", "setAmount", "setMetadata"]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenMintTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: { totalSupply: Long.fromNumber(1000), serials: [] },
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TokenMintOperation (via TokenService)", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as TokenMintTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TokenService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new TokenService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it("mints fungible supply with amount", async () => {
@@ -38,11 +42,11 @@ describe("TokenMintOperation (via TokenService)", () => {
             amount: 1_000,
         });
 
-        const tx = vi.mocked(TokenMintTransaction).mock.results[0].value;
-        expect(tx.setTokenId).toHaveBeenCalledWith("0.0.500");
-        expect(tx.setAmount).toHaveBeenCalledWith(1_000);
-        expect(tx.setMetadata).not.toHaveBeenCalled();
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        const tx = sentTx();
+        expect(tx).toBeInstanceOf(TokenMintTransaction);
+        expect(tx.tokenId?.toString()).toBe("0.0.500");
+        expect(tx.amount?.toNumber()).toBe(1_000);
+        expect(tx.metadata).toEqual([]);
     });
 
     it("mints NFTs with metadata entries", async () => {
@@ -53,70 +57,79 @@ describe("TokenMintOperation (via TokenService)", () => {
             metadata,
         });
 
-        const tx = vi.mocked(TokenMintTransaction).mock.results[0].value;
-        expect(tx.setTokenId).toHaveBeenCalledWith("0.0.500");
-        expect(tx.setMetadata).toHaveBeenCalledWith(metadata);
-        expect(tx.setAmount).not.toHaveBeenCalled();
+        const tx = sentTx();
+        expect(tx.tokenId?.toString()).toBe("0.0.500");
+        expect(tx.metadata).toEqual(metadata);
+        expect(tx.amount).toEqual(new TokenMintTransaction().amount);
     });
 
     it("refuses to fabricate totalSupply when the receipt lacks it", async () => {
-        mocks.receipt.totalSupply = null;
+        run.mockResolvedValueOnce({
+            ...receipt,
+            receipt: { totalSupply: null, serials: [] },
+        } as never);
 
-        try {
-            await expect(
-                service.mintToken({
-                    tokenId: "0.0.500",
-                    metadata: [new Uint8Array([1])],
-                }),
-            ).rejects.toThrow(/did not include totalSupply/);
-        } finally {
-            // The hoisted mock receipt is shared across tests — restore it.
-            mocks.receipt.totalSupply = { toString: () => "1000" };
-        }
+        await expect(
+            service.mintToken({
+                tokenId: "0.0.500",
+                metadata: [new Uint8Array([1])],
+            }),
+        ).rejects.toThrow(/did not include totalSupply/);
     });
 
     it("returns the floor, plain-number serials, and total supply", async () => {
-        mocks.receipt.serials = [{ toNumber: () => 7 }, { toNumber: () => 8 }];
-        try {
-            const result = await service.mintToken({
-                tokenId: "0.0.500",
-                metadata: [new Uint8Array([1])],
-            });
+        run.mockResolvedValueOnce({
+            ...receipt,
+            receipt: {
+                totalSupply: Long.fromNumber(1000),
+                serials: [Long.fromNumber(7), Long.fromNumber(8)],
+            },
+        } as never);
 
-            expect(result).toMatchObject({
-                transactionId: "0.0.123@1234567890.000000000",
-                status: "SUCCESS",
-                serials: [7, 8],
-                totalSupply: "1000",
-            });
-        } finally {
-            // The bundle is shared across this file — don't leak serials
-            // into later tests.
-            mocks.receipt.serials = [];
-        }
+        const result = await service.mintToken({
+            tokenId: "0.0.500",
+            metadata: [new Uint8Array([1])],
+        });
+
+        expect(result).toMatchObject({
+            transactionId: receipt.transactionId,
+            status: "SUCCESS",
+            serials: [7, 8],
+            totalSupply: "1000",
+        });
     });
 
-    it("applies base TransactionOptions and additionalSigners", async () => {
+    it("passes the options to the executor with the TokenMint event", async () => {
         const signer = PrivateKey.generateED25519();
 
         await service.mintToken({
             tokenId: "0.0.500",
             amount: 5,
             transactionMemo: "mint memo",
-            transactionValidDuration: 120,
-            regenerateTransactionId: false,
             additionalSigners: [signer],
         });
 
-        const tx = vi.mocked(TokenMintTransaction).mock.results[0].value;
-        expect(tx.setTransactionMemo).toHaveBeenCalledWith("mint memo");
-        expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(120);
-        expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(tx.sign).toHaveBeenCalledWith(signer);
+        expect(run).toHaveBeenCalledWith(
+            expect.any(TokenMintTransaction),
+            expect.objectContaining({
+                transactionMemo: "mint memo",
+                additionalSigners: [signer],
+            }),
+            expect.objectContaining({
+                type: "TokenMint",
+                serviceName: "TokenService",
+                methodName: "mintToken",
+            }),
+        );
     });
 
-    it("wraps mint in ScheduleCreateTransaction", async () => {
+    it("schedules the built mint with the schedule options", async () => {
+        const scheduleRun = vi
+            .spyOn(TransactionExecutor.prototype, "scheduleRun")
+            .mockResolvedValue({
+                scheduleId: ScheduleId.fromString("0.0.777"),
+            } as never);
+
         const result = await service.scheduleMintToken(
             {
                 tokenId: "0.0.500",
@@ -125,10 +138,10 @@ describe("TokenMintOperation (via TokenService)", () => {
             { scheduleMemo: "pending approval" },
         );
 
-        expect(mocks.tx.schedule).toHaveBeenCalled();
-        expect(mocks.scheduleTx.setScheduleMemo).toHaveBeenCalledWith(
-            "pending approval",
-        );
+        const [tx, , , scheduleOptions] = scheduleRun.mock.calls[0];
+        expect(tx).toBeInstanceOf(TokenMintTransaction);
+        expect((tx as TokenMintTransaction).amount?.toNumber()).toBe(10);
+        expect(scheduleOptions).toEqual({ scheduleMemo: "pending approval" });
         expect(result.scheduleId.toString()).toBe("0.0.777");
     });
 

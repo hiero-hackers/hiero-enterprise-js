@@ -1,74 +1,67 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
     ContractCallQuery as SdkContractCallQuery,
     ContractFunctionParameters,
+    Long,
+    Query,
+    type ContractFunctionResult,
 } from "@hiero-ledger/sdk";
 import { ContractService } from "../../../../../src/services/contract/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
 import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = vi.hoisted(() => {
-    const result = {
-        gasUsed: 1_234,
-        bytes: new Uint8Array([0x00]),
-        getUint256: vi.fn().mockReturnValue(42),
-    };
-    const query = {
-        setContractId: vi.fn().mockReturnThis(),
-        setGas: vi.fn().mockReturnThis(),
-        setFunction: vi.fn().mockReturnThis(),
-        setFunctionParameters: vi.fn().mockReturnThis(),
-        setSenderAccountId: vi.fn().mockReturnThis(),
-        setMaxResultSize: vi.fn().mockReturnThis(),
-        setQueryPayment: vi.fn().mockReturnThis(),
-        setMaxQueryPayment: vi.fn().mockReturnThis(),
-        execute: vi.fn().mockResolvedValue(result),
-    };
-    return { query, result };
-});
+// Builds real SDK queries; only Query.execute, the network call, is stubbed.
+// Its response is plain data built from real SDK values.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        ContractCallQuery: vi.fn(function () {
-            return mocks.query;
-        }),
-    };
-});
+const result = {
+    gasUsed: Long.fromNumber(1_234),
+    bytes: new Uint8Array([0x00]),
+} as unknown as ContractFunctionResult;
+
+/** The function call bytes the SDK encodes for `name(params)`. */
+function encoded(name: string, params?: ContractFunctionParameters) {
+    return new SdkContractCallQuery().setFunction(name, params)
+        .functionParameters;
+}
 
 describe("ContractCallQuery (via ContractService.callContract)", () => {
     let context: IHieroContext;
     let service: ContractService;
+    let execute: ReturnType<typeof vi.spyOn>;
+
+    /** The query sent to the network. */
+    const sentQuery = () => execute.mock.contexts[0] as SdkContractCallQuery;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        mocks.query.execute.mockResolvedValue(mocks.result);
-        for (const [name, fn] of Object.entries(mocks.query)) {
-            if (name !== "execute") {
-                fn.mockReturnThis();
-            }
-        }
+        execute = vi
+            .spyOn(Query.prototype, "execute")
+            .mockResolvedValue(result);
         context = createMockContext();
         service = new ContractService(context);
     });
 
-    it("submits a call with functionName and returns the SDK result", async () => {
-        const result = await service.callContract({
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it("calls a named function and returns the SDK result", async () => {
+        const returned = await service.callContract({
             contractId: "0.0.12345",
             gas: 50_000,
             functionName: "get",
         });
 
-        expect(result).toBe(mocks.result);
-        expect(vi.mocked(SdkContractCallQuery)).toHaveBeenCalledTimes(1);
-        expect(mocks.query.setContractId).toHaveBeenCalledWith("0.0.12345");
-        expect(mocks.query.setGas).toHaveBeenCalledWith(50_000);
-        expect(mocks.query.setFunction).toHaveBeenCalledWith("get", undefined);
-        expect(mocks.query.execute).toHaveBeenCalledWith(context.client);
+        expect(returned).toBe(result);
+        expect(execute).toHaveBeenCalledTimes(1);
+        expect(execute).toHaveBeenCalledWith(context.client);
+        const query = sentQuery();
+        expect(query).toBeInstanceOf(SdkContractCallQuery);
+        expect(query.contractId?.toString()).toBe("0.0.12345");
+        expect(query.gas?.toNumber()).toBe(50_000);
+        expect(query.functionParameters).toEqual(encoded("get"));
     });
 
-    it("forwards ABI-typed functionParameters when supplied", async () => {
+    it("encodes ABI-typed functionParameters when supplied", async () => {
         const params = new ContractFunctionParameters().addUint256(7);
 
         await service.callContract({
@@ -78,11 +71,10 @@ describe("ContractCallQuery (via ContractService.callContract)", () => {
             functionParameters: params,
         });
 
-        expect(mocks.query.setFunction).toHaveBeenCalledWith("set", params);
-        expect(mocks.query.setFunctionParameters).not.toHaveBeenCalled();
+        expect(sentQuery().functionParameters).toEqual(encoded("set", params));
     });
 
-    it("forwards rawFunctionParameters when supplied", async () => {
+    it("sends rawFunctionParameters as-is when supplied", async () => {
         const raw = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
 
         await service.callContract({
@@ -91,11 +83,16 @@ describe("ContractCallQuery (via ContractService.callContract)", () => {
             rawFunctionParameters: raw,
         });
 
-        expect(mocks.query.setFunctionParameters).toHaveBeenCalledWith(raw);
-        expect(mocks.query.setFunction).not.toHaveBeenCalled();
+        expect(sentQuery().functionParameters).toEqual(raw);
     });
 
-    it("forwards every optional setter when supplied", async () => {
+    it("sets every optional field when supplied", async () => {
+        // The SDK query exposes no maxResultSize getter.
+        const setMaxResultSize = vi.spyOn(
+            SdkContractCallQuery.prototype,
+            "setMaxResultSize",
+        );
+
         await service.callContract({
             contractId: "0.0.12345",
             gas: 50_000,
@@ -104,24 +101,8 @@ describe("ContractCallQuery (via ContractService.callContract)", () => {
             maxResultSize: 8_192,
         });
 
-        expect(mocks.query.setSenderAccountId).toHaveBeenCalledWith("0.0.999");
-        expect(mocks.query.setMaxResultSize).toHaveBeenCalledWith(8_192);
-    });
-
-    it("forwards queryPayment + maxQueryPayment when supplied", async () => {
-        const payment = { _tinybars: 1 } as never;
-        const cap = { _tinybars: 100 } as never;
-
-        await service.callContract({
-            contractId: "0.0.12345",
-            gas: 50_000,
-            functionName: "get",
-            queryPayment: payment,
-            maxQueryPayment: cap,
-        });
-
-        expect(mocks.query.setQueryPayment).toHaveBeenCalledWith(payment);
-        expect(mocks.query.setMaxQueryPayment).toHaveBeenCalledWith(cap);
+        expect(sentQuery().senderAccountId?.toString()).toBe("0.0.999");
+        expect(setMaxResultSize).toHaveBeenCalledWith(8_192);
     });
 
     it("rejects when neither functionName nor rawFunctionParameters is supplied", async () => {
@@ -134,7 +115,7 @@ describe("ContractCallQuery (via ContractService.callContract)", () => {
             /requires either functionName or rawFunctionParameters/,
         );
 
-        expect(vi.mocked(SdkContractCallQuery)).not.toHaveBeenCalled();
+        expect(execute).not.toHaveBeenCalled();
     });
 
     it("rejects when both functionName and rawFunctionParameters are supplied", async () => {
@@ -149,11 +130,11 @@ describe("ContractCallQuery (via ContractService.callContract)", () => {
             /accepts functionName or rawFunctionParameters, not both/,
         );
 
-        expect(vi.mocked(SdkContractCallQuery)).not.toHaveBeenCalled();
+        expect(execute).not.toHaveBeenCalled();
     });
 
-    it("wraps SDK execute() failures via normalizeError", async () => {
-        mocks.query.execute.mockRejectedValueOnce(new Error("network down"));
+    it("wraps network failures via normalizeError", async () => {
+        execute.mockRejectedValueOnce(new Error("network down"));
 
         await expect(
             service.callContract({

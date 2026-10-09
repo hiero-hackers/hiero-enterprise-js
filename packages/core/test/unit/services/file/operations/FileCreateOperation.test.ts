@@ -1,84 +1,66 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-    FileCreateTransaction,
     FileAppendTransaction,
+    FileCreateTransaction,
+    FileId,
     PrivateKey,
 } from "@hiero-ledger/sdk";
 import { FileService } from "../../../../../src/services/file/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import {
     HieroError,
     HieroErrorCodes,
 } from "../../../../../src/errors/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
 import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return {
-        create: buildMockTxBundle([
-            "setContents",
-            "setKeys",
-            "setFileMemo",
-            "setExpirationTime",
-        ]),
-        append: buildMockTxBundle([
-            "setFileId",
-            "setContents",
-            "setMaxChunks",
-            "setChunkSize",
-            "setChunkInterval",
-        ]),
-    };
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        FileCreateTransaction: vi.fn(function () {
-            return mocks.create.tx;
-        }),
-        FileAppendTransaction: vi.fn(function () {
-            return mocks.append.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: { fileId: FileId.fromString("0.0.555") },
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("FileCreateOperation (via FileService)", () => {
     let context: IHieroContext;
     let service: FileService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor on the given call. */
+    const sentTx = (call = 0) => run.mock.calls.at(call)?.[0];
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks.create);
-        reattachMockChain(mocks.append);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
         context = createMockContext();
         service = new FileService(context);
     });
 
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
     describe("createFile", () => {
-        it("submits a FileCreateTransaction with the operator's key by default", async () => {
-            const { fileId: result } = await service.createFile({
+        it("builds a FileCreateTransaction with the operator's key by default", async () => {
+            const { fileId } = await service.createFile({
                 contents: "hello",
             });
 
-            expect(result.toString()).toBe("0.0.555");
-
-            const tx = vi.mocked(FileCreateTransaction).mock.results[0].value;
-            expect(tx.setContents).toHaveBeenCalledWith("hello");
-            expect(tx.setKeys).toHaveBeenCalledWith([
-                context.operatorPublicKey,
-            ]);
-            expect(tx.setFileMemo).not.toHaveBeenCalled();
-            expect(tx.setExpirationTime).not.toHaveBeenCalled();
-            expect(tx.execute).toHaveBeenCalledWith(context.client);
+            expect(fileId.toString()).toBe("0.0.555");
+            const tx = sentTx() as FileCreateTransaction;
+            expect(tx).toBeInstanceOf(FileCreateTransaction);
+            expect(tx.contents).toEqual(Buffer.from("hello"));
+            expect(tx.keys).toEqual([context.operatorPublicKey]);
+            const defaults = new FileCreateTransaction();
+            expect(tx.fileMemo).toBe(defaults.fileMemo);
             // No append when contents fit in a single transaction.
-            expect(vi.mocked(FileAppendTransaction)).not.toHaveBeenCalled();
+            expect(run).toHaveBeenCalledTimes(1);
         });
 
-        it("forwards fileMemo + expirationTime + explicit keys", async () => {
+        it("sets fileMemo, expirationTime and explicit keys", async () => {
             const key = PrivateKey.generateED25519().publicKey;
             const expirationTime = new Date("2099-01-01T00:00:00Z");
 
@@ -89,86 +71,54 @@ describe("FileCreateOperation (via FileService)", () => {
                 expirationTime,
             });
 
-            const tx = vi.mocked(FileCreateTransaction).mock.results[0].value;
-            expect(tx.setContents).toHaveBeenCalledWith(
-                new Uint8Array([1, 2, 3]),
-            );
-            expect(tx.setKeys).toHaveBeenCalledWith([key]);
-            expect(tx.setFileMemo).toHaveBeenCalledWith("greeting");
-            expect(tx.setExpirationTime).toHaveBeenCalledWith(expirationTime);
+            const tx = sentTx() as FileCreateTransaction;
+            expect(tx.contents).toEqual(new Uint8Array([1, 2, 3]));
+            expect(tx.keys).toEqual([key]);
+            expect(tx.fileMemo).toBe("greeting");
+            expect(tx.expirationTime.toDate()).toEqual(expirationTime);
         });
 
-        it("passes an empty keys array through unchanged (unmodifiable file)", async () => {
+        it("keeps an empty keys array (unmodifiable file)", async () => {
             await service.createFile({ contents: "immutable", keys: [] });
 
-            const tx = vi.mocked(FileCreateTransaction).mock.results[0].value;
-            expect(tx.setKeys).toHaveBeenCalledWith([]);
+            expect((sentTx() as FileCreateTransaction).keys).toEqual([]);
         });
 
-        it("applies base TransactionOptions to the create transaction", async () => {
+        it("sends the FileCreate event", async () => {
             await service.createFile({
                 contents: "x",
                 transactionMemo: "base memo",
-                transactionValidDuration: 90,
-                regenerateTransactionId: false,
             });
 
-            const tx = vi.mocked(FileCreateTransaction).mock.results[0].value;
-            expect(tx.setTransactionMemo).toHaveBeenCalledWith("base memo");
-            expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(90);
-            expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        });
-
-        it("freezes and signs with additionalSigners before execute", async () => {
-            const signer = PrivateKey.generateED25519();
-
-            await service.createFile({
-                contents: "x",
-                additionalSigners: [signer],
-            });
-
-            const tx = vi.mocked(FileCreateTransaction).mock.results[0].value;
-            expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-            expect(tx.sign).toHaveBeenCalledWith(signer);
+            expect(run).toHaveBeenCalledWith(
+                expect.any(FileCreateTransaction),
+                expect.objectContaining({ transactionMemo: "base memo" }),
+                expect.objectContaining({
+                    type: "FileCreate",
+                    serviceName: "FileService",
+                    methodName: "createFile",
+                }),
+            );
         });
 
         it("chains a FileAppendTransaction when contents exceed the per-tx limit", async () => {
             // 4096 (single-tx limit) + 500 spillover.
             const large = Buffer.alloc(4596, 0x61);
 
-            const { fileId: result } = await service.createFile({
-                contents: large,
-            });
+            const { fileId } = await service.createFile({ contents: large });
 
-            expect(result.toString()).toBe("0.0.555");
-
-            const createTx = vi.mocked(FileCreateTransaction).mock.results[0]
-                .value;
-            const appendTx = vi.mocked(FileAppendTransaction).mock.results[0]
-                .value;
+            expect(fileId.toString()).toBe("0.0.555");
+            expect(run).toHaveBeenCalledTimes(2);
 
             // Leading 4096 bytes went into the create.
-            const createArg = vi.mocked(createTx.setContents).mock
-                .calls[0][0] as Uint8Array;
-            expect(createArg.byteLength).toBe(4096);
+            const createTx = sentTx(0) as FileCreateTransaction;
+            expect(createTx.contents?.byteLength).toBe(4096);
 
             // Remainder went into the append, keyed by the new fileId.
-            expect(appendTx.setFileId).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    toString: expect.any(Function),
-                }),
-            );
-            expect(
-                (
-                    appendTx.setFileId.mock.calls[0][0] as {
-                        toString(): string;
-                    }
-                ).toString(),
-            ).toBe("0.0.555");
-            const appendArg = vi.mocked(appendTx.setContents).mock
-                .calls[0][0] as Uint8Array;
-            expect(appendArg.byteLength).toBe(500);
-            expect(appendTx.execute).toHaveBeenCalledWith(context.client);
+            const appendTx = sentTx(1) as FileAppendTransaction;
+            expect(appendTx).toBeInstanceOf(FileAppendTransaction);
+            expect(appendTx.fileId?.toString()).toBe("0.0.555");
+            expect(appendTx.contents?.byteLength).toBe(500);
         });
 
         it("splits a string payload at 4096 UTF-8 bytes for the follow-up append", async () => {
@@ -176,24 +126,15 @@ describe("FileCreateOperation (via FileService)", () => {
 
             await service.createFile({ contents: large });
 
-            const createTx = vi.mocked(FileCreateTransaction).mock.results[0]
-                .value;
-            const appendTx = vi.mocked(FileAppendTransaction).mock.results[0]
-                .value;
-
-            const createArg = vi.mocked(createTx.setContents).mock
-                .calls[0][0] as Uint8Array;
-            expect(createArg.byteLength).toBe(4096);
-
-            const appendArg = vi.mocked(appendTx.setContents).mock
-                .calls[0][0] as Uint8Array;
-            expect(appendArg.byteLength).toBe(4200 - 4096);
+            const createTx = sentTx(0) as FileCreateTransaction;
+            expect(createTx.contents?.byteLength).toBe(4096);
+            const appendTx = sentTx(1) as FileAppendTransaction;
+            expect(appendTx.contents?.byteLength).toBe(4200 - 4096);
         });
 
-        it("propagates validator errors before touching the SDK", async () => {
+        it("propagates validator errors before building a transaction", async () => {
             // Every field is optional today, but we still exercise the
-            // validator hookup: rotating the validator to a reject-all
-            // stub should surface as a rejection with no SDK contact.
+            // validator hookup with a reject-all stub.
             const rejectAll = vi
                 .spyOn(
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -209,50 +150,38 @@ describe("FileCreateOperation (via FileService)", () => {
             );
 
             expect(rejectAll).toHaveBeenCalled();
-            expect(vi.mocked(FileCreateTransaction)).not.toHaveBeenCalled();
-            expect(vi.mocked(FileAppendTransaction)).not.toHaveBeenCalled();
+            expect(run).not.toHaveBeenCalled();
         });
 
         it("creates an empty file when contents is omitted (SDK parity)", async () => {
-            const { fileId: result } = await service.createFile();
+            const { fileId } = await service.createFile({});
 
-            expect(result.toString()).toBe("0.0.555");
-
-            const tx = vi.mocked(FileCreateTransaction).mock.results[0].value;
-            // No contents → setContents is never called (matches the SDK's
-            // own constructor pattern for empty files).
-            expect(tx.setContents).not.toHaveBeenCalled();
+            expect(fileId.toString()).toBe("0.0.555");
+            const tx = sentTx() as FileCreateTransaction;
+            expect(tx.contents).toEqual(new FileCreateTransaction().contents);
             // Facade still defaults keys so the file is modifiable.
-            expect(tx.setKeys).toHaveBeenCalledWith([
-                context.operatorPublicKey,
-            ]);
-            expect(tx.execute).toHaveBeenCalledWith(context.client);
+            expect(tx.keys).toEqual([context.operatorPublicKey]);
             // No append — nothing to chunk.
-            expect(vi.mocked(FileAppendTransaction)).not.toHaveBeenCalled();
+            expect(run).toHaveBeenCalledTimes(1);
         });
 
         it("creates an empty operator-modifiable file when called with no arguments", async () => {
-            // DX shortcut: `createFile()` with no options behaves like
-            const { fileId: result } = await service.createFile();
+            const { fileId } = await service.createFile();
 
-            expect(result.toString()).toBe("0.0.555");
-
-            const tx = vi.mocked(FileCreateTransaction).mock.results[0].value;
-            expect(tx.setContents).not.toHaveBeenCalled();
-            expect(tx.setKeys).toHaveBeenCalledWith([
-                context.operatorPublicKey,
-            ]);
-            expect(tx.execute).toHaveBeenCalledWith(context.client);
-            expect(vi.mocked(FileAppendTransaction)).not.toHaveBeenCalled();
+            expect(fileId.toString()).toBe("0.0.555");
+            const tx = sentTx() as FileCreateTransaction;
+            expect(tx.contents).toEqual(new FileCreateTransaction().contents);
+            expect(tx.keys).toEqual([context.operatorPublicKey]);
+            expect(run).toHaveBeenCalledTimes(1);
         });
 
         it("surfaces the created fileId when the follow-up append fails", async () => {
-            // FileCreate succeeded on-chain, but the FileAppend for the
-            // tail chunk fails. The caller needs the fileId to retry the
-            // append or delete the partial file — it must be attached to
-            // the thrown HieroError.
-            const appendFailure = new Error("append boom");
-            mocks.append.tx.execute.mockRejectedValueOnce(appendFailure);
+            // FileCreate succeeded, but the FileAppend for the tail chunk
+            // fails. The fileId must be on the thrown HieroError so the
+            // caller can retry the append or delete the partial file.
+            run.mockResolvedValueOnce(receipt as never).mockRejectedValueOnce(
+                new Error("append boom"),
+            );
 
             const large = Buffer.alloc(4200, 0x61); // > 4096 → triggers append
 
@@ -267,18 +196,15 @@ describe("FileCreateOperation (via FileService)", () => {
                     /File 0\.0\.555 was created, but appending the remainder/,
                 ),
             });
-            // The underlying append failure is preserved as `cause` for
-            // debugging (TransactionExecutor normalises it first).
+            // The underlying append failure is kept as `cause`.
             await expect(promise).rejects.toHaveProperty(
                 "cause",
-                expect.any(Error),
+                expect.objectContaining({ message: "append boom" }),
             );
 
-            // FileCreate did run to completion.
-            expect(vi.mocked(FileCreateTransaction)).toHaveBeenCalledTimes(1);
-            expect(mocks.create.tx.execute).toHaveBeenCalled();
-            // FileAppend was attempted (and rejected).
-            expect(vi.mocked(FileAppendTransaction)).toHaveBeenCalledTimes(1);
+            // FileCreate ran, then FileAppend was attempted.
+            expect(sentTx(0)).toBeInstanceOf(FileCreateTransaction);
+            expect(sentTx(1)).toBeInstanceOf(FileAppendTransaction);
         });
     });
 });

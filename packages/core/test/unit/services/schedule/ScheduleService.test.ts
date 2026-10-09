@@ -1,115 +1,99 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ScheduleService } from "../../../../src/services/schedule/index.js";
-import { createMockContext } from "../../../utils/mock-context.js";
-import type { IHieroContext } from "../../../../src/context/index.js";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-    ScheduleSignTransaction,
-    ScheduleDeleteTransaction,
-    ScheduleInfoQuery,
+    AccountId,
+    KeyList,
     PrivateKey,
+    Query,
+    ScheduleDeleteTransaction,
+    ScheduleId,
+    ScheduleInfoQuery,
+    ScheduleSignTransaction,
+    Status,
+    Timestamp,
+    TransactionId,
+    type ScheduleInfo,
 } from "@hiero-ledger/sdk";
+import { ScheduleService } from "../../../../src/services/schedule/index.js";
+import { TransactionExecutor } from "../../../../src/services/transaction/index.js";
+import { createMockContext } from "../../../utils/mock-context.js";
 
-// ─── Shared mock fixtures ───────────────────────────────────────────────────
+// Builds real SDK transactions and queries; only the network step is
+// stubbed: TransactionExecutor.run for transactions and Query.execute for
+// queries. ScheduleInfo has no public constructor, so it is plain data.
 
 const SCHEDULE_ID = "0.0.777";
 
-const mockReceipt = {
-    status: { toString: () => "SUCCESS" },
-    scheduleId: { toString: () => SCHEDULE_ID },
-    scheduledTransactionId: null as { toString(): string } | null,
-};
-
-const mockResponse = {
-    transactionId: { toString: () => "0.0.2@1234567890.000000000" },
-    getReceipt: vi.fn().mockResolvedValue(mockReceipt),
-};
-
-const mockScheduleInfoResult = {
-    scheduleId: { toString: () => SCHEDULE_ID },
-    creatorAccountId: { toString: () => "0.0.2" },
-    payerAccountId: { toString: () => "0.0.2" },
-    scheduleMemo: "pending approval",
-    executed: null,
-    deleted: null,
-    expirationTime: {
-        toDate: () => new Date("2099-01-01T00:00:00.000Z"),
-    },
-    scheduledTransactionId: { toString: () => "0.0.2@9999999999.000000000" },
-    signers: { toArray: () => [] },
-    waitForExpiry: false,
-};
-
-// Base transaction mock — returned by all mocked SDK transaction constructors
-const mockTx = {
-    setScheduleId: vi.fn().mockReturnThis(),
-    // Base Transaction methods the executor may call
-    setMaxTransactionFee: vi.fn().mockReturnThis(),
-    setTransactionMemo: vi.fn().mockReturnThis(),
-    setTransactionValidDuration: vi.fn().mockReturnThis(),
-    setRegenerateTransactionId: vi.fn().mockReturnThis(),
-    setHighVolume: vi.fn().mockReturnThis(),
-    setNodeAccountIds: vi.fn().mockReturnThis(),
-    _addSignatureLegacy: vi.fn().mockReturnThis(),
-    freezeWith: vi.fn().mockReturnThis(),
-    sign: vi.fn().mockResolvedValue(undefined),
-    signWith: vi.fn().mockResolvedValue(undefined),
-    execute: vi.fn().mockResolvedValue(mockResponse),
-};
-
-const mockInfoQuery = {
-    setScheduleId: vi.fn().mockReturnThis(),
-    execute: vi.fn().mockResolvedValue(mockScheduleInfoResult),
-};
-
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
+function runResult(scheduledTransactionId: TransactionId | null = null) {
     return {
-        ...actual,
-        ScheduleSignTransaction: vi.fn(function () {
-            return mockTx;
-        }),
-        ScheduleDeleteTransaction: vi.fn(function () {
-            return mockTx;
-        }),
-        ScheduleInfoQuery: vi.fn(function () {
-            return mockInfoQuery;
-        }),
+        receipt: {
+            status: Status.Success,
+            scheduleId: ScheduleId.fromString(SCHEDULE_ID),
+            scheduledTransactionId,
+        },
+        transactionId: "0.0.2@1234567890.000000000",
+        status: "SUCCESS",
     };
-});
+}
 
-// ─── Tests ──────────────────────────────────────────────────────────────────
+function scheduleInfo(overrides: Partial<ScheduleInfo> = {}): ScheduleInfo {
+    return {
+        scheduleId: ScheduleId.fromString(SCHEDULE_ID),
+        creatorAccountId: AccountId.fromString("0.0.2"),
+        payerAccountId: AccountId.fromString("0.0.2"),
+        scheduleMemo: "pending approval",
+        executed: null,
+        deleted: null,
+        expirationTime: Timestamp.fromDate(
+            new Date("2099-01-01T00:00:00.000Z"),
+        ),
+        scheduledTransactionId: TransactionId.fromString(
+            "0.0.2@9999999999.000000000",
+        ),
+        signers: new KeyList(),
+        waitForExpiry: false,
+        ...overrides,
+    } as ScheduleInfo;
+}
 
 describe("ScheduleService", () => {
-    let context: IHieroContext;
     let scheduleService: ScheduleService;
+    let run: ReturnType<typeof vi.spyOn>;
+    let execute: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction, options and event handed to the executor. */
+    const sentTx = <T>() => run.mock.calls[0][0] as T;
+    const sentOptions = () => run.mock.calls[0][1];
+    const sentEvent = () => run.mock.calls[0][2];
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        // Restore resolved values that clearAllMocks resets
-        mockResponse.getReceipt.mockResolvedValue(mockReceipt);
-        mockTx.execute.mockResolvedValue(mockResponse);
-        mockTx.sign.mockResolvedValue(undefined);
-        mockInfoQuery.execute.mockResolvedValue(mockScheduleInfoResult);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(runResult() as never);
+        execute = vi
+            .spyOn(Query.prototype, "execute")
+            .mockResolvedValue(scheduleInfo());
+        scheduleService = new ScheduleService(createMockContext());
+    });
 
-        context = createMockContext();
-        scheduleService = new ScheduleService(context);
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     // ── sign() ───────────────────────────────────────────────────────────────
 
     describe("sign", () => {
-        it("creates a ScheduleSignTransaction with the correct scheduleId", async () => {
+        it("builds a ScheduleSignTransaction for the schedule", async () => {
             await scheduleService.sign({
                 scheduleId: SCHEDULE_ID,
                 additionalSigners: [PrivateKey.generateED25519()],
             });
 
-            const tx = vi.mocked(ScheduleSignTransaction).mock.results[0].value;
-            expect(tx.setScheduleId).toHaveBeenCalledWith(SCHEDULE_ID);
-            expect(tx.execute).toHaveBeenCalledWith(context.client);
+            const tx = sentTx<ScheduleSignTransaction>();
+            expect(tx).toBeInstanceOf(ScheduleSignTransaction);
+            expect(tx.scheduleId?.toString()).toBe(SCHEDULE_ID);
         });
 
-        it("freezes and signs with additionalSigners before execute", async () => {
+        it("passes additionalSigners to the executor", async () => {
             const signerKey = PrivateKey.generateED25519();
 
             await scheduleService.sign({
@@ -117,14 +101,10 @@ describe("ScheduleService", () => {
                 additionalSigners: [signerKey],
             });
 
-            const tx = vi.mocked(ScheduleSignTransaction).mock.results[0].value;
-            expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-            expect(tx.sign).toHaveBeenCalledWith(signerKey);
+            expect(sentOptions().additionalSigners).toEqual([signerKey]);
         });
 
         it("omits scheduledTransactionId when the receipt does not carry one", async () => {
-            mockReceipt.scheduledTransactionId = null;
-
             const result = await scheduleService.sign({
                 scheduleId: SCHEDULE_ID,
                 additionalSigners: [PrivateKey.generateED25519()],
@@ -138,9 +118,10 @@ describe("ScheduleService", () => {
         });
 
         it("carries the scheduled transaction id reported by the receipt", async () => {
-            mockReceipt.scheduledTransactionId = {
-                toString: () => "0.0.500@1234567890.000000001?scheduled",
-            };
+            const scheduledTxId = TransactionId.fromString(
+                "0.0.500@1234567890.000000001",
+            ).setScheduled(true);
+            run.mockResolvedValue(runResult(scheduledTxId) as never);
 
             const result = await scheduleService.sign({
                 scheduleId: SCHEDULE_ID,
@@ -152,7 +133,7 @@ describe("ScheduleService", () => {
             );
         });
 
-        it("supports external (HSM/KMS) signers", async () => {
+        it("passes external (HSM/KMS) signers to the executor", async () => {
             const walletKey = PrivateKey.generateECDSA();
             const externalSigner = {
                 publicKey: walletKey.publicKey,
@@ -165,65 +146,53 @@ describe("ScheduleService", () => {
                 externalSigners: [externalSigner],
             });
 
-            const tx = vi.mocked(ScheduleSignTransaction).mock.results[0].value;
-            expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-            expect(tx.signWith).toHaveBeenCalledWith(
-                externalSigner.publicKey,
-                externalSigner.sign,
-            );
+            expect(sentOptions().externalSigners).toEqual([externalSigner]);
         });
 
-        it("applies base TransactionOptions to the transaction", async () => {
+        it("passes base TransactionOptions to the executor", async () => {
             await scheduleService.sign({
                 scheduleId: SCHEDULE_ID,
                 transactionMemo: "multisig round 2",
                 maxTransactionFee: 2,
             });
 
-            const tx = vi.mocked(ScheduleSignTransaction).mock.results[0].value;
-            expect(tx.setTransactionMemo).toHaveBeenCalledWith(
-                "multisig round 2",
-            );
-            expect(tx.setMaxTransactionFee).toHaveBeenCalledWith(2);
+            expect(sentOptions()).toMatchObject({
+                transactionMemo: "multisig round 2",
+                maxTransactionFee: 2,
+            });
         });
 
-        it("emits before and after transaction events", async () => {
+        it("sends the ScheduleSign event", async () => {
             await scheduleService.sign({ scheduleId: SCHEDULE_ID });
 
-            expect(context.emitBeforeTransaction).toHaveBeenCalledOnce();
-            expect(context.emitAfterTransaction).toHaveBeenCalledOnce();
-
-            const afterArg = vi.mocked(context.emitAfterTransaction).mock
-                .calls[0][0];
-            expect(afterArg.type).toBe("ScheduleSign");
-            expect(afterArg.status).toBe("SUCCESS");
+            expect(sentEvent()).toMatchObject({
+                type: "ScheduleSign",
+                serviceName: "ScheduleService",
+                methodName: "sign",
+            });
         });
     });
 
     // ── cancel() ─────────────────────────────────────────────────────────────
 
     describe("cancel", () => {
-        it("creates a ScheduleDeleteTransaction with the correct scheduleId", async () => {
+        it("builds a ScheduleDeleteTransaction for the schedule", async () => {
             const adminKey = PrivateKey.generateED25519();
 
             await scheduleService.cancel({ scheduleId: SCHEDULE_ID, adminKey });
 
-            const tx = vi.mocked(ScheduleDeleteTransaction).mock.results[0]
-                .value;
-            expect(tx.setScheduleId).toHaveBeenCalledWith(SCHEDULE_ID);
-            expect(tx.execute).toHaveBeenCalledWith(context.client);
+            const tx = sentTx<ScheduleDeleteTransaction>();
+            expect(tx).toBeInstanceOf(ScheduleDeleteTransaction);
+            expect(tx.scheduleId?.toString()).toBe(SCHEDULE_ID);
         });
 
-        it("freezes and signs with adminKey as the first signer", async () => {
+        it("signs with adminKey", async () => {
             const adminKey = PrivateKey.generateED25519();
 
             await scheduleService.cancel({ scheduleId: SCHEDULE_ID, adminKey });
 
-            const tx = vi.mocked(ScheduleDeleteTransaction).mock.results[0]
-                .value;
-            expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-            // adminKey should be the first (and only) signer
-            expect(tx.sign).toHaveBeenCalledWith(adminKey);
+            // adminKey is the first (and only) signer
+            expect(sentOptions().additionalSigners).toEqual([adminKey]);
         });
 
         it("places adminKey before any additional signers", async () => {
@@ -236,23 +205,26 @@ describe("ScheduleService", () => {
                 additionalSigners: [extraKey],
             });
 
-            const tx = vi.mocked(ScheduleDeleteTransaction).mock.results[0]
-                .value;
-            const calls = vi.mocked(tx.sign).mock.calls;
-            // adminKey signs first, extraKey signs second
-            expect(calls[0][0]).toBe(adminKey);
-            expect(calls[1][0]).toBe(extraKey);
+            expect(sentOptions().additionalSigners).toEqual([
+                adminKey,
+                extraKey,
+            ]);
         });
 
-        it("emits before and after transaction events", async () => {
+        it("sends the ScheduleDelete event and returns the result", async () => {
             const adminKey = PrivateKey.generateED25519();
 
-            await scheduleService.cancel({ scheduleId: SCHEDULE_ID, adminKey });
+            const result = await scheduleService.cancel({
+                scheduleId: SCHEDULE_ID,
+                adminKey,
+            });
 
-            const afterArg = vi.mocked(context.emitAfterTransaction).mock
-                .calls[0][0];
-            expect(afterArg.type).toBe("ScheduleDelete");
-            expect(afterArg.status).toBe("SUCCESS");
+            expect(sentEvent()).toMatchObject({
+                type: "ScheduleDelete",
+                serviceName: "ScheduleService",
+                methodName: "cancel",
+            });
+            expect(result.status).toBe("SUCCESS");
         });
     });
 
@@ -262,9 +234,9 @@ describe("ScheduleService", () => {
         it("returns structured schedule info for a pending schedule", async () => {
             const info = await scheduleService.getInfo(SCHEDULE_ID);
 
-            const query = vi.mocked(ScheduleInfoQuery).mock.results[0].value;
-            expect(query.setScheduleId).toHaveBeenCalledWith(SCHEDULE_ID);
-            expect(query.execute).toHaveBeenCalledWith(context.client);
+            const query = execute.mock.contexts[0] as ScheduleInfoQuery;
+            expect(query).toBeInstanceOf(ScheduleInfoQuery);
+            expect(query.scheduleId?.toString()).toBe(SCHEDULE_ID);
 
             expect(info.scheduleId).toBe(SCHEDULE_ID);
             expect(info.scheduleMemo).toBe("pending approval");
@@ -278,11 +250,13 @@ describe("ScheduleService", () => {
         });
 
         it("reflects executed state correctly", async () => {
-            const executedAt = new Date("2025-06-01T12:00:00.000Z");
-            mockInfoQuery.execute.mockResolvedValueOnce({
-                ...mockScheduleInfoResult,
-                executed: { toDate: () => executedAt },
-            });
+            execute.mockResolvedValueOnce(
+                scheduleInfo({
+                    executed: Timestamp.fromDate(
+                        new Date("2025-06-01T12:00:00.000Z"),
+                    ),
+                }),
+            );
 
             const info = await scheduleService.getInfo(SCHEDULE_ID);
 
@@ -292,11 +266,13 @@ describe("ScheduleService", () => {
         });
 
         it("reflects deleted state correctly", async () => {
-            const deletedAt = new Date("2025-06-01T14:00:00.000Z");
-            mockInfoQuery.execute.mockResolvedValueOnce({
-                ...mockScheduleInfoResult,
-                deleted: { toDate: () => deletedAt },
-            });
+            execute.mockResolvedValueOnce(
+                scheduleInfo({
+                    deleted: Timestamp.fromDate(
+                        new Date("2025-06-01T14:00:00.000Z"),
+                    ),
+                }),
+            );
 
             const info = await scheduleService.getInfo(SCHEDULE_ID);
 
@@ -306,15 +282,14 @@ describe("ScheduleService", () => {
         });
 
         it("counts signers from the KeyList", async () => {
-            mockInfoQuery.execute.mockResolvedValueOnce({
-                ...mockScheduleInfoResult,
-                signers: {
-                    toArray: () => [
-                        { toString: () => "key-1" },
-                        { toString: () => "key-2" },
-                    ],
-                },
-            });
+            execute.mockResolvedValueOnce(
+                scheduleInfo({
+                    signers: KeyList.of(
+                        PrivateKey.generateED25519().publicKey,
+                        PrivateKey.generateED25519().publicKey,
+                    ),
+                }),
+            );
 
             const info = await scheduleService.getInfo(SCHEDULE_ID);
 
@@ -322,12 +297,10 @@ describe("ScheduleService", () => {
         });
 
         it("wraps errors in a HieroError", async () => {
-            mockInfoQuery.execute.mockRejectedValueOnce(
-                new Error("INVALID_SCHEDULE_ID"),
-            );
+            execute.mockRejectedValueOnce(new Error("INVALID_SCHEDULE_ID"));
 
             await expect(
-                scheduleService.getInfo("0.0.invalid"),
+                scheduleService.getInfo("0.0.999"),
             ).rejects.toMatchObject({
                 name: "HieroError",
                 context: "ScheduleService.getInfo",

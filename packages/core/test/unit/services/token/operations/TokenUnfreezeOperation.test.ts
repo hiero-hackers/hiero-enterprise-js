@@ -1,35 +1,34 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TokenUnfreezeTransaction, PrivateKey } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { PrivateKey, TokenUnfreezeTransaction } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle(["setTokenId", "setAccountId"]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenUnfreezeTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TokenUnfreezeOperation (via TokenService)", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as TokenUnfreezeTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TokenService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new TokenService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it("unfreezes a token relationship on an account", async () => {
@@ -38,30 +37,34 @@ describe("TokenUnfreezeOperation (via TokenService)", () => {
             accountId: "0.0.700",
         });
 
-        const tx = vi.mocked(TokenUnfreezeTransaction).mock.results[0].value;
-        expect(tx.setTokenId).toHaveBeenCalledWith("0.0.500");
-        expect(tx.setAccountId).toHaveBeenCalledWith("0.0.700");
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        const tx = sentTx();
+        expect(tx).toBeInstanceOf(TokenUnfreezeTransaction);
+        expect(tx.tokenId?.toString()).toBe("0.0.500");
+        expect(tx.accountId?.toString()).toBe("0.0.700");
     });
 
-    it("applies base TransactionOptions and additionalSigners", async () => {
+    it("passes the options to the executor with the TokenUnfreeze event", async () => {
         const signer = PrivateKey.generateED25519();
 
         await service.unfreezeToken({
             tokenId: "0.0.500",
             accountId: "0.0.700",
             transactionMemo: "unfreeze memo",
-            transactionValidDuration: 60,
-            regenerateTransactionId: false,
             additionalSigners: [signer],
         });
 
-        const tx = vi.mocked(TokenUnfreezeTransaction).mock.results[0].value;
-        expect(tx.setTransactionMemo).toHaveBeenCalledWith("unfreeze memo");
-        expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(60);
-        expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(tx.sign).toHaveBeenCalledWith(signer);
+        expect(run).toHaveBeenCalledWith(
+            expect.any(TokenUnfreezeTransaction),
+            expect.objectContaining({
+                transactionMemo: "unfreeze memo",
+                additionalSigners: [signer],
+            }),
+            expect.objectContaining({
+                type: "TokenUnfreeze",
+                serviceName: "TokenService",
+                methodName: "unfreezeToken",
+            }),
+        );
     });
 
     it("throws when tokenId is empty", async () => {
@@ -71,6 +74,8 @@ describe("TokenUnfreezeOperation (via TokenService)", () => {
                 accountId: "0.0.700",
             }),
         ).rejects.toThrow(/tokenId cannot be empty/i);
+
+        expect(run).not.toHaveBeenCalled();
     });
 
     it("throws when accountId is empty", async () => {
@@ -80,5 +85,7 @@ describe("TokenUnfreezeOperation (via TokenService)", () => {
                 accountId: "",
             }),
         ).rejects.toThrow(/accountId cannot be empty/i);
+
+        expect(run).not.toHaveBeenCalled();
     });
 });

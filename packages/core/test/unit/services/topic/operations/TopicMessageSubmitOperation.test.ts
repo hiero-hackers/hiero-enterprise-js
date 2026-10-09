@@ -1,41 +1,43 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TopicMessageSubmitTransaction, PrivateKey } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+    CustomFeeLimit,
+    CustomFixedFee,
+    Long,
+    TopicMessageSubmitTransaction,
+} from "@hiero-ledger/sdk";
 import { TopicService } from "../../../../../src/services/topic/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle([
-        "setTopicId",
-        "setMessage",
-        "setMaxChunks",
-        "setChunkSize",
-        "setCustomFeeLimits",
-    ]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed. Chunking happens inside the SDK when the transaction is sent,
+// so it is not exercised here.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TopicMessageSubmitTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {
+        topicSequenceNumber: Long.fromNumber(1),
+        topicRunningHash: new Uint8Array([1, 2, 3, 4]),
+    },
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TopicMessageSubmitOperation (via TopicService)", () => {
-    let context: IHieroContext;
     let service: TopicService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as TopicMessageSubmitTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TopicService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new TopicService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     describe("submitMessage", () => {
@@ -51,14 +53,16 @@ describe("TopicMessageSubmitOperation (via TopicService)", () => {
             expect(result.status).toBe("SUCCESS");
             expect(result.runningHash).toEqual(new Uint8Array([1, 2, 3, 4]));
 
-            const tx = vi.mocked(TopicMessageSubmitTransaction).mock.results[0]
-                .value;
-            expect(tx.setTopicId).toHaveBeenCalledWith("0.0.12345");
-            expect(tx.setMessage).toHaveBeenCalledWith("hello world");
-            expect(tx.setMaxChunks).not.toHaveBeenCalled();
-            expect(tx.setChunkSize).not.toHaveBeenCalled();
-            expect(tx.setCustomFeeLimits).not.toHaveBeenCalled();
-            expect(tx.execute).toHaveBeenCalledWith(context.client);
+            const tx = sentTx();
+            const defaults = new TopicMessageSubmitTransaction();
+            expect(tx).toBeInstanceOf(TopicMessageSubmitTransaction);
+            expect(tx.topicId?.toString()).toBe("0.0.12345");
+            expect(tx.getMessage()).toEqual(Buffer.from("hello world"));
+            expect(tx.getMaxChunks()).toBe(defaults.getMaxChunks());
+            expect(tx.getChunkSize()).toBe(defaults.getChunkSize());
+            expect(tx.getCustomFeeLimits()).toEqual(
+                defaults.getCustomFeeLimits(),
+            );
         });
 
         it("submits a Uint8Array message", async () => {
@@ -69,81 +73,62 @@ describe("TopicMessageSubmitOperation (via TopicService)", () => {
                 message: payload,
             });
 
-            const tx = vi.mocked(TopicMessageSubmitTransaction).mock.results[0]
-                .value;
-            expect(tx.setMessage).toHaveBeenCalledWith(payload);
+            expect(sentTx().getMessage()).toEqual(payload);
         });
 
-        it("forwards maxChunks when provided", async () => {
+        it("sets maxChunks when provided", async () => {
             await service.submitMessage({
                 topicId: "0.0.12345",
                 message: "x",
                 maxChunks: 50,
             });
 
-            const tx = vi.mocked(TopicMessageSubmitTransaction).mock.results[0]
-                .value;
-            expect(tx.setMaxChunks).toHaveBeenCalledWith(50);
+            expect(sentTx().getMaxChunks()).toBe(50);
         });
 
-        it("forwards chunkSize when provided", async () => {
+        it("sets chunkSize when provided", async () => {
             await service.submitMessage({
                 topicId: "0.0.12345",
                 message: "x",
                 chunkSize: 2048,
             });
 
-            const tx = vi.mocked(TopicMessageSubmitTransaction).mock.results[0]
-                .value;
-            expect(tx.setChunkSize).toHaveBeenCalledWith(2048);
+            expect(sentTx().getChunkSize()).toBe(2048);
         });
 
-        it("forwards customFeeLimits when provided (HIP-991)", async () => {
-            const customFeeLimits: never[] = []; // shape-only; SDK validates payload contents
+        it("sets customFeeLimits when provided (HIP-991)", async () => {
+            const limit = new CustomFeeLimit()
+                .setAccountId("0.0.555")
+                .setFees([new CustomFixedFee().setAmount(10)]);
 
             await service.submitMessage({
                 topicId: "0.0.12345",
                 message: "x",
-                customFeeLimits,
+                customFeeLimits: [limit],
             });
 
-            const tx = vi.mocked(TopicMessageSubmitTransaction).mock.results[0]
-                .value;
-            expect(tx.setCustomFeeLimits).toHaveBeenCalledWith(customFeeLimits);
+            expect(sentTx().getCustomFeeLimits()).toEqual([limit]);
         });
 
-        it("applies base TransactionOptions to the transaction", async () => {
+        it("sends the TopicMessageSubmit event", async () => {
             await service.submitMessage({
                 topicId: "0.0.12345",
                 message: "x",
                 transactionMemo: "base memo",
-                transactionValidDuration: 90,
-                regenerateTransactionId: false,
             });
 
-            const tx = vi.mocked(TopicMessageSubmitTransaction).mock.results[0]
-                .value;
-            expect(tx.setTransactionMemo).toHaveBeenCalledWith("base memo");
-            expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(90);
-            expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
+            expect(run).toHaveBeenCalledWith(
+                expect.any(TopicMessageSubmitTransaction),
+                expect.objectContaining({ transactionMemo: "base memo" }),
+                expect.objectContaining({
+                    type: "TopicMessageSubmit",
+                    serviceName: "TopicService",
+                    methodName: "submitMessage",
+                }),
+            );
         });
 
-        it("freezes and signs with additionalSigners before execute", async () => {
-            const submitKey = PrivateKey.generateED25519();
-
-            await service.submitMessage({
-                topicId: "0.0.12345",
-                message: "private payload",
-                additionalSigners: [submitKey],
-            });
-
-            const tx = vi.mocked(TopicMessageSubmitTransaction).mock.results[0]
-                .value;
-            expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-            expect(tx.sign).toHaveBeenCalledWith(submitKey);
-        });
-
-        it("propagates validator errors before touching the SDK", async () => {
+        it("rejects an empty topicId before building a transaction", async () => {
             await expect(
                 service.submitMessage({
                     topicId: "",
@@ -151,12 +136,10 @@ describe("TopicMessageSubmitOperation (via TopicService)", () => {
                 }),
             ).rejects.toThrow(/topicId cannot be empty/);
 
-            expect(
-                vi.mocked(TopicMessageSubmitTransaction),
-            ).not.toHaveBeenCalled();
+            expect(run).not.toHaveBeenCalled();
         });
 
-        it("rejects an empty message before touching the SDK", async () => {
+        it("rejects an empty message before building a transaction", async () => {
             await expect(
                 service.submitMessage({
                     topicId: "0.0.12345",
@@ -164,9 +147,7 @@ describe("TopicMessageSubmitOperation (via TopicService)", () => {
                 }),
             ).rejects.toThrow(/message cannot be empty/);
 
-            expect(
-                vi.mocked(TopicMessageSubmitTransaction),
-            ).not.toHaveBeenCalled();
+            expect(run).not.toHaveBeenCalled();
         });
     });
 });

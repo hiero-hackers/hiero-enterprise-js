@@ -1,81 +1,90 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ContractUpdateTransaction, PrivateKey } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+    ContractUpdateTransaction,
+    PrivateKey,
+    ScheduleId,
+} from "@hiero-ledger/sdk";
 import { ContractService } from "../../../../../src/services/contract/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle([
-        "setContractId",
-        "setAdminKey",
-        "setContractMemo",
-        "setAutoRenewPeriod",
-        "setAutoRenewAccountId",
-        "setExpirationTime",
-        "setBytecodeFileId",
-        "setStakedAccountId",
-        "setStakedNodeId",
-        "setDeclineStakingReward",
-        "setMaxAutomaticTokenAssociations",
-    ]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        ContractUpdateTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("ContractUpdateOperation (via ContractService)", () => {
-    let context: IHieroContext;
     let service: ContractService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as ContractUpdateTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new ContractService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new ContractService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     describe("updateContract", () => {
-        it("submits a ContractUpdateTransaction with only the contract ID when no other fields are set", async () => {
+        it("updates only the contract ID and keeps SDK defaults when no other fields are set", async () => {
             const result = await service.updateContract({
                 contractId: "0.0.12345",
             });
 
             expect(result).toMatchObject({
-                transactionId: expect.any(String),
+                transactionId: receipt.transactionId,
                 status: "SUCCESS",
             });
-
-            const tx = vi.mocked(ContractUpdateTransaction).mock.results[0]
-                .value;
-            expect(tx.setContractId).toHaveBeenCalledWith("0.0.12345");
-            expect(tx.execute).toHaveBeenCalledWith(context.client);
-
-            // No optional setters touched.
-            expect(tx.setAdminKey).not.toHaveBeenCalled();
-            expect(tx.setContractMemo).not.toHaveBeenCalled();
-            expect(tx.setAutoRenewPeriod).not.toHaveBeenCalled();
-            expect(tx.setAutoRenewAccountId).not.toHaveBeenCalled();
-            expect(tx.setExpirationTime).not.toHaveBeenCalled();
-            expect(tx.setBytecodeFileId).not.toHaveBeenCalled();
-            expect(tx.setStakedAccountId).not.toHaveBeenCalled();
-            expect(tx.setStakedNodeId).not.toHaveBeenCalled();
-            expect(tx.setDeclineStakingReward).not.toHaveBeenCalled();
-            expect(tx.setMaxAutomaticTokenAssociations).not.toHaveBeenCalled();
+            const tx = sentTx();
+            const defaults = new ContractUpdateTransaction();
+            expect(tx).toBeInstanceOf(ContractUpdateTransaction);
+            expect(tx.contractId?.toString()).toBe("0.0.12345");
+            expect(tx.adminKey).toEqual(defaults.adminKey);
+            expect(tx.contractMemo).toEqual(defaults.contractMemo);
+            expect(tx.autoRenewPeriod).toEqual(defaults.autoRenewPeriod);
+            expect(tx.autoRenewAccountId).toEqual(defaults.autoRenewAccountId);
+            expect(tx.expirationTime).toEqual(defaults.expirationTime);
+            expect(tx.bytecodeFileId).toEqual(defaults.bytecodeFileId);
+            expect(tx.stakedAccountId).toEqual(defaults.stakedAccountId);
+            expect(tx.stakedNodeId).toEqual(defaults.stakedNodeId);
+            expect(tx.declineStakingRewards).toEqual(
+                defaults.declineStakingRewards,
+            );
+            expect(tx.maxAutomaticTokenAssociations).toEqual(
+                defaults.maxAutomaticTokenAssociations,
+            );
         });
 
-        it("forwards every optional setter when the field is provided", async () => {
+        it("sends the ContractUpdate event", async () => {
+            await service.updateContract({
+                contractId: "0.0.12345",
+                transactionMemo: "base memo",
+            });
+
+            expect(run).toHaveBeenCalledWith(
+                expect.any(ContractUpdateTransaction),
+                expect.objectContaining({ transactionMemo: "base memo" }),
+                expect.objectContaining({
+                    type: "ContractUpdate",
+                    serviceName: "ContractService",
+                    methodName: "updateContract",
+                }),
+            );
+        });
+
+        it("sets every optional field that is provided", async () => {
             const adminKey = PrivateKey.generateED25519().publicKey;
-            const expirationTime = new Date(Date.now() + 7 * 86400 * 1000);
+            const expirationTime = new Date("2099-01-02T03:04:05.000Z");
 
             await service.updateContract({
                 contractId: "0.0.12345",
@@ -90,62 +99,30 @@ describe("ContractUpdateOperation (via ContractService)", () => {
                 maxAutomaticTokenAssociations: 5,
             });
 
-            const tx = vi.mocked(ContractUpdateTransaction).mock.results[0]
-                .value;
-            expect(tx.setAdminKey).toHaveBeenCalledWith(adminKey);
-            expect(tx.setContractMemo).toHaveBeenCalledWith("renamed");
-            expect(tx.setAutoRenewPeriod).toHaveBeenCalledWith(7_776_000);
-            expect(tx.setAutoRenewAccountId).toHaveBeenCalledWith("0.0.123");
-            expect(tx.setExpirationTime).toHaveBeenCalledWith(expirationTime);
-            expect(tx.setBytecodeFileId).toHaveBeenCalledWith("0.0.555");
-            expect(tx.setStakedNodeId).toHaveBeenCalledWith(0);
-            expect(tx.setDeclineStakingReward).toHaveBeenCalledWith(true);
-            expect(tx.setMaxAutomaticTokenAssociations).toHaveBeenCalledWith(5);
+            const tx = sentTx();
+            expect(tx.adminKey).toBe(adminKey);
+            expect(tx.contractMemo).toBe("renamed");
+            expect(tx.autoRenewPeriod?.seconds.toNumber()).toBe(7_776_000);
+            expect(tx.autoRenewAccountId?.toString()).toBe("0.0.123");
+            expect(tx.expirationTime?.toDate()).toEqual(expirationTime);
+            expect(tx.bytecodeFileId?.toString()).toBe("0.0.555");
+            expect(tx.stakedNodeId?.toNumber()).toBe(0);
+            expect(tx.declineStakingRewards).toBe(true);
+            expect(tx.maxAutomaticTokenAssociations).toBe(5);
         });
 
-        it("forwards stakedAccountId when supplied (mutually exclusive with stakedNodeId)", async () => {
+        it("sets stakedAccountId without a stakedNodeId", async () => {
             await service.updateContract({
                 contractId: "0.0.12345",
                 stakedAccountId: "0.0.321",
             });
 
-            const tx = vi.mocked(ContractUpdateTransaction).mock.results[0]
-                .value;
-            expect(tx.setStakedAccountId).toHaveBeenCalledWith("0.0.321");
-            expect(tx.setStakedNodeId).not.toHaveBeenCalled();
+            const tx = sentTx();
+            expect(tx.stakedAccountId?.toString()).toBe("0.0.321");
+            expect(tx.stakedNodeId).toBeNull();
         });
 
-        it("applies base TransactionOptions to the transaction", async () => {
-            await service.updateContract({
-                contractId: "0.0.12345",
-                transactionMemo: "base memo",
-                transactionValidDuration: 90,
-                regenerateTransactionId: false,
-            });
-
-            const tx = vi.mocked(ContractUpdateTransaction).mock.results[0]
-                .value;
-            expect(tx.setTransactionMemo).toHaveBeenCalledWith("base memo");
-            expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(90);
-            expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        });
-
-        it("freezes and signs with additionalSigners before execute", async () => {
-            const adminKey = PrivateKey.generateED25519();
-
-            await service.updateContract({
-                contractId: "0.0.12345",
-                contractMemo: "renamed",
-                additionalSigners: [adminKey],
-            });
-
-            const tx = vi.mocked(ContractUpdateTransaction).mock.results[0]
-                .value;
-            expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-            expect(tx.sign).toHaveBeenCalledWith(adminKey);
-        });
-
-        it("propagates validator errors before touching the SDK", async () => {
+        it("propagates validator errors before building a transaction", async () => {
             await expect(
                 service.updateContract(
                     {} as unknown as Parameters<
@@ -154,26 +131,19 @@ describe("ContractUpdateOperation (via ContractService)", () => {
                 ),
             ).rejects.toThrow(/contractId is required/);
 
-            expect(vi.mocked(ContractUpdateTransaction)).not.toHaveBeenCalled();
+            expect(run).not.toHaveBeenCalled();
         });
     });
 
     describe("scheduleUpdateContract", () => {
-        it("schedules a contract update and returns the scheduleId", async () => {
-            const result = await service.scheduleUpdateContract({
-                contractId: "0.0.12345",
-                contractMemo: "scheduled rename",
-            });
+        it("schedules the built transaction with the schedule options and returns the scheduleId", async () => {
+            const scheduleRun = vi
+                .spyOn(TransactionExecutor.prototype, "scheduleRun")
+                .mockResolvedValue({
+                    scheduleId: ScheduleId.fromString("0.0.777"),
+                } as never);
 
-            expect(result.scheduleId.toString()).toBe("0.0.777");
-
-            const tx = vi.mocked(ContractUpdateTransaction).mock.results[0]
-                .value;
-            expect(tx.schedule).toHaveBeenCalled();
-        });
-
-        it("forwards schedule options to the scheduling transaction", async () => {
-            await service.scheduleUpdateContract(
+            const result = await service.scheduleUpdateContract(
                 {
                     contractId: "0.0.12345",
                     contractMemo: "scheduled rename",
@@ -184,10 +154,16 @@ describe("ContractUpdateOperation (via ContractService)", () => {
                 },
             );
 
-            expect(mocks.scheduleTx.setPayerAccountId).toHaveBeenCalled();
-            expect(mocks.scheduleTx.setScheduleMemo).toHaveBeenCalledWith(
-                "update via multisig",
+            const [tx, , , scheduleOptions] = scheduleRun.mock.calls[0];
+            expect(tx).toBeInstanceOf(ContractUpdateTransaction);
+            expect((tx as ContractUpdateTransaction).contractMemo).toBe(
+                "scheduled rename",
             );
+            expect(scheduleOptions).toEqual({
+                payerAccountId: "0.0.999",
+                scheduleMemo: "update via multisig",
+            });
+            expect(result.scheduleId.toString()).toBe("0.0.777");
         });
     });
 });

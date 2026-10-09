@@ -1,35 +1,34 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TokenAssociateTransaction, PrivateKey } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { ScheduleId, TokenAssociateTransaction } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle(["setAccountId", "setTokenIds"]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenAssociateTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TokenAssociateOperation (via TokenService)", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as TokenAssociateTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TokenService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new TokenService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it("associates a token to an account", async () => {
@@ -38,33 +37,37 @@ describe("TokenAssociateOperation (via TokenService)", () => {
             tokenId: "0.0.500",
         });
 
-        const tx = vi.mocked(TokenAssociateTransaction).mock.results[0].value;
-        expect(tx.setAccountId).toHaveBeenCalledWith("0.0.700");
-        expect(tx.setTokenIds).toHaveBeenCalledWith(["0.0.500"]);
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        const tx = sentTx();
+        expect(tx).toBeInstanceOf(TokenAssociateTransaction);
+        expect(tx.accountId?.toString()).toBe("0.0.700");
+        expect(tx.tokenIds?.map(String)).toEqual(["0.0.500"]);
     });
 
-    it("applies base TransactionOptions and additionalSigners", async () => {
-        const signer = PrivateKey.generateED25519();
-
+    it("sends the TokenAssociate event", async () => {
         await service.associateToken({
             accountId: "0.0.700",
             tokenId: "0.0.500",
             transactionMemo: "associate memo",
-            transactionValidDuration: 60,
-            regenerateTransactionId: false,
-            additionalSigners: [signer],
         });
 
-        const tx = vi.mocked(TokenAssociateTransaction).mock.results[0].value;
-        expect(tx.setTransactionMemo).toHaveBeenCalledWith("associate memo");
-        expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(60);
-        expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(tx.sign).toHaveBeenCalledWith(signer);
+        expect(run).toHaveBeenCalledWith(
+            expect.any(TokenAssociateTransaction),
+            expect.objectContaining({ transactionMemo: "associate memo" }),
+            expect.objectContaining({
+                type: "TokenAssociate",
+                serviceName: "TokenService",
+                methodName: "associateToken",
+            }),
+        );
     });
 
-    it("wraps association in ScheduleCreateTransaction", async () => {
+    it("schedules the built transaction with the schedule options", async () => {
+        const scheduleRun = vi
+            .spyOn(TransactionExecutor.prototype, "scheduleRun")
+            .mockResolvedValue({
+                scheduleId: ScheduleId.fromString("0.0.777"),
+            } as never);
+
         const result = await service.scheduleAssociateToken(
             {
                 accountId: "0.0.700",
@@ -73,10 +76,11 @@ describe("TokenAssociateOperation (via TokenService)", () => {
             { scheduleMemo: "pending approval" },
         );
 
-        expect(mocks.tx.schedule).toHaveBeenCalled();
-        expect(mocks.scheduleTx.setScheduleMemo).toHaveBeenCalledWith(
-            "pending approval",
+        const [tx, , , scheduleOptions] = scheduleRun.mock.calls[0];
+        expect((tx as TokenAssociateTransaction).accountId?.toString()).toBe(
+            "0.0.700",
         );
+        expect(scheduleOptions).toEqual({ scheduleMemo: "pending approval" });
         expect(result.scheduleId.toString()).toBe("0.0.777");
     });
 
@@ -87,6 +91,7 @@ describe("TokenAssociateOperation (via TokenService)", () => {
                 tokenId: "0.0.500",
             }),
         ).rejects.toThrow(/accountId cannot be empty/i);
+        expect(run).not.toHaveBeenCalled();
     });
 
     it("throws when tokenId is empty", async () => {
@@ -96,5 +101,6 @@ describe("TokenAssociateOperation (via TokenService)", () => {
                 tokenId: "",
             }),
         ).rejects.toThrow(/tokenId cannot be empty/i);
+        expect(run).not.toHaveBeenCalled();
     });
 });

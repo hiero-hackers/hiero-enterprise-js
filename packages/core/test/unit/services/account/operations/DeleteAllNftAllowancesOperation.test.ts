@@ -1,42 +1,41 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
     AccountAllowanceApproveTransaction,
     PrivateKey,
-    TokenId,
 } from "@hiero-ledger/sdk";
 import { AccountService } from "../../../../../src/services/account/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle(["deleteTokenNftAllowanceAllSerials"]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        AccountAllowanceApproveTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("DeleteAllNftAllowancesOperation (via AccountService)", () => {
-    let context: IHieroContext;
     let service: AccountService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () =>
+        run.mock.calls[0][0] as AccountAllowanceApproveTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new AccountService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new AccountService(createMockContext());
     });
 
-    it("revokes approve-for-all-serials with correct SDK arguments", async () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it("revokes an approve-for-all-serials allowance", async () => {
         const result = await service.deleteAllNftAllowances([
             {
                 tokenId: "0.0.600",
@@ -45,23 +44,22 @@ describe("DeleteAllNftAllowancesOperation (via AccountService)", () => {
             },
         ]);
 
-        // No SDK receipt leaks to consumers — just the floor result.
         expect(result).toMatchObject({
-            transactionId: "0.0.123@1234567890.000000000",
+            transactionId: receipt.transactionId,
             status: "SUCCESS",
         });
-
-        const tx = vi.mocked(AccountAllowanceApproveTransaction).mock.results[0]
-            .value;
-        expect(tx.deleteTokenNftAllowanceAllSerials).toHaveBeenCalledTimes(1);
-        expect(tx.deleteTokenNftAllowanceAllSerials).toHaveBeenCalledWith(
-            TokenId.fromString("0.0.600"),
-            "0.0.100",
-            "0.0.200",
-        );
+        const tx = sentTx();
+        expect(tx).toBeInstanceOf(AccountAllowanceApproveTransaction);
+        expect(tx.tokenNftApprovals).toHaveLength(1);
+        const [approval] = tx.tokenNftApprovals;
+        expect(approval.tokenId.toString()).toBe("0.0.600");
+        expect(approval.ownerAccountId?.toString()).toBe("0.0.100");
+        expect(approval.spenderAccountId?.toString()).toBe("0.0.200");
+        // allSerials: false is the revocation
+        expect(approval.allSerials).toBe(false);
     });
 
-    it("handles multiple approve-for-all-serials revocations", async () => {
+    it("revokes several approve-for-all-serials allowances in one transaction", async () => {
         await service.deleteAllNftAllowances([
             {
                 tokenId: "0.0.600",
@@ -75,19 +73,26 @@ describe("DeleteAllNftAllowancesOperation (via AccountService)", () => {
             },
         ]);
 
-        const tx = vi.mocked(AccountAllowanceApproveTransaction).mock.results[0]
-            .value;
-        expect(tx.deleteTokenNftAllowanceAllSerials).toHaveBeenCalledTimes(2);
-        expect(tx.deleteTokenNftAllowanceAllSerials).toHaveBeenCalledWith(
-            TokenId.fromString("0.0.600"),
-            "0.0.100",
-            "0.0.200",
-        );
-        expect(tx.deleteTokenNftAllowanceAllSerials).toHaveBeenCalledWith(
-            TokenId.fromString("0.0.700"),
-            "0.0.100",
-            "0.0.300",
-        );
+        const approvals = sentTx().tokenNftApprovals.map((a) => ({
+            tokenId: a.tokenId.toString(),
+            owner: a.ownerAccountId?.toString(),
+            spender: a.spenderAccountId?.toString(),
+            allSerials: a.allSerials,
+        }));
+        expect(approvals).toEqual([
+            {
+                tokenId: "0.0.600",
+                owner: "0.0.100",
+                spender: "0.0.200",
+                allSerials: false,
+            },
+            {
+                tokenId: "0.0.700",
+                owner: "0.0.100",
+                spender: "0.0.300",
+                allSerials: false,
+            },
+        ]);
     });
 
     it("forwards TransactionOptions (additionalSigners) to the executor", async () => {
@@ -103,10 +108,11 @@ describe("DeleteAllNftAllowancesOperation (via AccountService)", () => {
             { additionalSigners: [ownerKey] },
         );
 
-        const tx = vi.mocked(AccountAllowanceApproveTransaction).mock.results[0]
-            .value;
-        expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(tx.sign).toHaveBeenCalledWith(ownerKey);
+        expect(run).toHaveBeenCalledWith(
+            expect.any(AccountAllowanceApproveTransaction),
+            expect.objectContaining({ additionalSigners: [ownerKey] }),
+            expect.objectContaining({ type: "AccountAllowanceApprove" }),
+        );
     });
 
     it("rejects when tokenId is missing", async () => {
@@ -119,6 +125,7 @@ describe("DeleteAllNftAllowancesOperation (via AccountService)", () => {
                 },
             ]),
         ).rejects.toThrow(/tokenId is required/);
+        expect(run).not.toHaveBeenCalled();
     });
 
     it("rejects when ownerAccountId is missing", async () => {

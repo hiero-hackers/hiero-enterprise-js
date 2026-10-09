@@ -1,35 +1,44 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Long, PrivateKey, TokenAirdropTransaction } from "@hiero-ledger/sdk";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { Long, TokenAirdropTransaction } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle(["addNftTransfer"]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        TokenAirdropTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("TokenAirdropNftOperation (via TokenService)", () => {
-    let context: IHieroContext;
     let service: TokenService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () => run.mock.calls[0][0] as TokenAirdropTransaction;
+
+    /** NFT transfers of one collection as plain values. */
+    const nftTransfers = (tokenId: string) =>
+        sentTx()
+            .nftTransfers.get(tokenId)
+            ?.map((t) => [
+                t.serial.toNumber(),
+                t.sender.toString(),
+                t.recipient.toString(),
+            ]);
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new TokenService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new TokenService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it("airdrops a single NFT serial from sender to receiver", async () => {
@@ -44,17 +53,8 @@ describe("TokenAirdropNftOperation (via TokenService)", () => {
             ],
         });
 
-        const tx = vi.mocked(TokenAirdropTransaction).mock.results[0].value;
-        const calls = tx.addNftTransfer.mock.calls;
-
-        expect(calls).toHaveLength(1);
-        const [args] = calls as [[string, number, string, string]];
-        expect(args[0]).toBe("0.0.500");
-        expect(args[1]).toBe(1);
-        expect(args[2]).toBe("0.0.700");
-        expect(args[3]).toBe("0.0.800");
-
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        expect(sentTx()).toBeInstanceOf(TokenAirdropTransaction);
+        expect(nftTransfers("0.0.500")).toEqual([[1, "0.0.700", "0.0.800"]]);
     });
 
     it("batches multiple NFT airdrops across collections, senders, and receivers", async () => {
@@ -81,17 +81,12 @@ describe("TokenAirdropNftOperation (via TokenService)", () => {
             ],
         });
 
-        const tx = vi.mocked(TokenAirdropTransaction).mock.results[0].value;
-        const calls = tx.addNftTransfer.mock.calls as Array<
-            [string, number, string, string]
-        >;
-
-        expect(calls).toHaveLength(3);
-        expect(calls[0]).toEqual(["0.0.500", 1, "0.0.700", "0.0.801"]);
-        expect(calls[1]).toEqual(["0.0.500", 2, "0.0.700", "0.0.802"]);
-        expect(calls[2]).toEqual(["0.0.600", 5, "0.0.701", "0.0.803"]);
-
-        expect(tx.execute).toHaveBeenCalledWith(context.client);
+        expect(run).toHaveBeenCalledTimes(1);
+        expect(nftTransfers("0.0.500")).toEqual([
+            [1, "0.0.700", "0.0.801"],
+            [2, "0.0.700", "0.0.802"],
+        ]);
+        expect(nftTransfers("0.0.600")).toEqual([[5, "0.0.701", "0.0.803"]]);
     });
 
     it("accepts Long-valued serials", async () => {
@@ -106,17 +101,10 @@ describe("TokenAirdropNftOperation (via TokenService)", () => {
             ],
         });
 
-        const tx = vi.mocked(TokenAirdropTransaction).mock.results[0].value;
-        const [args] = tx.addNftTransfer.mock.calls as [
-            [string, Long, string, string],
-        ];
-        expect(Long.isLong(args[1])).toBe(true);
-        expect((args[1] as Long).toString()).toBe("7");
+        expect(nftTransfers("0.0.500")).toEqual([[7, "0.0.700", "0.0.800"]]);
     });
 
-    it("applies base TransactionOptions and additionalSigners", async () => {
-        const signer = PrivateKey.generateED25519();
-
+    it("sends the TokenAirdrop event", async () => {
         await service.airdropNft({
             airdrops: [
                 {
@@ -127,23 +115,24 @@ describe("TokenAirdropNftOperation (via TokenService)", () => {
                 },
             ],
             transactionMemo: "nft airdrop memo",
-            transactionValidDuration: 60,
-            regenerateTransactionId: false,
-            additionalSigners: [signer],
         });
 
-        const tx = vi.mocked(TokenAirdropTransaction).mock.results[0].value;
-        expect(tx.setTransactionMemo).toHaveBeenCalledWith("nft airdrop memo");
-        expect(tx.setTransactionValidDuration).toHaveBeenCalledWith(60);
-        expect(tx.setRegenerateTransactionId).toHaveBeenCalledWith(false);
-        expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-        expect(tx.sign).toHaveBeenCalledWith(signer);
+        expect(run).toHaveBeenCalledWith(
+            expect.any(TokenAirdropTransaction),
+            expect.objectContaining({ transactionMemo: "nft airdrop memo" }),
+            expect.objectContaining({
+                type: "TokenAirdrop",
+                serviceName: "TokenService",
+                methodName: "airdropNft",
+            }),
+        );
     });
 
     it("throws when airdrops is empty", async () => {
         await expect(service.airdropNft({ airdrops: [] })).rejects.toThrow(
             /airdrops must not be empty/,
         );
+        expect(run).not.toHaveBeenCalled();
     });
 
     it("throws when an airdrop's tokenId is empty", async () => {

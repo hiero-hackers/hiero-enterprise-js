@@ -1,53 +1,43 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
     AccountAllowanceApproveTransaction,
     PrivateKey,
     Hbar,
-    TokenId,
-    NftId,
-    AccountId,
 } from "@hiero-ledger/sdk";
 import { AccountService } from "../../../../../src/services/account/index.js";
+import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
-import { reattachMockChain } from "../../../../utils/sdk-mocks.js";
-import type { IHieroContext } from "../../../../../src/context/index.js";
 
-const mocks = await vi.hoisted(async () => {
-    const { buildMockTxBundle } =
-        await import("../../../../utils/sdk-mocks.js");
-    return buildMockTxBundle([
-        "approveHbarAllowance",
-        "approveTokenAllowance",
-        "approveTokenNftAllowance",
-        "approveTokenNftAllowanceAllSerials",
-        "approveTokenNftAllowanceWithDelegatingSpender",
-        "deleteTokenNftAllowanceAllSerials",
-    ]);
-});
+// Builds real SDK transactions; only the executor, which sends them, is
+// stubbed.
 
-vi.mock("@hiero-ledger/sdk", async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    return {
-        ...actual,
-        AccountAllowanceApproveTransaction: vi.fn(function () {
-            return mocks.tx;
-        }),
-    };
-});
+const receipt = {
+    receipt: {},
+    status: "SUCCESS",
+    transactionId: "0.0.2@1700000000.000000000",
+};
 
 describe("ApproveAllowanceOperation (via AccountService)", () => {
-    let context: IHieroContext;
     let service: AccountService;
+    let run: ReturnType<typeof vi.spyOn>;
+
+    /** The transaction handed to the executor. */
+    const sentTx = () =>
+        run.mock.calls[0][0] as AccountAllowanceApproveTransaction;
 
     beforeEach(() => {
-        vi.clearAllMocks();
-        reattachMockChain(mocks);
-        context = createMockContext();
-        service = new AccountService(context);
+        run = vi
+            .spyOn(TransactionExecutor.prototype, "run")
+            .mockResolvedValue(receipt as never);
+        service = new AccountService(createMockContext());
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     describe("approveHbarAllowance", () => {
-        it("approves an HBAR allowance with correct SDK arguments", async () => {
+        it("approves an HBAR allowance and returns the executor result", async () => {
             const result = await service.approveHbarAllowance({
                 hbarAllowances: [
                     {
@@ -58,23 +48,22 @@ describe("ApproveAllowanceOperation (via AccountService)", () => {
                 ],
             });
 
-            // No SDK receipt leaks to consumers — just the floor result.
             expect(result).toMatchObject({
-                transactionId: "0.0.123@1234567890.000000000",
+                transactionId: receipt.transactionId,
                 status: "SUCCESS",
             });
-
-            const tx = vi.mocked(AccountAllowanceApproveTransaction).mock
-                .results[0].value;
-            expect(tx.approveHbarAllowance).toHaveBeenCalledWith(
-                "0.0.100",
-                "0.0.200",
-                new Hbar(10),
+            const tx = sentTx();
+            expect(tx).toBeInstanceOf(AccountAllowanceApproveTransaction);
+            expect(tx.hbarApprovals).toHaveLength(1);
+            const [approval] = tx.hbarApprovals;
+            expect(approval.ownerAccountId?.toString()).toBe("0.0.100");
+            expect(approval.spenderAccountId?.toString()).toBe("0.0.200");
+            expect(approval.amount?.toTinybars().toString()).toBe(
+                new Hbar(10).toTinybars().toString(),
             );
-            expect(tx.execute).toHaveBeenCalledWith(context.client);
         });
 
-        it("freezes and signs with additionalSigners", async () => {
+        it("forwards additionalSigners to the executor", async () => {
             const ownerKey = PrivateKey.generateED25519();
 
             await service.approveHbarAllowance({
@@ -88,15 +77,16 @@ describe("ApproveAllowanceOperation (via AccountService)", () => {
                 additionalSigners: [ownerKey],
             });
 
-            const tx = vi.mocked(AccountAllowanceApproveTransaction).mock
-                .results[0].value;
-            expect(tx.freezeWith).toHaveBeenCalledWith(context.client);
-            expect(tx.sign).toHaveBeenCalledWith(ownerKey);
+            expect(run).toHaveBeenCalledWith(
+                expect.any(AccountAllowanceApproveTransaction),
+                expect.objectContaining({ additionalSigners: [ownerKey] }),
+                expect.objectContaining({ type: "AccountAllowanceApprove" }),
+            );
         });
     });
 
     describe("approveTokenAllowance", () => {
-        it("approves a fungible token allowance with correct SDK arguments", async () => {
+        it("approves a fungible token allowance", async () => {
             await service.approveTokenAllowance({
                 tokenAllowances: [
                     {
@@ -108,19 +98,16 @@ describe("ApproveAllowanceOperation (via AccountService)", () => {
                 ],
             });
 
-            const tx = vi.mocked(AccountAllowanceApproveTransaction).mock
-                .results[0].value;
-            expect(tx.approveTokenAllowance).toHaveBeenCalledWith(
-                "0.0.500",
-                "0.0.100",
-                "0.0.200",
-                BigInt(5000),
-            );
+            const [approval] = sentTx().tokenApprovals;
+            expect(approval.tokenId.toString()).toBe("0.0.500");
+            expect(approval.ownerAccountId?.toString()).toBe("0.0.100");
+            expect(approval.spenderAccountId?.toString()).toBe("0.0.200");
+            expect(approval.amount?.toNumber()).toBe(5000);
         });
     });
 
     describe("approveNftAllowance", () => {
-        it("approves NFT allowance with correct SDK arguments per serial", async () => {
+        it("approves an NFT allowance for each serial", async () => {
             await service.approveNftAllowance({
                 nftAllowances: [
                     {
@@ -132,27 +119,18 @@ describe("ApproveAllowanceOperation (via AccountService)", () => {
                 ],
             });
 
-            const tx = vi.mocked(AccountAllowanceApproveTransaction).mock
-                .results[0].value;
-            expect(tx.approveTokenNftAllowance).toHaveBeenCalledTimes(3);
-            expect(tx.approveTokenNftAllowance).toHaveBeenCalledWith(
-                new NftId(TokenId.fromString("0.0.600"), 1),
-                "0.0.100",
-                "0.0.200",
-            );
-            expect(tx.approveTokenNftAllowance).toHaveBeenCalledWith(
-                new NftId(TokenId.fromString("0.0.600"), 2),
-                "0.0.100",
-                "0.0.200",
-            );
-            expect(tx.approveTokenNftAllowance).toHaveBeenCalledWith(
-                new NftId(TokenId.fromString("0.0.600"), 3),
-                "0.0.100",
-                "0.0.200",
-            );
+            const [approval] = sentTx().tokenNftApprovals;
+            expect(approval.tokenId.toString()).toBe("0.0.600");
+            expect(approval.ownerAccountId?.toString()).toBe("0.0.100");
+            expect(approval.spenderAccountId?.toString()).toBe("0.0.200");
+            expect(approval.serialNumbers?.map((s) => s.toNumber())).toEqual([
+                1, 2, 3,
+            ]);
+            expect(approval.allSerials).toBe(false);
+            expect(approval.delegatingSpender).toBeFalsy();
         });
 
-        it("approves NFT allowance for all serials with correct SDK arguments", async () => {
+        it("approves an NFT allowance for all serials", async () => {
             await service.approveNftAllowance({
                 nftAllowances: [
                     {
@@ -164,16 +142,15 @@ describe("ApproveAllowanceOperation (via AccountService)", () => {
                 ],
             });
 
-            const tx = vi.mocked(AccountAllowanceApproveTransaction).mock
-                .results[0].value;
-            expect(tx.approveTokenNftAllowanceAllSerials).toHaveBeenCalledWith(
-                TokenId.fromString("0.0.600"),
-                "0.0.100",
-                "0.0.200",
-            );
+            const [approval] = sentTx().tokenNftApprovals;
+            expect(approval.tokenId.toString()).toBe("0.0.600");
+            expect(approval.ownerAccountId?.toString()).toBe("0.0.100");
+            expect(approval.spenderAccountId?.toString()).toBe("0.0.200");
+            expect(approval.allSerials).toBe(true);
+            expect(approval.serialNumbers).toBeFalsy();
         });
 
-        it("calls approveTokenNftAllowanceWithDelegatingSpender with correct SDK arguments", async () => {
+        it("approves each serial with the delegating spender when set", async () => {
             await service.approveNftAllowance({
                 nftAllowances: [
                     {
@@ -186,28 +163,16 @@ describe("ApproveAllowanceOperation (via AccountService)", () => {
                 ],
             });
 
-            const tx = vi.mocked(AccountAllowanceApproveTransaction).mock
-                .results[0].value;
-            expect(
-                tx.approveTokenNftAllowanceWithDelegatingSpender,
-            ).toHaveBeenCalledTimes(2);
-            expect(
-                tx.approveTokenNftAllowanceWithDelegatingSpender,
-            ).toHaveBeenCalledWith(
-                new NftId(TokenId.fromString("0.0.600"), 1),
-                "0.0.100",
-                AccountId.fromString("0.0.200"),
-                "0.0.300",
-            );
-            expect(
-                tx.approveTokenNftAllowanceWithDelegatingSpender,
-            ).toHaveBeenCalledWith(
-                new NftId(TokenId.fromString("0.0.600"), 2),
-                "0.0.100",
-                AccountId.fromString("0.0.200"),
-                "0.0.300",
-            );
-            expect(tx.approveTokenNftAllowance).not.toHaveBeenCalled();
+            const approvals = sentTx().tokenNftApprovals;
+            expect(approvals).toHaveLength(1);
+            const [approval] = approvals;
+            expect(approval.tokenId.toString()).toBe("0.0.600");
+            expect(approval.ownerAccountId?.toString()).toBe("0.0.100");
+            expect(approval.spenderAccountId?.toString()).toBe("0.0.200");
+            expect(approval.serialNumbers?.map((s) => s.toNumber())).toEqual([
+                1, 2,
+            ]);
+            expect(approval.delegatingSpender?.toString()).toBe("0.0.300");
         });
 
         it("ignores delegatingSpender when allSerials is true", async () => {
@@ -223,12 +188,9 @@ describe("ApproveAllowanceOperation (via AccountService)", () => {
                 ],
             });
 
-            const tx = vi.mocked(AccountAllowanceApproveTransaction).mock
-                .results[0].value;
-            expect(tx.approveTokenNftAllowanceAllSerials).toHaveBeenCalled();
-            expect(
-                tx.approveTokenNftAllowanceWithDelegatingSpender,
-            ).not.toHaveBeenCalled();
+            const [approval] = sentTx().tokenNftApprovals;
+            expect(approval.allSerials).toBe(true);
+            expect(approval.delegatingSpender).toBeFalsy();
         });
     });
 });
