@@ -1,7 +1,6 @@
 import type { TopicId } from "@hiero-ledger/sdk";
 import { TopicDeleteTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type { TransactionOptions } from "../../transaction/index.js";
 import { TopicDeleteValidator } from "../validation/index.js";
 
@@ -24,30 +23,18 @@ export interface TopicDeleteOperationOptions extends TransactionOptions {
     topicId: TopicId | string;
 }
 
-export class TopicDeleteOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TopicDeleteValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TopicDeleteValidator();
-    }
+export class TopicDeleteOperation extends BaseOperation<TopicDeleteOperationOptions> {
+    protected readonly type = "TopicDelete";
+    protected readonly serviceName = "TopicService";
+    protected readonly methodName = "deleteTopic";
+    protected readonly validator = new TopicDeleteValidator();
 
     /** Submit a `TopicDeleteTransaction`. */
     async execute(options: TopicDeleteOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "TopicDelete",
-            serviceName: "TopicService",
-            methodName: "deleteTopic",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
-    private build(
+    protected build(
         options: TopicDeleteOperationOptions,
     ): TopicDeleteTransaction {
         return new TopicDeleteTransaction().setTopicId(options.topicId);

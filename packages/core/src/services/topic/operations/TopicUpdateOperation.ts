@@ -7,8 +7,7 @@ import type {
     TopicId,
 } from "@hiero-ledger/sdk";
 import { TopicUpdateTransaction, KeyList } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type { TransactionOptions } from "../../transaction/index.js";
 import { TopicUpdateValidator } from "../validation/index.js";
 
@@ -94,30 +93,18 @@ export interface TopicUpdateOperationOptions extends TransactionOptions {
     expirationTime?: Timestamp | Date;
 }
 
-export class TopicUpdateOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: TopicUpdateValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new TopicUpdateValidator();
-    }
+export class TopicUpdateOperation extends BaseOperation<TopicUpdateOperationOptions> {
+    protected readonly type = "TopicUpdate";
+    protected readonly serviceName = "TopicService";
+    protected readonly methodName = "updateTopic";
+    protected readonly validator = new TopicUpdateValidator();
 
     /** Submit a `TopicUpdateTransaction`. */
     async execute(options: TopicUpdateOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "TopicUpdate",
-            serviceName: "TopicService",
-            methodName: "updateTopic",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
-    private build(
+    protected build(
         options: TopicUpdateOperationOptions,
     ): TopicUpdateTransaction {
         const tx = new TopicUpdateTransaction().setTopicId(options.topicId);

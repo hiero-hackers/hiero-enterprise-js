@@ -1,4 +1,5 @@
 export { TransactionExecutor } from "./TransactionExecutor.js";
+export { BaseOperation } from "./BaseOperation.js";
 export { QueryExecutor } from "./QueryExecutor.js";
 export type {
     TransactionOptions,
