@@ -27,6 +27,12 @@ describe("HieroError", () => {
         expect(error.cause).toBe(cause);
     });
 
+    it("keeps a cause that is not an Error", () => {
+        const cause = { reason: "socket closed" };
+        const error = new HieroError("wrapped", { cause });
+        expect(error.cause).toBe(cause);
+    });
+
     it("is instanceof Error", () => {
         const error = new HieroError("test");
         expect(error).toBeInstanceOf(Error);
@@ -87,10 +93,12 @@ describe("normalizeError", () => {
         const result = normalizeError("oops");
         expect(result.message).toBe("oops");
         expect(result.code).toBe(HieroErrorCodes.Unknown);
+        expect(result.cause).toBe("oops");
     });
 
     it("wraps a number", () => {
         const result = normalizeError(42);
         expect(result.message).toBe("42");
+        expect(result.cause).toBe(42);
     });
 });

@@ -124,6 +124,17 @@ describe("AutoCreateEvmAccountOperation (via AccountService)", () => {
                 message: expect.stringContaining("Do not resubmit"),
             });
         });
+
+        it("keeps a non-Error failure as the cause", async () => {
+            execute.mockRejectedValueOnce("socket closed");
+
+            await expect(
+                service.autoCreateEvmAccount({ evmAddress, amount: 5 }),
+            ).rejects.toMatchObject({
+                cause: "socket closed",
+                message: expect.stringContaining("failed: socket closed."),
+            });
+        });
     });
 
     describe("scheduleAutoCreateEvmAccount", () => {

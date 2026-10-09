@@ -207,6 +207,22 @@ describe("ContractExecuteOperation (via ContractService)", () => {
             });
         });
 
+        it("keeps a non-Error record-fetch failure as the cause", async () => {
+            recordQuery.mockRejectedValueOnce("socket closed");
+
+            await expect(
+                service.executeContract({
+                    contractId: "0.0.12345",
+                    gas: 100_000,
+                    functionName: "increment",
+                    withFunctionResult: true,
+                }),
+            ).rejects.toMatchObject({
+                cause: "socket closed",
+                message: expect.stringContaining("failed: socket closed."),
+            });
+        });
+
         it("encodes ABI-typed function parameters", async () => {
             const params = new ContractFunctionParameters().addUint256(42);
 

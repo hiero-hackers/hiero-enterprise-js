@@ -130,7 +130,7 @@ export class HieroContext implements IHieroContext {
                 `Invalid operator account ID "${resolved.operatorId}". Expected the form "0.0.12345".`,
                 {
                     code: HieroErrorCodes.ConfigInvalid,
-                    cause: cause instanceof Error ? cause : undefined,
+                    cause,
                 },
             );
         }
@@ -145,7 +145,7 @@ export class HieroContext implements IHieroContext {
                 `Invalid operator key. Ensure HIERO_OPERATOR_KEY is valid for type "${resolved.operatorKeyType}".`,
                 {
                     code: HieroErrorCodes.ConfigInvalid,
-                    cause: cause instanceof Error ? cause : undefined,
+                    cause,
                 },
             );
         }
