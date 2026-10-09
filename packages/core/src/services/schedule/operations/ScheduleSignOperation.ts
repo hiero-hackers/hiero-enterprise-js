@@ -1,7 +1,6 @@
 import type { ScheduleId } from "@hiero-ledger/sdk";
 import { ScheduleSignTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type { TransactionOptions } from "../../transaction/index.js";
 import { ScheduleSignValidator } from "../validation/index.js";
 
@@ -17,14 +16,11 @@ export interface ScheduleSignOptions extends TransactionOptions {
     scheduleId: string | ScheduleId;
 }
 
-export class ScheduleSignOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: ScheduleSignValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new ScheduleSignValidator();
-    }
+export class ScheduleSignOperation extends BaseOperation<ScheduleSignOptions> {
+    protected readonly type = "ScheduleSign";
+    protected readonly serviceName = "ScheduleService";
+    protected readonly methodName = "sign";
+    protected readonly validator = new ScheduleSignValidator();
 
     /**
      * Schedule sign execute handler.
@@ -34,21 +30,15 @@ export class ScheduleSignOperation {
      *   receipt or record when the network reports it.
      */
     async execute(options: ScheduleSignOptions) {
-        // Validate options before any SDK construction
-        this.validator.validate(options);
-        const tx = new ScheduleSignTransaction().setScheduleId(
-            options.scheduleId,
-        );
-        const results = await this.executor.run(tx, options, {
-            type: "ScheduleSign",
-            serviceName: "ScheduleService",
-            methodName: "sign",
-            timestamp: new Date(),
-        });
+        const results = await this.run(options);
         return {
             ...results,
             scheduledTransactionId:
                 results.receipt.scheduledTransactionId ?? null,
         };
+    }
+
+    protected build(options: ScheduleSignOptions): ScheduleSignTransaction {
+        return new ScheduleSignTransaction().setScheduleId(options.scheduleId);
     }
 }
