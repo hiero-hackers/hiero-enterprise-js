@@ -2,9 +2,8 @@ import type { TransactionReceipt, Key } from "@hiero-ledger/sdk";
 import { AccountCreateTransaction, PublicKey, Hbar } from "@hiero-ledger/sdk";
 import { AccountType } from "../../../types/index.js";
 import type { Account } from "../../../types/index.js";
-import type { IHieroContext } from "../../../context/index.js";
 import { HieroError } from "../../../errors/HieroError.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type {
     TransactionOptions,
     ScheduleOptions,
@@ -97,30 +96,15 @@ export interface CreateAccountOptions extends TransactionOptions {
     autoRenewPeriod?: number;
 }
 
-export class CreateAccountOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: CreateAccountValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new CreateAccountValidator();
-    }
+export class CreateAccountOperation extends BaseOperation<CreateAccountOptions> {
+    protected readonly type = "AccountCreate";
+    protected readonly serviceName = "AccountService";
+    protected readonly methodName = "createAccount";
+    protected readonly validator = new CreateAccountValidator();
 
     /** Create account execute handler. */
     async execute(options: CreateAccountOptions) {
-        // Validate options first — before any key parsing or SDK construction
-        this.validator.validate(options);
-
-        // Build the transaction with the parsed options
-        const tx = this.build(options);
-
-        // Execute the transaction and merge the derived account fields
-        const results = await this.executor.run(tx, options, {
-            type: "AccountCreate",
-            serviceName: "AccountService",
-            methodName: "createAccount",
-            timestamp: new Date(),
-        });
+        const results = await this.run(options);
         return {
             ...results,
             ...this.toAccount(results.receipt, options),
@@ -132,26 +116,14 @@ export class CreateAccountOperation {
         options: CreateAccountOptions,
         scheduleOptions?: ScheduleOptions,
     ) {
-        this.validator.validate(options);
-        const tx = this.build(options);
-        return await this.executor.scheduleRun(
-            tx,
-            options,
-            {
-                type: "AccountCreate",
-                serviceName: "AccountService",
-                methodName: "createAccount",
-                timestamp: new Date(),
-            },
-            scheduleOptions,
-        );
+        return await this.scheduleRun(options, scheduleOptions);
     }
 
     /**
      * Constructs the `AccountCreateTransaction` from the caller-provided
      * options.
      */
-    private build(options: CreateAccountOptions): AccountCreateTransaction {
+    protected build(options: CreateAccountOptions): AccountCreateTransaction {
         const tx = new AccountCreateTransaction();
 
         if (options.key != null) {
