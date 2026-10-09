@@ -30,8 +30,8 @@ export class HieroError extends Error {
     public readonly sdkStatus?: string;
     /** Additional context about what operation was being performed */
     public readonly context?: string;
-    /** The original error that caused this error */
-    public override readonly cause?: Error;
+    /** The original thrown value; not always an `Error` */
+    public override readonly cause?: unknown;
     /** Transaction ID if available (from ReceiptStatusError) */
     public readonly transactionId?: string;
     /** File entity ID when the failure occurred mid-way through a multi-step file operation */
@@ -43,7 +43,7 @@ export class HieroError extends Error {
             code?: HieroErrorCode;
             sdkStatus?: string;
             context?: string;
-            cause?: Error;
+            cause?: unknown;
             transactionId?: string;
             fileId?: string;
         } = {},
@@ -107,6 +107,7 @@ export function normalizeError(error: unknown, context?: string): HieroError {
     return new HieroError(String(error), {
         code: HieroErrorCodes.Unknown,
         context,
+        cause: error,
     });
 }
 

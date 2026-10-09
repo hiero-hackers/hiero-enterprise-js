@@ -120,18 +120,18 @@ export class ContractExecuteOperation {
             // failed. A plain rethrow would read as a failed transaction
             // and invite a resubmit; say what actually happened and hand
             // back the transaction id to recover the outcome with.
-            const cause =
-                error instanceof Error ? error : new Error(String(error));
+            const reason =
+                error instanceof Error ? error.message : String(error);
             throw new HieroError(
                 `Transaction ${results.transactionId} reached consensus ` +
                     `with status ${results.status}, but fetching its record ` +
-                    `for the function result failed: ${cause.message}. Do ` +
+                    `for the function result failed: ${reason}. Do ` +
                     `not resubmit — look up the outcome via the transaction id.`,
                 {
                     code: HieroErrorCodes.ResultMappingFailed,
                     context: "ContractService.executeContract",
                     transactionId: results.transactionId,
-                    cause,
+                    cause: error,
                 },
             );
         }

@@ -64,19 +64,19 @@ export class AutoCreateEvmAccountOperation {
             // post-consensus error code says exactly what happened: the
             // transfer landed (do not resubmit); recover the outcome via
             // the transaction id.
-            const cause =
-                error instanceof Error ? error : new Error(String(error));
+            const reason =
+                error instanceof Error ? error.message : String(error);
             throw new HieroError(
                 `Transfer ${results.transactionId} reached consensus with ` +
                     `status ${results.status}, but fetching the child receipt ` +
                     `(which carries the created account id) failed: ` +
-                    `${cause.message}. Do not resubmit the transfer — look up ` +
+                    `${reason}. Do not resubmit the transfer — look up ` +
                     `the outcome via the transaction id.`,
                 {
                     code: HieroErrorCodes.ResultMappingFailed,
                     context: "AccountService.autoCreateEvmAccount",
                     transactionId: results.transactionId,
-                    cause,
+                    cause: error,
                 },
             );
         }
