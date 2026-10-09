@@ -1,7 +1,6 @@
 import type { Key, KeyList, Timestamp } from "@hiero-ledger/sdk";
 import { FileCreateTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type { TransactionOptions } from "../../transaction/index.js";
 import { FileCreateValidator } from "../validation/index.js";
 import { HieroError } from "../../../errors/HieroError.js";
@@ -57,27 +56,15 @@ export interface FileCreateOperationOptions extends TransactionOptions {
     expirationTime?: Date | Timestamp;
 }
 
-export class FileCreateOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: FileCreateValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new FileCreateValidator();
-    }
+export class FileCreateOperation extends BaseOperation<FileCreateOperationOptions> {
+    protected readonly type = "FileCreate";
+    protected readonly serviceName = "FileService";
+    protected readonly methodName = "createFile";
+    protected readonly validator = new FileCreateValidator();
 
     /** Submit a `FileCreateTransaction` and return the new file ID. */
     async execute(options: FileCreateOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        const results = await this.executor.run(tx, options, {
-            type: "FileCreate",
-            serviceName: "FileService",
-            methodName: "createFile",
-            timestamp: new Date(),
-        });
+        const results = await this.run(options);
 
         if (!results.receipt.fileId) {
             throw new HieroError(
@@ -97,7 +84,9 @@ export class FileCreateOperation {
         };
     }
 
-    private build(options: FileCreateOperationOptions): FileCreateTransaction {
+    protected build(
+        options: FileCreateOperationOptions,
+    ): FileCreateTransaction {
         const tx = new FileCreateTransaction();
 
         if (options.contents !== undefined) {

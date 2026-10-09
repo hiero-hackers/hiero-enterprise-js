@@ -1,7 +1,6 @@
 import type { FileId } from "@hiero-ledger/sdk";
 import { FileAppendTransaction } from "@hiero-ledger/sdk";
-import type { IHieroContext } from "../../../context/index.js";
-import { TransactionExecutor } from "../../transaction/index.js";
+import { BaseOperation } from "../../transaction/index.js";
 import type { TransactionOptions } from "../../transaction/index.js";
 import { FileAppendValidator } from "../validation/index.js";
 
@@ -46,30 +45,20 @@ export interface FileAppendOperationOptions extends TransactionOptions {
     chunkInterval?: number;
 }
 
-export class FileAppendOperation {
-    private readonly executor: TransactionExecutor;
-    private readonly validator: FileAppendValidator;
-
-    constructor(private readonly context: IHieroContext) {
-        this.executor = new TransactionExecutor(context);
-        this.validator = new FileAppendValidator();
-    }
+export class FileAppendOperation extends BaseOperation<FileAppendOperationOptions> {
+    protected readonly type = "FileAppend";
+    protected readonly serviceName = "FileService";
+    protected readonly methodName = "appendToFile";
+    protected readonly validator = new FileAppendValidator();
 
     /** Submit a `FileAppendTransaction`. */
     async execute(options: FileAppendOperationOptions) {
-        this.validator.validate(options);
-
-        const tx = this.build(options);
-
-        return await this.executor.run(tx, options, {
-            type: "FileAppend",
-            serviceName: "FileService",
-            methodName: "appendToFile",
-            timestamp: new Date(),
-        });
+        return await this.run(options);
     }
 
-    private build(options: FileAppendOperationOptions): FileAppendTransaction {
+    protected build(
+        options: FileAppendOperationOptions,
+    ): FileAppendTransaction {
         const tx = new FileAppendTransaction()
             .setFileId(options.fileId)
             .setContents(options.contents);
