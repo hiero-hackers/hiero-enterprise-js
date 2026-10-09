@@ -80,6 +80,61 @@ jobs:
                     echo "::endgroup::"
                   done
 
+            - name: Run unit tests
+              run: pnpm --filter @hiero-hackers/enterprise-core run test:unit:coverage
+
+            - name: Report unit coverage
+              if: ${{ always() && matrix.node-version == 24 }}
+              uses: davelosert/vitest-coverage-report-action@c4bbc33a89b7ace0e63d35f1f7d4bcee31155a73 # v2.13.0
+              with:
+                  name: "core / unit"
+                  # `working-directory` scopes the paths below; keep them
+                  # relative to `./packages/core` so the action resolves
+                  # them under it rather than doubling the prefix.
+                  working-directory: ./packages/core
+                  json-summary-path: ./coverage/node/coverage-summary.json
+                  json-final-path: ./coverage/node/coverage-final.json
+                  vite-config-path: ./test/vitest.config.ts
+                  file-coverage-mode: changes
+
+            - name: Run mirror unit tests
+              run: pnpm --filter @hiero-hackers/enterprise-mirror run test:unit:coverage
+
+            - name: Report mirror unit coverage
+              if: ${{ always() && matrix.node-version == 24 }}
+              uses: davelosert/vitest-coverage-report-action@c4bbc33a89b7ace0e63d35f1f7d4bcee31155a73 # v2.13.0
+              with:
+                  name: "mirror / unit"
+                  working-directory: ./packages/mirror
+                  json-summary-path: ./coverage/node/coverage-summary.json
+                  json-final-path: ./coverage/node/coverage-final.json
+                  vite-config-path: ./test/vitest.config.ts
+                  file-coverage-mode: changes
+
+            - name: Extract unit coverage percentage
+              # Only run on push to main so the badge reflects the merged
+              # state.
+              if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.node-version == 24 }}
+              id: coverage
+              run: |
+                  pct=$(node -e "console.log(require('./packages/core/coverage/node/coverage-summary.json').total.lines.pct)")
+                  echo "pct=$pct" >> "$GITHUB_OUTPUT"
+
+            - name: Update coverage badge gist
+              if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.node-version == 24 }}
+              uses: Schneegans/dynamic-badges-action@28b0fa8bdeb46170ac397105ece0c1fe58f68910 # v1.9.0
+              with:
+                  auth: ${{ secrets.GIST_SECRET }}
+                  gistID: ${{ vars.COVERAGE_GIST_ID }}
+                  filename: hiero-enterprise-js-coverage.json
+                  label: coverage
+                  message: ${{ steps.coverage.outputs.pct }}%
+                  valColorRange: ${{ steps.coverage.outputs.pct }}
+                  minColorRange: 50
+                  maxColorRange: 95
+
+            # Everything above runs without a network. The steps below need
+            # the Solo network, so they only start once the offline checks pass.
             - name: Setup Hiero Solo Network
               uses: hiero-ledger/hiero-solo-action@c5326debc5b38e50fa4032361c0a35f46166c0e7 # v0.25.0
               id: solo
@@ -149,63 +204,6 @@ jobs:
                   json-final-path: ./coverage/integration/coverage-final.json
                   vite-config-path: ./test/vitest-integration.config.ts
                   file-coverage-mode: changes
-
-            - name: Run unit tests
-              env:
-                  HIERO_NETWORK: hiero-solo-action
-                  HIERO_OPERATOR_ID: ${{ steps.solo.outputs.accountId }}
-                  HIERO_OPERATOR_KEY: ${{ steps.solo.outputs.privateKey }}
-              run: pnpm --filter @hiero-hackers/enterprise-core run test:unit:coverage
-
-            - name: Report unit coverage
-              if: ${{ always() && matrix.node-version == 24 }}
-              uses: davelosert/vitest-coverage-report-action@c4bbc33a89b7ace0e63d35f1f7d4bcee31155a73 # v2.13.0
-              with:
-                  name: "core / unit"
-                  # `working-directory` scopes the paths below; keep them
-                  # relative to `./packages/core` so the action resolves
-                  # them under it rather than doubling the prefix.
-                  working-directory: ./packages/core
-                  json-summary-path: ./coverage/node/coverage-summary.json
-                  json-final-path: ./coverage/node/coverage-final.json
-                  vite-config-path: ./test/vitest.config.ts
-                  file-coverage-mode: changes
-
-            - name: Run mirror unit tests
-              run: pnpm --filter @hiero-hackers/enterprise-mirror run test:unit:coverage
-
-            - name: Report mirror unit coverage
-              if: ${{ always() && matrix.node-version == 24 }}
-              uses: davelosert/vitest-coverage-report-action@c4bbc33a89b7ace0e63d35f1f7d4bcee31155a73 # v2.13.0
-              with:
-                  name: "mirror / unit"
-                  working-directory: ./packages/mirror
-                  json-summary-path: ./coverage/node/coverage-summary.json
-                  json-final-path: ./coverage/node/coverage-final.json
-                  vite-config-path: ./test/vitest.config.ts
-                  file-coverage-mode: changes
-
-            - name: Extract unit coverage percentage
-              # Only run on push to main so the badge reflects the merged
-              # state.
-              if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.node-version == 24 }}
-              id: coverage
-              run: |
-                  pct=$(node -e "console.log(require('./packages/core/coverage/node/coverage-summary.json').total.lines.pct)")
-                  echo "pct=$pct" >> "$GITHUB_OUTPUT"
-
-            - name: Update coverage badge gist
-              if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.node-version == 24 }}
-              uses: Schneegans/dynamic-badges-action@28b0fa8bdeb46170ac397105ece0c1fe58f68910 # v1.9.0
-              with:
-                  auth: ${{ secrets.GIST_SECRET }}
-                  gistID: ${{ vars.COVERAGE_GIST_ID }}
-                  filename: hiero-enterprise-js-coverage.json
-                  label: coverage
-                  message: ${{ steps.coverage.outputs.pct }}%
-                  valColorRange: ${{ steps.coverage.outputs.pct }}
-                  minColorRange: 50
-                  maxColorRange: 95
 
             - name: Run examples
               env:
