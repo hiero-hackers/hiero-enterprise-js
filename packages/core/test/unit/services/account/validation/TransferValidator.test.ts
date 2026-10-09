@@ -35,6 +35,13 @@ describe("TransferValidator", () => {
                     amount: 10,
                 }),
             ).toThrow(/senderAccountId must not be empty/);
+            expect(() =>
+                validator.validateHbarTransfer({
+                    senderAccountId: "",
+                    receiverAccountId: "0.0.200",
+                    amount: 10,
+                }),
+            ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
         });
 
         it("throws when receiverAccountId is empty string", () => {

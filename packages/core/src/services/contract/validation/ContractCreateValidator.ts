@@ -1,5 +1,5 @@
 import { Long } from "@hiero-ledger/sdk";
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { ContractCreateOperationOptions } from "../operations/ContractCreateOperation.js";
 
 const MAX_CONTRACT_MEMO_BYTES = 100;
@@ -32,36 +32,32 @@ export class ContractCreateValidator {
         const hasBytecode = options.bytecode != null;
 
         if (!hasFileId && !hasBytecode) {
-            throw normalizeError(
-                new Error(
-                    "ContractCreate requires either bytecodeFileId or bytecode.",
-                ),
+            throw validationError(
                 "ContractCreateValidator",
+                "ContractCreate requires either bytecodeFileId or bytecode.",
             );
         }
 
         if (hasFileId && hasBytecode) {
-            throw normalizeError(
-                new Error(
-                    "ContractCreate accepts bytecodeFileId or bytecode, not both.",
-                ),
+            throw validationError(
                 "ContractCreateValidator",
+                "ContractCreate accepts bytecodeFileId or bytecode, not both.",
             );
         }
 
         if (hasBytecode && options.bytecode!.length === 0) {
-            throw normalizeError(
-                new Error("bytecode must not be empty."),
+            throw validationError(
                 "ContractCreateValidator",
+                "bytecode must not be empty.",
             );
         }
     }
 
     private validateGas(options: ContractCreateOperationOptions): void {
         if (options.gas == null) {
-            throw normalizeError(
-                new Error("gas is required."),
+            throw validationError(
                 "ContractCreateValidator",
+                "gas is required.",
             );
         }
 
@@ -71,9 +67,9 @@ export class ContractCreateValidator {
                 : options.gas.greaterThan(0);
 
         if (!isPositive) {
-            throw normalizeError(
-                new Error("gas must be greater than zero."),
+            throw validationError(
                 "ContractCreateValidator",
+                "gas must be greater than zero.",
             );
         }
     }
@@ -85,26 +81,24 @@ export class ContractCreateValidator {
         if (value == null) return;
 
         if (typeof value === "number" && value < 0) {
-            throw normalizeError(
-                new Error("initialBalance must not be negative."),
+            throw validationError(
                 "ContractCreateValidator",
+                "initialBalance must not be negative.",
             );
         }
 
         // The SDK treats a bigint as 0 HBAR, so reject it.
         if (typeof value === "bigint") {
-            throw normalizeError(
-                new Error(
-                    "initialBalance must be a number, string, Long, BigNumber or Hbar, not a bigint.",
-                ),
+            throw validationError(
                 "ContractCreateValidator",
+                "initialBalance must be a number, string, Long, BigNumber or Hbar, not a bigint.",
             );
         }
 
         if (Long.isLong(value) && (value as Long).isNegative()) {
-            throw normalizeError(
-                new Error("initialBalance must not be negative."),
+            throw validationError(
                 "ContractCreateValidator",
+                "initialBalance must not be negative.",
             );
         }
     }
@@ -114,11 +108,9 @@ export class ContractCreateValidator {
 
         const byteLength = Buffer.byteLength(options.contractMemo, "utf8");
         if (byteLength > MAX_CONTRACT_MEMO_BYTES) {
-            throw normalizeError(
-                new Error(
-                    `contractMemo exceeds ${MAX_CONTRACT_MEMO_BYTES} bytes (got ${byteLength}).`,
-                ),
+            throw validationError(
                 "ContractCreateValidator",
+                `contractMemo exceeds ${MAX_CONTRACT_MEMO_BYTES} bytes (got ${byteLength}).`,
             );
         }
     }
@@ -127,11 +119,9 @@ export class ContractCreateValidator {
         options: ContractCreateOperationOptions,
     ): void {
         if (options.stakedAccountId != null && options.stakedNodeId != null) {
-            throw normalizeError(
-                new Error(
-                    "Specify either stakedAccountId or stakedNodeId, not both.",
-                ),
+            throw validationError(
                 "ContractCreateValidator",
+                "Specify either stakedAccountId or stakedNodeId, not both.",
             );
         }
     }

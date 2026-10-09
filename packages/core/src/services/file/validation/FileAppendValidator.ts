@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { FileAppendOperationOptions } from "../operations/index.js";
 
 /**
@@ -29,28 +29,25 @@ export class FileAppendValidator {
 
     private validateFileId(options: FileAppendOperationOptions): void {
         if (options.fileId == null) {
-            throw normalizeError(
-                new Error("fileId is required."),
-                "FileAppendValidator",
-            );
+            throw validationError("FileAppendValidator", "fileId is required.");
         }
 
         if (
             typeof options.fileId === "string" &&
             options.fileId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("fileId cannot be empty."),
+            throw validationError(
                 "FileAppendValidator",
+                "fileId cannot be empty.",
             );
         }
     }
 
     private validateContents(options: FileAppendOperationOptions): void {
         if (options.contents == null) {
-            throw normalizeError(
-                new Error("contents is required."),
+            throw validationError(
                 "FileAppendValidator",
+                "contents is required.",
             );
         }
     }
@@ -58,18 +55,18 @@ export class FileAppendValidator {
     private validateChunkBounds(options: FileAppendOperationOptions): void {
         if (options.maxChunks != null) {
             if (!Number.isInteger(options.maxChunks) || options.maxChunks < 1) {
-                throw normalizeError(
-                    new Error("maxChunks must be a positive integer."),
+                throw validationError(
                     "FileAppendValidator",
+                    "maxChunks must be a positive integer.",
                 );
             }
         }
 
         if (options.chunkSize != null) {
             if (!Number.isInteger(options.chunkSize) || options.chunkSize < 1) {
-                throw normalizeError(
-                    new Error("chunkSize must be a positive integer."),
+                throw validationError(
                     "FileAppendValidator",
+                    "chunkSize must be a positive integer.",
                 );
             }
         }

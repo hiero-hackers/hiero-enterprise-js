@@ -31,6 +31,11 @@ describe("ContractCreateValidator", () => {
                     gas: 100_000,
                 } as unknown as ContractCreateOperationOptions),
             ).toThrow(/bytecodeFileId or bytecode/);
+            expect(() =>
+                validator.validate({
+                    gas: 100_000,
+                } as unknown as ContractCreateOperationOptions),
+            ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
         });
 
         it("throws when both sources are provided", () => {

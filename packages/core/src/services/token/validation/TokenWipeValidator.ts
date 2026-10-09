@@ -1,6 +1,6 @@
 import type BigNumber from "bignumber.js";
 import { Long } from "@hiero-ledger/sdk";
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TokenWipeOperationOptions } from "../operations/index.js";
 
 /**
@@ -17,28 +17,25 @@ export class TokenWipeValidator {
 
     private validateTokenId(options: TokenWipeOperationOptions): void {
         if (options.tokenId == null) {
-            throw normalizeError(
-                new Error("tokenId is required."),
-                "TokenWipeValidator",
-            );
+            throw validationError("TokenWipeValidator", "tokenId is required.");
         }
 
         if (
             typeof options.tokenId === "string" &&
             options.tokenId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("tokenId cannot be empty."),
+            throw validationError(
                 "TokenWipeValidator",
+                "tokenId cannot be empty.",
             );
         }
     }
 
     private validateAccountId(options: TokenWipeOperationOptions): void {
         if (options.accountId == null) {
-            throw normalizeError(
-                new Error("accountId is required."),
+            throw validationError(
                 "TokenWipeValidator",
+                "accountId is required.",
             );
         }
 
@@ -46,9 +43,9 @@ export class TokenWipeValidator {
             typeof options.accountId === "string" &&
             options.accountId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("accountId cannot be empty."),
+            throw validationError(
                 "TokenWipeValidator",
+                "accountId cannot be empty.",
             );
         }
     }
@@ -59,20 +56,16 @@ export class TokenWipeValidator {
             options.serials != null && options.serials.length > 0;
 
         if (!hasAmount && !hasSerials) {
-            throw normalizeError(
-                new Error(
-                    "Token wipe requires either amount (fungible) or serials (NFT).",
-                ),
+            throw validationError(
                 "TokenWipeValidator",
+                "Token wipe requires either amount (fungible) or serials (NFT).",
             );
         }
 
         if (hasAmount && hasSerials) {
-            throw normalizeError(
-                new Error(
-                    "Token wipe requires either amount (fungible) or serials (NFT).",
-                ),
+            throw validationError(
                 "TokenWipeValidator",
+                "Token wipe requires either amount (fungible) or serials (NFT).",
             );
         }
     }
@@ -93,9 +86,9 @@ export class TokenWipeValidator {
         }
 
         if (isNegative) {
-            throw normalizeError(
-                new Error("amount cannot be negative."),
+            throw validationError(
                 "TokenWipeValidator",
+                "amount cannot be negative.",
             );
         }
     }
@@ -104,24 +97,24 @@ export class TokenWipeValidator {
         if (options.serials == null) return;
 
         if (!Array.isArray(options.serials)) {
-            throw normalizeError(
-                new Error("serials must be an array."),
+            throw validationError(
                 "TokenWipeValidator",
+                "serials must be an array.",
             );
         }
 
         if (options.serials.length === 0) {
-            throw normalizeError(
-                new Error("serials cannot be an empty array."),
+            throw validationError(
                 "TokenWipeValidator",
+                "serials cannot be an empty array.",
             );
         }
 
         for (const serial of options.serials) {
             if (serial == null) {
-                throw normalizeError(
-                    new Error("serials entries cannot be null."),
+                throw validationError(
                     "TokenWipeValidator",
+                    "serials entries cannot be null.",
                 );
             }
 
@@ -129,16 +122,16 @@ export class TokenWipeValidator {
             const isNumber = typeof serial === "number";
 
             if (!isLong && !isNumber) {
-                throw normalizeError(
-                    new Error("serials entries must be a number or Long."),
+                throw validationError(
                     "TokenWipeValidator",
+                    "serials entries must be a number or Long.",
                 );
             }
 
             if (isNumber && !Number.isInteger(serial)) {
-                throw normalizeError(
-                    new Error("serials entries must be positive integers."),
+                throw validationError(
                     "TokenWipeValidator",
+                    "serials entries must be positive integers.",
                 );
             }
 
@@ -147,9 +140,9 @@ export class TokenWipeValidator {
                 : (serial as number) <= 0;
 
             if (isNonPositive) {
-                throw normalizeError(
-                    new Error("serials entries must be positive integers."),
+                throw validationError(
                     "TokenWipeValidator",
+                    "serials entries must be positive integers.",
                 );
             }
         }

@@ -24,6 +24,11 @@ describe("TopicUpdateValidator", () => {
                     {} as unknown as TopicUpdateOperationOptions,
                 ),
             ).toThrow(/topicId is required/);
+            expect(() =>
+                validator.validate(
+                    {} as unknown as TopicUpdateOperationOptions,
+                ),
+            ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
         });
 
         it("throws when topicId is an empty string", () => {

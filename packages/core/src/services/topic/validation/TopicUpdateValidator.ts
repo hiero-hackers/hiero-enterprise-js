@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TopicUpdateOperationOptions } from "../operations/index.js";
 
 const MAX_TOPIC_MEMO_BYTES = 100;
@@ -54,9 +54,9 @@ export class TopicUpdateValidator {
 
     private validateTopicId(options: TopicUpdateOperationOptions): void {
         if (options.topicId == null) {
-            throw normalizeError(
-                new Error("topicId is required."),
+            throw validationError(
                 "TopicUpdateValidator",
+                "topicId is required.",
             );
         }
 
@@ -64,9 +64,9 @@ export class TopicUpdateValidator {
             typeof options.topicId === "string" &&
             options.topicId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("topicId cannot be empty."),
+            throw validationError(
                 "TopicUpdateValidator",
+                "topicId cannot be empty.",
             );
         }
     }
@@ -77,11 +77,9 @@ export class TopicUpdateValidator {
 
         const byteLength = Buffer.byteLength(options.topicMemo, "utf8");
         if (byteLength > MAX_TOPIC_MEMO_BYTES) {
-            throw normalizeError(
-                new Error(
-                    `topicMemo exceeds ${MAX_TOPIC_MEMO_BYTES} bytes (got ${byteLength}).`,
-                ),
+            throw validationError(
                 "TopicUpdateValidator",
+                `topicMemo exceeds ${MAX_TOPIC_MEMO_BYTES} bytes (got ${byteLength}).`,
             );
         }
     }
@@ -104,20 +102,16 @@ export class TopicUpdateValidator {
         };
 
         if (wide.autoRenewPeriod === null) {
-            throw normalizeError(
-                new Error(
-                    "autoRenewPeriod cannot be null — this field has no clear operation. Omit it to leave unchanged.",
-                ),
+            throw validationError(
                 "TopicUpdateValidator",
+                "autoRenewPeriod cannot be null — this field has no clear operation. Omit it to leave unchanged.",
             );
         }
 
         if (wide.expirationTime === null) {
-            throw normalizeError(
-                new Error(
-                    "expirationTime cannot be null — this field has no clear operation. Omit it to leave unchanged.",
-                ),
+            throw validationError(
                 "TopicUpdateValidator",
+                "expirationTime cannot be null — this field has no clear operation. Omit it to leave unchanged.",
             );
         }
     }
@@ -145,11 +139,9 @@ export class TopicUpdateValidator {
             options.expirationTime !== undefined;
 
         if (!hasChange) {
-            throw normalizeError(
-                new Error(
-                    "updateTopic requires at least one field to change. Pass one of: topicMemo, adminKey, submitKey, feeScheduleKey, feeExemptKeys, autoRenewAccountId, autoRenewPeriod, customFees, expirationTime.",
-                ),
+            throw validationError(
                 "TopicUpdateValidator",
+                "updateTopic requires at least one field to change. Pass one of: topicMemo, adminKey, submitKey, feeScheduleKey, feeExemptKeys, autoRenewAccountId, autoRenewPeriod, customFees, expirationTime.",
             );
         }
     }

@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { FileDeleteOperationOptions } from "../operations/index.js";
 
 /**
@@ -17,19 +17,16 @@ export class FileDeleteValidator {
 
     private validateFileId(options: FileDeleteOperationOptions): void {
         if (options.fileId == null) {
-            throw normalizeError(
-                new Error("fileId is required."),
-                "FileDeleteValidator",
-            );
+            throw validationError("FileDeleteValidator", "fileId is required.");
         }
 
         if (
             typeof options.fileId === "string" &&
             options.fileId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("fileId cannot be empty."),
+            throw validationError(
                 "FileDeleteValidator",
+                "fileId cannot be empty.",
             );
         }
     }

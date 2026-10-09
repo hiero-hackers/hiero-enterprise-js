@@ -1,6 +1,6 @@
 import type BigNumber from "bignumber.js";
 import { Long } from "@hiero-ledger/sdk";
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type {
     TokenAirdropOperationOptions,
     TokenAirdrop,
@@ -28,23 +28,23 @@ export class TokenAirdropValidator {
 
     private validateAirdropsList(options: TokenAirdropOperationOptions): void {
         if (options.airdrops == null) {
-            throw normalizeError(
-                new Error("airdrops is required."),
+            throw validationError(
                 "TokenAirdropValidator",
+                "airdrops is required.",
             );
         }
 
         if (!Array.isArray(options.airdrops)) {
-            throw normalizeError(
-                new Error("airdrops must be an array."),
+            throw validationError(
                 "TokenAirdropValidator",
+                "airdrops must be an array.",
             );
         }
 
         if (options.airdrops.length === 0) {
-            throw normalizeError(
-                new Error("airdrops must not be empty."),
+            throw validationError(
                 "TokenAirdropValidator",
+                "airdrops must not be empty.",
             );
         }
     }
@@ -61,9 +61,9 @@ export class TokenAirdropValidator {
 
     private validateTokenId(airdrop: TokenAirdrop, prefix: string): void {
         if (airdrop.tokenId == null) {
-            throw normalizeError(
-                new Error(`${prefix}.tokenId is required.`),
+            throw validationError(
                 "TokenAirdropValidator",
+                `${prefix}.tokenId is required.`,
             );
         }
 
@@ -71,9 +71,9 @@ export class TokenAirdropValidator {
             typeof airdrop.tokenId === "string" &&
             airdrop.tokenId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error(`${prefix}.tokenId cannot be empty.`),
+            throw validationError(
                 "TokenAirdropValidator",
+                `${prefix}.tokenId cannot be empty.`,
             );
         }
     }
@@ -89,16 +89,16 @@ export class TokenAirdropValidator {
                 : airdrop.receiverAccountId;
 
         if (value == null) {
-            throw normalizeError(
-                new Error(`${prefix}.${field} is required.`),
+            throw validationError(
                 "TokenAirdropValidator",
+                `${prefix}.${field} is required.`,
             );
         }
 
         if (typeof value === "string" && value.trim().length === 0) {
-            throw normalizeError(
-                new Error(`${prefix}.${field} cannot be empty.`),
+            throw validationError(
                 "TokenAirdropValidator",
+                `${prefix}.${field} cannot be empty.`,
             );
         }
     }
@@ -117,20 +117,18 @@ export class TokenAirdropValidator {
                 : airdrop.receiverAccountId.toString();
 
         if (sender === receiver) {
-            throw normalizeError(
-                new Error(
-                    `${prefix}: senderAccountId and receiverAccountId must be different.`,
-                ),
+            throw validationError(
                 "TokenAirdropValidator",
+                `${prefix}: senderAccountId and receiverAccountId must be different.`,
             );
         }
     }
 
     private validateAmount(airdrop: TokenAirdrop, prefix: string): void {
         if (airdrop.amount == null) {
-            throw normalizeError(
-                new Error(`${prefix}.amount is required.`),
+            throw validationError(
                 "TokenAirdropValidator",
+                `${prefix}.amount is required.`,
             );
         }
 
@@ -148,9 +146,9 @@ export class TokenAirdropValidator {
         }
 
         if (!isPositive) {
-            throw normalizeError(
-                new Error(`${prefix}.amount must be a positive value.`),
+            throw validationError(
                 "TokenAirdropValidator",
+                `${prefix}.amount must be a positive value.`,
             );
         }
     }
@@ -165,11 +163,9 @@ export class TokenAirdropValidator {
             !Number.isInteger(airdrop.expectedDecimals) ||
             airdrop.expectedDecimals < 0
         ) {
-            throw normalizeError(
-                new Error(
-                    `${prefix}.expectedDecimals must be a non-negative integer.`,
-                ),
+            throw validationError(
                 "TokenAirdropValidator",
+                `${prefix}.expectedDecimals must be a non-negative integer.`,
             );
         }
     }

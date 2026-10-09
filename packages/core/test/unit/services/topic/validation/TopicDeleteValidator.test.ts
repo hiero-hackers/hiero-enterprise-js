@@ -20,6 +20,11 @@ describe("TopicDeleteValidator", () => {
                     topicId: null as unknown as string,
                 }),
             ).toThrow(/topicId is required/);
+            expect(() =>
+                validator.validate({
+                    topicId: null as unknown as string,
+                }),
+            ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
         });
 
         it("throws when topicId is undefined", () => {

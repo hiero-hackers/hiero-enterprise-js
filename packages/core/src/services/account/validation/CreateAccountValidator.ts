@@ -1,5 +1,5 @@
 import { AccountType } from "../../../types/index.js";
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { CreateAccountOptions } from "../operations/index.js";
 
 /**
@@ -32,20 +32,16 @@ export class CreateAccountValidator {
 
     private validateKeyOptions(options: CreateAccountOptions): void {
         if (options.key != null && options.publicKey != null) {
-            throw normalizeError(
-                new Error(
-                    "Provide either 'key' (Key) or 'publicKey' (string) — not both.",
-                ),
+            throw validationError(
                 "CreateAccountValidator",
+                "Provide either 'key' (Key) or 'publicKey' (string) — not both.",
             );
         }
 
         if (options.key == null && options.publicKey == null) {
-            throw normalizeError(
-                new Error(
-                    "Either 'key' (SDK Key) or 'publicKey' (string) must be provided.",
-                ),
+            throw validationError(
                 "CreateAccountValidator",
+                "Either 'key' (SDK Key) or 'publicKey' (string) must be provided.",
             );
         }
 
@@ -54,11 +50,9 @@ export class CreateAccountValidator {
         }
 
         if (options.key != null && options.alias != null) {
-            throw normalizeError(
-                new Error(
-                    "alias is not supported when using 'key' directly — alias derivation requires a single ECDSA public key string.",
-                ),
+            throw validationError(
                 "CreateAccountValidator",
+                "alias is not supported when using 'key' directly — alias derivation requires a single ECDSA public key string.",
             );
         }
     }
@@ -67,11 +61,9 @@ export class CreateAccountValidator {
         if (options.alias === true) {
             const keyType = options.keyType ?? AccountType.ED25519;
             if (keyType !== AccountType.ECDSA) {
-                throw normalizeError(
-                    new Error(
-                        "alias: true requires keyType AccountType.ECDSA — ed25519 keys cannot derive an EVM alias.",
-                    ),
+                throw validationError(
                     "CreateAccountValidator",
+                    "alias: true requires keyType AccountType.ECDSA — ed25519 keys cannot derive an EVM alias.",
                 );
             }
         }
@@ -82,20 +74,18 @@ export class CreateAccountValidator {
             typeof options.initialBalance === "number" &&
             options.initialBalance < 0
         ) {
-            throw normalizeError(
-                new Error("Initial balance cannot be negative."),
+            throw validationError(
                 "CreateAccountValidator",
+                "Initial balance cannot be negative.",
             );
         }
     }
 
     private validateStakingOptions(options: CreateAccountOptions): void {
         if (options.stakedAccountId != null && options.stakedNodeId != null) {
-            throw normalizeError(
-                new Error(
-                    "stakedAccountId and stakedNodeId are mutually exclusive — set only one.",
-                ),
+            throw validationError(
                 "CreateAccountValidator",
+                "stakedAccountId and stakedNodeId are mutually exclusive — set only one.",
             );
         }
 
@@ -110,11 +100,9 @@ export class CreateAccountValidator {
 
     private validateMemo(options: CreateAccountOptions): void {
         if (options.memo && Buffer.byteLength(options.memo, "utf8") > 100) {
-            throw normalizeError(
-                new Error(
-                    `Account memo exceeds 100 bytes (got ${Buffer.byteLength(options.memo, "utf8")}).`,
-                ),
+            throw validationError(
                 "CreateAccountValidator",
+                `Account memo exceeds 100 bytes (got ${Buffer.byteLength(options.memo, "utf8")}).`,
             );
         }
     }
@@ -129,11 +117,9 @@ export class CreateAccountValidator {
             options.autoRenewPeriod < MIN_AUTO_RENEW ||
             options.autoRenewPeriod > MAX_AUTO_RENEW
         ) {
-            throw normalizeError(
-                new Error(
-                    `autoRenewPeriod must be between 30 days (${MIN_AUTO_RENEW}s) and 90 days (${MAX_AUTO_RENEW}s), got ${options.autoRenewPeriod}s.`,
-                ),
+            throw validationError(
                 "CreateAccountValidator",
+                `autoRenewPeriod must be between 30 days (${MIN_AUTO_RENEW}s) and 90 days (${MAX_AUTO_RENEW}s), got ${options.autoRenewPeriod}s.`,
             );
         }
     }
@@ -157,11 +143,9 @@ export class CreateAccountValidator {
             options.keyType !== AccountType.ED25519 &&
             options.keyType !== AccountType.ECDSA
         ) {
-            throw normalizeError(
-                new Error(
-                    `Invalid keyType "${String(options.keyType)}". Expected AccountType.ED25519 or AccountType.ECDSA.`,
-                ),
+            throw validationError(
                 "CreateAccountValidator",
+                `Invalid keyType "${String(options.keyType)}". Expected AccountType.ED25519 or AccountType.ECDSA.`,
             );
         }
     }

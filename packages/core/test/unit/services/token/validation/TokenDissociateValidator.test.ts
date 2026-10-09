@@ -22,6 +22,12 @@ describe("TokenDissociateValidator", () => {
                     accountId: null as unknown as string,
                 }),
             ).toThrow(/accountId is required/);
+            expect(() =>
+                validator.validate({
+                    ...baseOptions,
+                    accountId: null as unknown as string,
+                }),
+            ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
         });
 
         it("throws when accountId is undefined", () => {

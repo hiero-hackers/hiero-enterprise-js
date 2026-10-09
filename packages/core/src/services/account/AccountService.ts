@@ -1,7 +1,7 @@
 import type { AccountId, TokenId, Transaction, Hbar } from "@hiero-ledger/sdk";
 import type { Account, Balance, TokenBalance } from "../../types/index.js";
 import type { IHieroContext } from "../../context/index.js";
-import { normalizeError } from "../../errors/index.js";
+import { validationError } from "../../errors/index.js";
 import {
     CreateAccountOperation,
     AutoCreateEvmAccountOperation,
@@ -329,11 +329,9 @@ export class AccountService {
      */
     async approveHbarAllowance(options: ApproveHbarAllowanceOptions) {
         if (!options.hbarAllowances?.length) {
-            throw normalizeError(
-                new Error(
-                    "hbarAllowances must be provided with at least one entry.",
-                ),
+            throw validationError(
                 "AccountService.approveHbarAllowance",
+                "hbarAllowances must be provided with at least one entry.",
             );
         }
         return await this.approveAllowanceOperation.execute(
@@ -353,11 +351,9 @@ export class AccountService {
      */
     async approveTokenAllowance(options: ApproveTokenAllowanceOptions) {
         if (!options.tokenAllowances?.length) {
-            throw normalizeError(
-                new Error(
-                    "tokenAllowances must be provided with at least one entry.",
-                ),
+            throw validationError(
                 "AccountService.approveTokenAllowance",
+                "tokenAllowances must be provided with at least one entry.",
             );
         }
         return await this.approveAllowanceOperation.execute(
@@ -377,11 +373,9 @@ export class AccountService {
      */
     async approveNftAllowance(options: ApproveNftAllowanceOptions) {
         if (!options.nftAllowances?.length) {
-            throw normalizeError(
-                new Error(
-                    "nftAllowances must be provided with at least one entry.",
-                ),
+            throw validationError(
                 "AccountService.approveNftAllowance",
+                "nftAllowances must be provided with at least one entry.",
             );
         }
         return await this.approveAllowanceOperation.execute(
@@ -410,11 +404,9 @@ export class AccountService {
         options: DeleteAllowanceOptions = {},
     ) {
         if (!allowances?.length) {
-            throw normalizeError(
-                new Error(
-                    "nftAllowances must be provided with at least one entry.",
-                ),
+            throw validationError(
                 "AccountService.deleteNftAllowance",
+                "nftAllowances must be provided with at least one entry.",
             );
         }
         return await this.deleteAllowanceOperation.execute(
@@ -442,11 +434,9 @@ export class AccountService {
         options: DeleteAllNftAllowancesOptions = {},
     ) {
         if (!allowances?.length) {
-            throw normalizeError(
-                new Error(
-                    "nftAllowances must be provided with at least one entry.",
-                ),
+            throw validationError(
                 "AccountService.deleteAllNftAllowances",
+                "nftAllowances must be provided with at least one entry.",
             );
         }
         return await this.deleteAllNftAllowancesOperation.execute(
@@ -471,11 +461,9 @@ export class AccountService {
         options: TransactionOptions = {},
     ) {
         if (!allowances?.length) {
-            throw normalizeError(
-                new Error(
-                    "hbarAllowances must be provided with at least one entry.",
-                ),
+            throw validationError(
                 "AccountService.deleteHbarAllowance",
+                "hbarAllowances must be provided with at least one entry.",
             );
         }
         return await this.approveAllowanceOperation.execute(
@@ -506,11 +494,9 @@ export class AccountService {
         options: TransactionOptions = {},
     ) {
         if (!allowances?.length) {
-            throw normalizeError(
-                new Error(
-                    "tokenAllowances must be provided with at least one entry.",
-                ),
+            throw validationError(
                 "AccountService.deleteTokenAllowance",
+                "tokenAllowances must be provided with at least one entry.",
             );
         }
         return await this.approveAllowanceOperation.execute(

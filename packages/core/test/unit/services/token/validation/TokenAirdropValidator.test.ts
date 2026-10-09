@@ -51,6 +51,11 @@ describe("TokenAirdropValidator", () => {
                     airdrops: null as unknown as TokenAirdrop[],
                 }),
             ).toThrow(/airdrops is required/);
+            expect(() =>
+                validator.validate({
+                    airdrops: null as unknown as TokenAirdrop[],
+                }),
+            ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
         });
 
         it("throws when airdrops is not an array", () => {

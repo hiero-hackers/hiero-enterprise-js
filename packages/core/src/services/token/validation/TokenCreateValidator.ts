@@ -1,6 +1,6 @@
 import type BigNumber from "bignumber.js";
 import { TokenType, TokenSupplyType, Long } from "@hiero-ledger/sdk";
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TokenCreateOperationOptions } from "../operations/TokenCreateOperation.js";
 
 const MAX_TOKEN_NAME_BYTES = 100;
@@ -69,47 +69,43 @@ export class TokenCreateValidator {
 
     private validateName(options: TokenCreateOperationOptions): void {
         if (options.tokenName == null || options.tokenName.length === 0) {
-            throw normalizeError(
-                new Error("tokenName is required."),
+            throw validationError(
                 "TokenCreateValidator",
+                "tokenName is required.",
             );
         }
 
         const byteLength = Buffer.byteLength(options.tokenName, "utf8");
         if (byteLength > MAX_TOKEN_NAME_BYTES) {
-            throw normalizeError(
-                new Error(
-                    `tokenName exceeds ${MAX_TOKEN_NAME_BYTES} bytes (got ${byteLength}).`,
-                ),
+            throw validationError(
                 "TokenCreateValidator",
+                `tokenName exceeds ${MAX_TOKEN_NAME_BYTES} bytes (got ${byteLength}).`,
             );
         }
     }
 
     private validateSymbol(options: TokenCreateOperationOptions): void {
         if (options.tokenSymbol == null || options.tokenSymbol.length === 0) {
-            throw normalizeError(
-                new Error("tokenSymbol is required."),
+            throw validationError(
                 "TokenCreateValidator",
+                "tokenSymbol is required.",
             );
         }
 
         const byteLength = Buffer.byteLength(options.tokenSymbol, "utf8");
         if (byteLength > MAX_TOKEN_SYMBOL_BYTES) {
-            throw normalizeError(
-                new Error(
-                    `tokenSymbol exceeds ${MAX_TOKEN_SYMBOL_BYTES} bytes (got ${byteLength}).`,
-                ),
+            throw validationError(
                 "TokenCreateValidator",
+                `tokenSymbol exceeds ${MAX_TOKEN_SYMBOL_BYTES} bytes (got ${byteLength}).`,
             );
         }
     }
 
     private validateTreasury(options: TokenCreateOperationOptions): void {
         if (options.treasuryAccountId == null) {
-            throw normalizeError(
-                new Error("treasuryAccountId is required."),
+            throw validationError(
                 "TokenCreateValidator",
+                "treasuryAccountId is required.",
             );
         }
 
@@ -117,32 +113,32 @@ export class TokenCreateValidator {
             typeof options.treasuryAccountId === "string" &&
             options.treasuryAccountId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("treasuryAccountId cannot be empty."),
+            throw validationError(
                 "TokenCreateValidator",
+                "treasuryAccountId cannot be empty.",
             );
         }
     }
 
     private validateNumericRanges(options: TokenCreateOperationOptions): void {
         if (isNegative(options.decimals)) {
-            throw normalizeError(
-                new Error("decimals cannot be negative."),
+            throw validationError(
                 "TokenCreateValidator",
+                "decimals cannot be negative.",
             );
         }
 
         if (isNegative(options.initialSupply)) {
-            throw normalizeError(
-                new Error("initialSupply cannot be negative."),
+            throw validationError(
                 "TokenCreateValidator",
+                "initialSupply cannot be negative.",
             );
         }
 
         if (isNegative(options.maxSupply)) {
-            throw normalizeError(
-                new Error("maxSupply cannot be negative."),
+            throw validationError(
                 "TokenCreateValidator",
+                "maxSupply cannot be negative.",
             );
         }
     }
@@ -152,11 +148,9 @@ export class TokenCreateValidator {
 
         const byteLength = Buffer.byteLength(options.tokenMemo, "utf8");
         if (byteLength > MAX_TOKEN_MEMO_BYTES) {
-            throw normalizeError(
-                new Error(
-                    `tokenMemo exceeds ${MAX_TOKEN_MEMO_BYTES} bytes (got ${byteLength}).`,
-                ),
+            throw validationError(
                 "TokenCreateValidator",
+                `tokenMemo exceeds ${MAX_TOKEN_MEMO_BYTES} bytes (got ${byteLength}).`,
             );
         }
     }
@@ -167,18 +161,16 @@ export class TokenCreateValidator {
         if (options.supplyType !== TokenSupplyType.Finite) return;
 
         if (options.maxSupply == null) {
-            throw normalizeError(
-                new Error("supplyType Finite requires maxSupply to be set."),
+            throw validationError(
                 "TokenCreateValidator",
+                "supplyType Finite requires maxSupply to be set.",
             );
         }
 
         if (!isPositive(options.maxSupply)) {
-            throw normalizeError(
-                new Error(
-                    "maxSupply must be greater than 0 for finite supply.",
-                ),
+            throw validationError(
                 "TokenCreateValidator",
+                "maxSupply must be greater than 0 for finite supply.",
             );
         }
     }
@@ -187,25 +179,23 @@ export class TokenCreateValidator {
         if (options.tokenType !== TokenType.NonFungibleUnique) return;
 
         if (options.supplyKey == null) {
-            throw normalizeError(
-                new Error(
-                    "Non-fungible tokens require a supplyKey — NFTs are minted after collection creation.",
-                ),
+            throw validationError(
                 "TokenCreateValidator",
+                "Non-fungible tokens require a supplyKey — NFTs are minted after collection creation.",
             );
         }
 
         if (options.decimals != null && !isZero(options.decimals)) {
-            throw normalizeError(
-                new Error("Non-fungible tokens must have decimals: 0."),
+            throw validationError(
                 "TokenCreateValidator",
+                "Non-fungible tokens must have decimals: 0.",
             );
         }
 
         if (options.initialSupply != null && !isZero(options.initialSupply)) {
-            throw normalizeError(
-                new Error("Non-fungible tokens must have initialSupply: 0."),
+            throw validationError(
                 "TokenCreateValidator",
+                "Non-fungible tokens must have initialSupply: 0.",
             );
         }
     }

@@ -38,6 +38,11 @@ describe("FileUpdateValidator", () => {
                 fileMemo: "x",
             } as unknown as FileUpdateOperationOptions),
         ).toThrow(/fileId is required/);
+        expect(() =>
+            validator.validate({
+                fileMemo: "x",
+            } as unknown as FileUpdateOperationOptions),
+        ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
     });
 
     it("rejects an empty-string fileId", () => {

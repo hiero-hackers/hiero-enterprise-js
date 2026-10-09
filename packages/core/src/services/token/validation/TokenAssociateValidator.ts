@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TokenAssociateOperationOptions } from "../operations/TokenAssociateOperation.js";
 
 /**
@@ -12,9 +12,9 @@ export class TokenAssociateValidator {
 
     private validateAccountId(options: TokenAssociateOperationOptions): void {
         if (options.accountId == null) {
-            throw normalizeError(
-                new Error("accountId is required."),
+            throw validationError(
                 "TokenAssociateValidator",
+                "accountId is required.",
             );
         }
 
@@ -22,18 +22,18 @@ export class TokenAssociateValidator {
             typeof options.accountId === "string" &&
             options.accountId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("accountId cannot be empty."),
+            throw validationError(
                 "TokenAssociateValidator",
+                "accountId cannot be empty.",
             );
         }
     }
 
     private validateTokenId(options: TokenAssociateOperationOptions): void {
         if (options.tokenId == null) {
-            throw normalizeError(
-                new Error("tokenId is required."),
+            throw validationError(
                 "TokenAssociateValidator",
+                "tokenId is required.",
             );
         }
 
@@ -41,9 +41,9 @@ export class TokenAssociateValidator {
             typeof options.tokenId === "string" &&
             options.tokenId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("tokenId cannot be empty."),
+            throw validationError(
                 "TokenAssociateValidator",
+                "tokenId cannot be empty.",
             );
         }
     }

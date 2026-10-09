@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { ContractDeleteOperationOptions } from "../operations/index.js";
 
 /**
@@ -21,9 +21,9 @@ export class ContractDeleteValidator {
 
     private validateContractId(options: ContractDeleteOperationOptions): void {
         if (options.contractId == null) {
-            throw normalizeError(
-                new Error("contractId is required."),
+            throw validationError(
                 "ContractDeleteValidator",
+                "contractId is required.",
             );
         }
 
@@ -31,9 +31,9 @@ export class ContractDeleteValidator {
             typeof options.contractId === "string" &&
             options.contractId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("contractId cannot be empty."),
+            throw validationError(
                 "ContractDeleteValidator",
+                "contractId cannot be empty.",
             );
         }
     }
@@ -50,20 +50,16 @@ export class ContractDeleteValidator {
         const hasContract = options.transferContractId != null;
 
         if (hasAccount && hasContract) {
-            throw normalizeError(
-                new Error(
-                    "Specify either transferAccountId or transferContractId, not both.",
-                ),
+            throw validationError(
                 "ContractDeleteValidator",
+                "Specify either transferAccountId or transferContractId, not both.",
             );
         }
 
         if (!hasAccount && !hasContract) {
-            throw normalizeError(
-                new Error(
-                    "A transfer target is required: provide either transferAccountId or transferContractId to receive the contract's remaining HBAR balance.",
-                ),
+            throw validationError(
                 "ContractDeleteValidator",
+                "A transfer target is required: provide either transferAccountId or transferContractId to receive the contract's remaining HBAR balance.",
             );
         }
     }

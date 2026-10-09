@@ -1,6 +1,6 @@
 import type BigNumber from "bignumber.js";
 import { Long } from "@hiero-ledger/sdk";
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TokenMintOperationOptions } from "../operations/TokenMintOperation.js";
 
 /**
@@ -16,19 +16,16 @@ export class TokenMintValidator {
 
     private validateTokenId(options: TokenMintOperationOptions): void {
         if (options.tokenId == null) {
-            throw normalizeError(
-                new Error("tokenId is required."),
-                "TokenMintValidator",
-            );
+            throw validationError("TokenMintValidator", "tokenId is required.");
         }
 
         if (
             typeof options.tokenId === "string" &&
             options.tokenId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("tokenId cannot be empty."),
+            throw validationError(
                 "TokenMintValidator",
+                "tokenId cannot be empty.",
             );
         }
     }
@@ -39,20 +36,16 @@ export class TokenMintValidator {
             options.metadata != null && options.metadata.length > 0;
 
         if (!hasAmount && !hasMetadata) {
-            throw normalizeError(
-                new Error(
-                    "Token mint requires either amount (fungible) or metadata (NFT).",
-                ),
+            throw validationError(
                 "TokenMintValidator",
+                "Token mint requires either amount (fungible) or metadata (NFT).",
             );
         }
 
         if (hasAmount && hasMetadata) {
-            throw normalizeError(
-                new Error(
-                    "Token mint requires either amount (fungible) or metadata (NFT).",
-                ),
+            throw validationError(
                 "TokenMintValidator",
+                "Token mint requires either amount (fungible) or metadata (NFT).",
             );
         }
     }
@@ -73,18 +66,18 @@ export class TokenMintValidator {
         }
 
         if (isNegative) {
-            throw normalizeError(
-                new Error("amount cannot be negative."),
+            throw validationError(
                 "TokenMintValidator",
+                "amount cannot be negative.",
             );
         }
     }
 
     private validateMetadata(options: TokenMintOperationOptions): void {
         if (options.metadata != null && options.metadata.length === 0) {
-            throw normalizeError(
-                new Error("metadata cannot be an empty array."),
+            throw validationError(
                 "TokenMintValidator",
+                "metadata cannot be an empty array.",
             );
         }
     }

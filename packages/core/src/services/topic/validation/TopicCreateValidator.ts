@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TopicCreateOperationOptions } from "../operations/index.js";
 
 /**
@@ -23,11 +23,9 @@ export class TopicCreateValidator {
      */
     validate(options: TopicCreateOperationOptions): void {
         if (options.adminKey != null && options.autoRenewAccountId == null) {
-            throw normalizeError(
-                new Error(
-                    "autoRenewAccountId is required when an adminKey is set.",
-                ),
+            throw validationError(
                 "TopicCreateValidator",
+                "autoRenewAccountId is required when an adminKey is set.",
             );
         }
     }

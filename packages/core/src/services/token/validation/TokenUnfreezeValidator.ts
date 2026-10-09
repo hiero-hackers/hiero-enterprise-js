@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TokenUnfreezeOperationOptions } from "../operations/TokenUnfreezeOperation.js";
 
 /**
@@ -21,9 +21,9 @@ export class TokenUnfreezeValidator {
 
     private validateTokenId(options: TokenUnfreezeOperationOptions): void {
         if (options.tokenId == null) {
-            throw normalizeError(
-                new Error("tokenId is required."),
+            throw validationError(
                 "TokenUnfreezeValidator",
+                "tokenId is required.",
             );
         }
 
@@ -31,18 +31,18 @@ export class TokenUnfreezeValidator {
             typeof options.tokenId === "string" &&
             options.tokenId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("tokenId cannot be empty."),
+            throw validationError(
                 "TokenUnfreezeValidator",
+                "tokenId cannot be empty.",
             );
         }
     }
 
     private validateAccountId(options: TokenUnfreezeOperationOptions): void {
         if (options.accountId == null) {
-            throw normalizeError(
-                new Error("accountId is required."),
+            throw validationError(
                 "TokenUnfreezeValidator",
+                "accountId is required.",
             );
         }
 
@@ -50,9 +50,9 @@ export class TokenUnfreezeValidator {
             typeof options.accountId === "string" &&
             options.accountId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("accountId cannot be empty."),
+            throw validationError(
                 "TokenUnfreezeValidator",
+                "accountId cannot be empty.",
             );
         }
     }

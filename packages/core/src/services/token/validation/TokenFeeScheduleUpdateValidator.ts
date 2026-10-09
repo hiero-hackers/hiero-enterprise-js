@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TokenFeeScheduleUpdateOperationOptions } from "../operations/TokenFeeScheduleUpdateOperation.js";
 
 /**
@@ -23,9 +23,9 @@ export class TokenFeeScheduleUpdateValidator {
         options: TokenFeeScheduleUpdateOperationOptions,
     ): void {
         if (options.tokenId == null) {
-            throw normalizeError(
-                new Error("tokenId is required."),
+            throw validationError(
                 "TokenFeeScheduleUpdateValidator",
+                "tokenId is required.",
             );
         }
 
@@ -33,9 +33,9 @@ export class TokenFeeScheduleUpdateValidator {
             typeof options.tokenId === "string" &&
             options.tokenId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("tokenId cannot be empty."),
+            throw validationError(
                 "TokenFeeScheduleUpdateValidator",
+                "tokenId cannot be empty.",
             );
         }
     }
@@ -44,18 +44,16 @@ export class TokenFeeScheduleUpdateValidator {
         options: TokenFeeScheduleUpdateOperationOptions,
     ): void {
         if (options.customFees == null) {
-            throw normalizeError(
-                new Error(
-                    "customFees is required. Pass an empty array to clear all custom fees.",
-                ),
+            throw validationError(
                 "TokenFeeScheduleUpdateValidator",
+                "customFees is required. Pass an empty array to clear all custom fees.",
             );
         }
 
         if (!Array.isArray(options.customFees)) {
-            throw normalizeError(
-                new Error("customFees must be an array."),
+            throw validationError(
                 "TokenFeeScheduleUpdateValidator",
+                "customFees must be an array.",
             );
         }
     }

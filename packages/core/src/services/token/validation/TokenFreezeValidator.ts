@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TokenFreezeOperationOptions } from "../operations/index.js";
 
 /**
@@ -21,9 +21,9 @@ export class TokenFreezeValidator {
 
     private validateTokenId(options: TokenFreezeOperationOptions): void {
         if (options.tokenId == null) {
-            throw normalizeError(
-                new Error("tokenId is required."),
+            throw validationError(
                 "TokenFreezeValidator",
+                "tokenId is required.",
             );
         }
 
@@ -31,18 +31,18 @@ export class TokenFreezeValidator {
             typeof options.tokenId === "string" &&
             options.tokenId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("tokenId cannot be empty."),
+            throw validationError(
                 "TokenFreezeValidator",
+                "tokenId cannot be empty.",
             );
         }
     }
 
     private validateAccountId(options: TokenFreezeOperationOptions): void {
         if (options.accountId == null) {
-            throw normalizeError(
-                new Error("accountId is required."),
+            throw validationError(
                 "TokenFreezeValidator",
+                "accountId is required.",
             );
         }
 
@@ -50,9 +50,9 @@ export class TokenFreezeValidator {
             typeof options.accountId === "string" &&
             options.accountId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("accountId cannot be empty."),
+            throw validationError(
                 "TokenFreezeValidator",
+                "accountId cannot be empty.",
             );
         }
     }

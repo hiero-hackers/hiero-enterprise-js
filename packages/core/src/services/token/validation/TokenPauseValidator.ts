@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TokenPauseOperationOptions } from "../operations/TokenPauseOperation.js";
 
 /**
@@ -20,9 +20,9 @@ export class TokenPauseValidator {
 
     private validateTokenId(options: TokenPauseOperationOptions): void {
         if (options.tokenId == null) {
-            throw normalizeError(
-                new Error("tokenId is required."),
+            throw validationError(
                 "TokenPauseValidator",
+                "tokenId is required.",
             );
         }
 
@@ -30,9 +30,9 @@ export class TokenPauseValidator {
             typeof options.tokenId === "string" &&
             options.tokenId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("tokenId cannot be empty."),
+            throw validationError(
                 "TokenPauseValidator",
+                "tokenId cannot be empty.",
             );
         }
     }

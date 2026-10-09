@@ -7,7 +7,7 @@ import type {
 } from "@hiero-ledger/sdk";
 import { ContractCallQuery as SdkContractCallQuery } from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../../context/index.js";
-import { normalizeError } from "../../../errors/index.js";
+import { normalizeError, validationError } from "../../../errors/index.js";
 import { QueryExecutor } from "../../transaction/index.js";
 import type { QueryOptions } from "../../transaction/index.js";
 
@@ -116,20 +116,16 @@ export class ContractCallQuery {
         const hasRawParameters = options.rawFunctionParameters != null;
 
         if (!hasFunctionName && !hasRawParameters) {
-            throw normalizeError(
-                new Error(
-                    "ContractCallQuery requires either functionName or rawFunctionParameters.",
-                ),
+            throw validationError(
                 "ContractService.callContract",
+                "ContractCallQuery requires either functionName or rawFunctionParameters.",
             );
         }
 
         if (hasFunctionName && hasRawParameters) {
-            throw normalizeError(
-                new Error(
-                    "ContractCallQuery accepts functionName or rawFunctionParameters, not both.",
-                ),
+            throw validationError(
                 "ContractService.callContract",
+                "ContractCallQuery accepts functionName or rawFunctionParameters, not both.",
             );
         }
     }

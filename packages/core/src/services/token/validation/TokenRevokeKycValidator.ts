@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TokenRevokeKycOperationOptions } from "../operations/TokenRevokeKycOperation.js";
 
 /**
@@ -21,9 +21,9 @@ export class TokenRevokeKycValidator {
 
     private validateTokenId(options: TokenRevokeKycOperationOptions): void {
         if (options.tokenId == null) {
-            throw normalizeError(
-                new Error("tokenId is required."),
+            throw validationError(
                 "TokenRevokeKycValidator",
+                "tokenId is required.",
             );
         }
 
@@ -31,18 +31,18 @@ export class TokenRevokeKycValidator {
             typeof options.tokenId === "string" &&
             options.tokenId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("tokenId cannot be empty."),
+            throw validationError(
                 "TokenRevokeKycValidator",
+                "tokenId cannot be empty.",
             );
         }
     }
 
     private validateAccountId(options: TokenRevokeKycOperationOptions): void {
         if (options.accountId == null) {
-            throw normalizeError(
-                new Error("accountId is required."),
+            throw validationError(
                 "TokenRevokeKycValidator",
+                "accountId is required.",
             );
         }
 
@@ -50,9 +50,9 @@ export class TokenRevokeKycValidator {
             typeof options.accountId === "string" &&
             options.accountId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("accountId cannot be empty."),
+            throw validationError(
                 "TokenRevokeKycValidator",
+                "accountId cannot be empty.",
             );
         }
     }

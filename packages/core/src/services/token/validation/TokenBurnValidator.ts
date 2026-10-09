@@ -1,6 +1,6 @@
 import type BigNumber from "bignumber.js";
 import { Long } from "@hiero-ledger/sdk";
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TokenBurnOperationOptions } from "../operations/index.js";
 
 /**
@@ -16,19 +16,16 @@ export class TokenBurnValidator {
 
     private validateTokenId(options: TokenBurnOperationOptions): void {
         if (options.tokenId == null) {
-            throw normalizeError(
-                new Error("tokenId is required."),
-                "TokenBurnValidator",
-            );
+            throw validationError("TokenBurnValidator", "tokenId is required.");
         }
 
         if (
             typeof options.tokenId === "string" &&
             options.tokenId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("tokenId cannot be empty."),
+            throw validationError(
                 "TokenBurnValidator",
+                "tokenId cannot be empty.",
             );
         }
     }
@@ -39,20 +36,16 @@ export class TokenBurnValidator {
             options.serials != null && options.serials.length > 0;
 
         if (!hasAmount && !hasSerials) {
-            throw normalizeError(
-                new Error(
-                    "Token burn requires either amount (fungible) or serials (NFT).",
-                ),
+            throw validationError(
                 "TokenBurnValidator",
+                "Token burn requires either amount (fungible) or serials (NFT).",
             );
         }
 
         if (hasAmount && hasSerials) {
-            throw normalizeError(
-                new Error(
-                    "Token burn requires either amount (fungible) or serials (NFT).",
-                ),
+            throw validationError(
                 "TokenBurnValidator",
+                "Token burn requires either amount (fungible) or serials (NFT).",
             );
         }
     }
@@ -73,9 +66,9 @@ export class TokenBurnValidator {
         }
 
         if (isNegative) {
-            throw normalizeError(
-                new Error("amount cannot be negative."),
+            throw validationError(
                 "TokenBurnValidator",
+                "amount cannot be negative.",
             );
         }
     }
@@ -84,24 +77,24 @@ export class TokenBurnValidator {
         if (options.serials == null) return;
 
         if (!Array.isArray(options.serials)) {
-            throw normalizeError(
-                new Error("serials must be an array."),
+            throw validationError(
                 "TokenBurnValidator",
+                "serials must be an array.",
             );
         }
 
         if (options.serials.length === 0) {
-            throw normalizeError(
-                new Error("serials cannot be an empty array."),
+            throw validationError(
                 "TokenBurnValidator",
+                "serials cannot be an empty array.",
             );
         }
 
         for (const serial of options.serials) {
             if (serial == null) {
-                throw normalizeError(
-                    new Error("serials entries cannot be null."),
+                throw validationError(
                     "TokenBurnValidator",
+                    "serials entries cannot be null.",
                 );
             }
 
@@ -109,16 +102,16 @@ export class TokenBurnValidator {
             const isNumber = typeof serial === "number";
 
             if (!isLong && !isNumber) {
-                throw normalizeError(
-                    new Error("serials entries must be a number or Long."),
+                throw validationError(
                     "TokenBurnValidator",
+                    "serials entries must be a number or Long.",
                 );
             }
 
             if (isNumber && !Number.isInteger(serial)) {
-                throw normalizeError(
-                    new Error("serials entries must be positive integers."),
+                throw validationError(
                     "TokenBurnValidator",
+                    "serials entries must be positive integers.",
                 );
             }
 
@@ -127,9 +120,9 @@ export class TokenBurnValidator {
                 : (serial as number) <= 0;
 
             if (isNonPositive) {
-                throw normalizeError(
-                    new Error("serials entries must be positive integers."),
+                throw validationError(
                     "TokenBurnValidator",
+                    "serials entries must be positive integers.",
                 );
             }
         }

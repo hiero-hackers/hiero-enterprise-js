@@ -21,6 +21,11 @@ describe("ContractDeleteValidator", () => {
                     transferAccountId: "0.0.2",
                 } as unknown as ContractDeleteOperationOptions),
             ).toThrow(/contractId is required/);
+            expect(() =>
+                validator.validate({
+                    transferAccountId: "0.0.2",
+                } as unknown as ContractDeleteOperationOptions),
+            ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
         });
 
         it("throws when contractId is an empty string", () => {

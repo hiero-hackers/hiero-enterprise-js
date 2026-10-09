@@ -1,4 +1,4 @@
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 import type { TopicMessageSubmitOperationOptions } from "../operations/index.js";
 
 /**
@@ -31,9 +31,9 @@ export class TopicMessageSubmitValidator {
 
     private validateTopicId(options: TopicMessageSubmitOperationOptions): void {
         if (options.topicId == null) {
-            throw normalizeError(
-                new Error("topicId is required."),
+            throw validationError(
                 "TopicMessageSubmitValidator",
+                "topicId is required.",
             );
         }
 
@@ -41,35 +41,35 @@ export class TopicMessageSubmitValidator {
             typeof options.topicId === "string" &&
             options.topicId.trim().length === 0
         ) {
-            throw normalizeError(
-                new Error("topicId cannot be empty."),
+            throw validationError(
                 "TopicMessageSubmitValidator",
+                "topicId cannot be empty.",
             );
         }
     }
 
     private validateMessage(options: TopicMessageSubmitOperationOptions): void {
         if (options.message == null) {
-            throw normalizeError(
-                new Error("message is required."),
+            throw validationError(
                 "TopicMessageSubmitValidator",
+                "message is required.",
             );
         }
 
         if (typeof options.message === "string") {
             if (options.message.length === 0) {
-                throw normalizeError(
-                    new Error("message cannot be empty."),
+                throw validationError(
                     "TopicMessageSubmitValidator",
+                    "message cannot be empty.",
                 );
             }
             return;
         }
 
         if (options.message.byteLength === 0) {
-            throw normalizeError(
-                new Error("message cannot be empty."),
+            throw validationError(
                 "TopicMessageSubmitValidator",
+                "message cannot be empty.",
             );
         }
     }
@@ -79,18 +79,18 @@ export class TopicMessageSubmitValidator {
     ): void {
         if (options.maxChunks != null) {
             if (!Number.isInteger(options.maxChunks) || options.maxChunks < 1) {
-                throw normalizeError(
-                    new Error("maxChunks must be a positive integer."),
+                throw validationError(
                     "TopicMessageSubmitValidator",
+                    "maxChunks must be a positive integer.",
                 );
             }
         }
 
         if (options.chunkSize != null) {
             if (!Number.isInteger(options.chunkSize) || options.chunkSize < 1) {
-                throw normalizeError(
-                    new Error("chunkSize must be a positive integer."),
+                throw validationError(
                     "TopicMessageSubmitValidator",
+                    "chunkSize must be a positive integer.",
                 );
             }
         }

@@ -1,5 +1,5 @@
 import type { NftAllSerialsAllowanceDeletion } from "../operations/DeleteAllNftAllowancesOperation.js";
-import { normalizeError } from "../../../errors/index.js";
+import { validationError } from "../../../errors/index.js";
 
 /**
  * Validates an array of `NftAllSerialsAllowanceDeletion` entries before
@@ -15,11 +15,9 @@ export class DeleteAllNftAllowancesValidator {
         allowances: NftAllSerialsAllowanceDeletion[],
     ): void {
         if (!allowances || allowances.length === 0) {
-            throw normalizeError(
-                new Error(
-                    "nftAllowances must be provided with at least one entry.",
-                ),
+            throw validationError(
                 "DeleteAllNftAllowancesValidator",
+                "nftAllowances must be provided with at least one entry.",
             );
         }
     }
@@ -29,23 +27,23 @@ export class DeleteAllNftAllowancesValidator {
     ): void {
         for (const allowance of allowances) {
             if (!allowance.tokenId) {
-                throw normalizeError(
-                    new Error("nftAllowances[].tokenId is required."),
+                throw validationError(
                     "DeleteAllNftAllowancesValidator",
+                    "nftAllowances[].tokenId is required.",
                 );
             }
 
             if (!allowance.ownerAccountId) {
-                throw normalizeError(
-                    new Error("nftAllowances[].ownerAccountId is required."),
+                throw validationError(
                     "DeleteAllNftAllowancesValidator",
+                    "nftAllowances[].ownerAccountId is required.",
                 );
             }
 
             if (!allowance.spenderAccountId) {
-                throw normalizeError(
-                    new Error("nftAllowances[].spenderAccountId is required."),
+                throw validationError(
                     "DeleteAllNftAllowancesValidator",
+                    "nftAllowances[].spenderAccountId is required.",
                 );
             }
         }

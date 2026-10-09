@@ -42,6 +42,11 @@ describe("TokenCancelAirdropValidator", () => {
                 pendingAirdropIds: null as unknown as PendingAirdropId[],
             }),
         ).toThrow(/pendingAirdropIds is required/);
+        expect(() =>
+            validator.validate({
+                pendingAirdropIds: null as unknown as PendingAirdropId[],
+            }),
+        ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
     });
 
     it("throws when pendingAirdropIds is undefined", () => {
