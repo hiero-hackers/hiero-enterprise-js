@@ -36,5 +36,5 @@ export * from "./context/index.js";
 // Services
 export * from "./services/index.js";
 
-// Interceptors
+// Transaction listeners
 export * from "./listeners/index.js";

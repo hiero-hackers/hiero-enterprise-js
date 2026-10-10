@@ -7,6 +7,7 @@ export * from "./topic/index.js";
 export * from "./file/index.js";
 export type {
     TransactionOptions,
+    FlowOptions,
     ExternalSigner,
     LegacySignature,
     QueryOptions,
