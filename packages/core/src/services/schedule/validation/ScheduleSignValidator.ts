@@ -20,6 +20,13 @@ export class ScheduleSignValidator {
     }
 
     private validateScheduleId(options: ScheduleSignOptions): void {
+        if (options.scheduleId == null) {
+            throw normalizeError(
+                new Error("scheduleId is required."),
+                "ScheduleSignValidator",
+            );
+        }
+
         if (
             typeof options.scheduleId === "string" &&
             options.scheduleId.trim() === ""
