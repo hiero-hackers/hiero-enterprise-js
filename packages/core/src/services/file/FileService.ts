@@ -1,7 +1,11 @@
 import type { FileId, Key } from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../context/index.js";
-import { HieroError, HieroErrorCodes } from "../../errors/index.js";
 import type { QueryOptions, ScheduleOptions } from "../transaction/index.js";
+import {
+    HieroError,
+    HieroErrorCodes,
+    normalizeError,
+} from "../../errors/index.js";
 import {
     FileCreateOperation,
     FileAppendOperation,
@@ -178,18 +182,12 @@ export class FileService {
                     contents: tail,
                 });
             } catch (error) {
-                // FileCreate already succeeded on-chain — the caller
-                // needs the fileId to retry the append or delete the
-                // partial file. Surface it on the thrown error.
-                const cause = error as Error;
-                throw new HieroError(
-                    `File ${result.fileId} was created, but appending the remainder of its contents failed: ${cause.message}`,
-                    {
-                        code: HieroErrorCodes.SdkError,
-                        context: "FileService.createFile",
-                        cause,
-                        fileId: result.fileId.toString(),
-                    },
+                throw wrapAppendFailure(
+                    error,
+                    `File ${result.fileId} was created, but appending the remainder of its contents failed`,
+                    result.fileId,
+                    result.transactionId,
+                    "FileService.createFile",
                 );
             }
         }
@@ -252,11 +250,21 @@ export class FileService {
         });
 
         if (tail !== null) {
-            await this.appendOperation.execute({
-                ...options,
-                fileId: options.fileId,
-                contents: tail,
-            });
+            try {
+                await this.appendOperation.execute({
+                    ...options,
+                    fileId: options.fileId,
+                    contents: tail,
+                });
+            } catch (error) {
+                throw wrapAppendFailure(
+                    error,
+                    `File ${options.fileId} was updated, but appending the remainder of its contents failed, so the file holds partial contents`,
+                    options.fileId,
+                    result.transactionId,
+                    "FileService.updateFile",
+                );
+            }
         }
         return result;
     }
@@ -385,4 +393,27 @@ function splitContents(
         contents.subarray(0, MAX_FILE_TX_BYTES),
         contents.subarray(MAX_FILE_TX_BYTES),
     ];
+}
+
+/**
+ * Wrap an append that failed after the create/update landed. The error
+ * carries the file ID and the landed transaction's ID; the append's error
+ * stays on `cause`.
+ */
+function wrapAppendFailure(
+    error: unknown,
+    message: string,
+    fileId: FileId | string,
+    transactionId: string | undefined,
+    context: string,
+): HieroError {
+    const cause = normalizeError(error, context);
+    return new HieroError(`${message}: ${cause.message}`, {
+        code: cause.code,
+        sdkStatus: cause.sdkStatus,
+        context,
+        cause,
+        transactionId,
+        fileId: fileId.toString(),
+    });
 }
