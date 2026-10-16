@@ -10,7 +10,7 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ### Fixed
 
-- Fixed `MirrorNodeClient.queryAccountBalance` (and `AccountRepository` balance lookups built on it) returning the caller's input as `Balance.accountId`: looking up `0x0000000000000000000000000000000000000062` returned that EVM address instead of `0.0.98`. `accountId` now comes from the response's `account` field. Applies to `@hiero-hackers/enterprise-mirror`. [#330](https://github.com/hiero-hackers/hiero-enterprise-js/issues/330)
+- Fixed `MirrorNodeClient.queryAccountBalance` (and `AccountRepository` balance lookups built on it) returning the caller's input as `Balance.accountId`: looking up `0x0000000000000000000000000000000000000062` returned that EVM address instead of `0.0.98`. `accountId` now comes from the response's `account` field. Applies to `@hiero-hackers/enterprise-mirror`. [#330](https://github.com/hiero-hackers/hiero-enterprise-js/issues/330) [#339](https://github.com/hiero-hackers/hiero-enterprise-js/pull/339)
 
 ## [0.4.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.3.0...v0.4.0) - 2026-10-15
 
