@@ -228,6 +228,14 @@ const IGNORED = new Map([
         "inline network component inside MirrorFeeEstimateResponse",
     ],
     ["NetworkFee", "inline fees entry inside MirrorNetworkFeesResponse"],
+    [
+        "PrestateResponse",
+        "prestate endpoint not implemented yet: no public network serves it",
+    ],
+    [
+        "PrestateAccountTrace",
+        "prestate endpoint not implemented yet: no public network serves it",
+    ],
 ]);
 
 // ── 1 · reachability ────────────────────────────────────────────
