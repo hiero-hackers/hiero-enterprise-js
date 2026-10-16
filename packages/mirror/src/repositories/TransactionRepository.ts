@@ -60,6 +60,8 @@ export class TransactionRepository {
     /**
      * Find a specific transaction by ID — pass `{ nonce }` or
      * `{ scheduled: true }` to select a child or scheduled execution.
+     * Takes the mirror form (`0.0.5-1700000000-000000123`) or the SDK's
+     * (`0.0.5@1700000000.000000123`).
      */
     findById(
         transactionId: string,

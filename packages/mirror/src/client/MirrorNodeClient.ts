@@ -158,7 +158,11 @@ import type {
     MirrorClientObserver,
     RequestTelemetry,
 } from "./MirrorClientObserver.js";
-import { appendQuery, segment } from "../utils/MirrorNodeQuery.js";
+import {
+    appendQuery,
+    segment,
+    transactionIdSegment,
+} from "../utils/MirrorNodeQuery.js";
 import { parseLossless } from "../utils/LosslessJson.js";
 
 /** Default per-request timeout, in milliseconds. */
@@ -960,14 +964,17 @@ export class MirrorNodeClient {
         options?: TransactionLookupQuery,
     ): Promise<TransactionInfo> {
         const raw = await this.request<MirrorTransactionListResponse>(
-            appendQuery(`/api/v1/transactions/${segment(transactionId)}`, {
-                nonce: options?.nonce,
-                scheduled: options?.scheduled,
-            }),
+            appendQuery(
+                `/api/v1/transactions/${transactionIdSegment(transactionId)}`,
+                {
+                    nonce: options?.nonce,
+                    scheduled: options?.scheduled,
+                },
+            ),
         );
         assertTransactionListResponse(
             raw,
-            `/api/v1/transactions/${segment(transactionId)}`,
+            `/api/v1/transactions/${transactionIdSegment(transactionId)}`,
         );
         if (!raw.transactions || raw.transactions.length === 0) {
             throw new MirrorError(`Transaction not found: ${transactionId}`, {
@@ -976,7 +983,7 @@ export class MirrorNodeClient {
         }
         assertTransactionResponse(
             raw.transactions[0],
-            `/api/v1/transactions/${segment(transactionId)}`,
+            `/api/v1/transactions/${transactionIdSegment(transactionId)}`,
         );
         return convertTransactionInfo(raw.transactions[0]);
     }
@@ -1436,7 +1443,7 @@ export class MirrorNodeClient {
         options?: ContractResultQuery,
     ): Promise<ContractResultDetails> {
         const path = appendQuery(
-            `/api/v1/contracts/results/${segment(transactionIdOrHash)}`,
+            `/api/v1/contracts/results/${transactionIdSegment(transactionIdOrHash)}`,
             { nonce: options?.nonce },
         );
         const raw = await this.request<MirrorContractResultDetails>(path);
@@ -1451,7 +1458,7 @@ export class MirrorNodeClient {
     ): Promise<Page<ContractAction>> {
         return this.getPage(
             appendQuery(
-                `/api/v1/contracts/results/${segment(transactionIdOrHash)}/actions`,
+                `/api/v1/contracts/results/${transactionIdSegment(transactionIdOrHash)}/actions`,
                 {
                     index: options?.index,
                     limit: options?.limit,
@@ -1472,7 +1479,7 @@ export class MirrorNodeClient {
         options?: OpcodesQuery,
     ): Promise<OpcodeTrace> {
         const path = appendQuery(
-            `/api/v1/contracts/results/${segment(transactionIdOrHash)}/opcodes`,
+            `/api/v1/contracts/results/${transactionIdSegment(transactionIdOrHash)}/opcodes`,
             {
                 stack: options?.stack,
                 memory: options?.memory,

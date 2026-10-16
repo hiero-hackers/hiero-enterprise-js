@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { appendQuery } from "../../../src/utils/MirrorNodeQuery.js";
+import {
+    appendQuery,
+    transactionIdSegment,
+} from "../../../src/utils/MirrorNodeQuery.js";
 
 describe("appendQuery", () => {
     it("returns the path unchanged when no params are present", () => {
@@ -53,5 +56,26 @@ describe("appendQuery", () => {
 
     it("percent-encodes reserved characters in values", () => {
         expect(appendQuery("/p", { q: "a b&c" })).toBe("/p?q=a%20b%26c");
+    });
+});
+
+describe("transactionIdSegment", () => {
+    it("rewrites the SDK form to the mirror node form", () => {
+        expect(transactionIdSegment("0.0.10924172@1792170607.753000756")).toBe(
+            "0.0.10924172-1792170607-753000756",
+        );
+    });
+
+    it.each([
+        "0.0.10924172-1792170607-753000756",
+        "0x6317a8117f9966f5d384d33ce9d750d68942fee509f467a37f3f181f0b4bc587",
+    ])("passes %s through", (id) => {
+        expect(transactionIdSegment(id)).toBe(id);
+    });
+
+    it("encodes an SDK ID with a suffix instead of rewriting it", () => {
+        expect(transactionIdSegment("0.0.5@1700000000.1?scheduled")).toBe(
+            "0.0.5%401700000000.1%3Fscheduled",
+        );
     });
 });

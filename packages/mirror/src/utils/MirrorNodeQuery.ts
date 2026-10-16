@@ -21,6 +21,22 @@ export function segment(value: string | number): string {
     return encodeURIComponent(String(value));
 }
 
+/**
+ * {@link segment} for a transaction ID, first rewriting the SDK's
+ * `0.0.5@1700000000.000000123` form to the mirror node's
+ * `0.0.5-1700000000-000000123`. Anything else (a mirror-format ID, an
+ * ethereum hash, or an SDK ID with a `?scheduled` / `/nonce` suffix) passes
+ * through unchanged.
+ */
+export function transactionIdSegment(transactionId: string): string {
+    const sdkFormat = /^(\d+\.\d+\.\d+)@(\d+)\.(\d+)$/.exec(transactionId);
+    return segment(
+        sdkFormat
+            ? `${sdkFormat[1]}-${sdkFormat[2]}-${sdkFormat[3]}`
+            : transactionId,
+    );
+}
+
 /** A value that can appear in a mirror node query parameter. */
 export type QueryParamValue =
     string | number | boolean | RangeFilter | readonly (string | number)[];

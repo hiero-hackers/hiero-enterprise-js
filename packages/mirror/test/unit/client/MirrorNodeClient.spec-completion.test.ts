@@ -337,6 +337,16 @@ describe("MirrorNodeClient spec-completion", () => {
             );
         });
 
+        it("single transaction and contract result: SDK-format ID", async () => {
+            mockJson({ transactions: [] });
+            await client.queryTransaction("0.0.1@1.2").catch(() => {});
+            expect(url()).toBe("https://x/api/v1/transactions/0.0.1-1-2");
+
+            mockJson({});
+            await client.queryContractResult("0.0.1@1.2").catch(() => {});
+            expect(url()).toBe("https://x/api/v1/contracts/results/0.0.1-1-2");
+        });
+
         it("topic messages: sequence window + timestamp", async () => {
             await client.queryTopicMessages("0.0.7", {
                 sequenceNumber: { gte: 100, lt: 200 },
