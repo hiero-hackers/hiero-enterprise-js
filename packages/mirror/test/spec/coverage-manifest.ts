@@ -130,6 +130,13 @@ export const SPEC_COVERAGE: Record<string, OperationCoverage> = {
     "GET /api/v1/contracts/results/{transactionIdOrHash}/actions": {
         covered: ["index", "limit", "order"],
     },
+    // Not implemented yet: upstream added it in 0.166.0-SNAPSHOT and no
+    // public network serves it (mainnet/testnet 404, previewnet 501 as of
+    // 2026-10-16).
+    "GET /api/v1/contracts/results/{transactionIdOrHash}/prestate": {
+        covered: [],
+        omitted: ["Accept-Encoding", "code", "diff", "storage"],
+    },
     "GET /api/v1/contracts/results/{transactionIdOrHash}/opcodes": {
         covered: ["memory", "stack", "storage"],
     },
