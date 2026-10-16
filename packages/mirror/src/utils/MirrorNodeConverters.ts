@@ -856,11 +856,15 @@ export function convertRegisteredNode(
         description: raw.description,
         registeredNodeId: raw.registered_node_id,
         serviceEndpoints: (raw.service_endpoints ?? []).map((endpoint) => ({
-            blockNode: endpoint.block_node,
-            endpointApis: endpoint.endpoint_apis,
-            description: endpoint.description,
+            blockNode:
+                endpoint.block_node == null
+                    ? endpoint.block_node
+                    : { endpointApis: endpoint.block_node.endpoint_apis },
             domainName: endpoint.domain_name,
-            generalService: endpoint.general_service,
+            generalService:
+                endpoint.general_service == null
+                    ? endpoint.general_service
+                    : { description: endpoint.general_service.description },
             ipAddress: endpoint.ip_address,
             mirrorNode: endpoint.mirror_node,
             port: endpoint.port,
