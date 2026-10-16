@@ -156,9 +156,11 @@ export interface StakingRewardTransfer {
 }
 
 /**
- * Transaction type enum matching Hiero's transaction types.
+ * A transaction type the mirror node can filter on (the spec's
+ * `TransactionTypes` enum).
  */
 export type TransactionType =
+    | "ATOMICBATCH"
     | "CONSENSUSCREATETOPIC"
     | "CONSENSUSDELETETOPIC"
     | "CONSENSUSSUBMITMESSAGE"
@@ -167,26 +169,48 @@ export type TransactionType =
     | "CONTRACTCREATEINSTANCE"
     | "CONTRACTDELETEINSTANCE"
     | "CONTRACTUPDATEINSTANCE"
+    | "CRSPUBLICATION"
     | "CRYPTOADDLIVEHASH"
     | "CRYPTOAPPROVEALLOWANCE"
     | "CRYPTOCREATEACCOUNT"
     | "CRYPTODELETE"
+    | "CRYPTODELETEALLOWANCE"
     | "CRYPTODELETELIVEHASH"
     | "CRYPTOTRANSFER"
     | "CRYPTOUPDATEACCOUNT"
+    | "ETHEREUMTRANSACTION"
     | "FILEAPPEND"
     | "FILECREATE"
     | "FILEDELETE"
     | "FILEUPDATE"
     | "FREEZE"
+    | "HINTSKEYPUBLICATION"
+    | "HINTSPARTIALSIGNATURE"
+    | "HINTSPREPROCESSINGVOTE"
+    | "HISTORYPROOFKEYPUBLICATION"
+    | "HISTORYPROOFSIGNATURE"
+    | "HISTORYPROOFVOTE"
+    | "HOOKSTORE"
+    | "LEDGERIDPUBLICATION"
+    | "MIGRATIONROOTHASHVOTE"
+    | "NODECREATE"
+    | "NODEDELETE"
+    | "NODESTAKEUPDATE"
+    | "NODEUPDATE"
+    | "REGISTEREDNODECREATE"
+    | "REGISTEREDNODEDELETE"
+    | "REGISTEREDNODEUPDATE"
     | "SCHEDULECREATE"
     | "SCHEDULEDELETE"
     | "SCHEDULESIGN"
+    | "STATESIGNATURETRANSACTION"
     | "SYSTEMDELETE"
     | "SYSTEMUNDELETE"
-    | "TOKENASSOCIATE"
     | "TOKENAIRDROP"
+    | "TOKENASSOCIATE"
     | "TOKENBURN"
+    | "TOKENCANCELAIRDROP"
+    | "TOKENCLAIMAIRDROP"
     | "TOKENCREATION"
     | "TOKENDELETION"
     | "TOKENDISSOCIATE"
@@ -195,12 +219,15 @@ export type TransactionType =
     | "TOKENGRANTKYC"
     | "TOKENMINT"
     | "TOKENPAUSE"
+    | "TOKENREJECT"
     | "TOKENREVOKEKYC"
     | "TOKENUNFREEZE"
     | "TOKENUNPAUSE"
     | "TOKENUPDATE"
+    | "TOKENUPDATENFTS"
     | "TOKENWIPE"
-    | "UNCHECKEDSUBMIT";
+    | "UNCHECKEDSUBMIT"
+    | "UTILPRNG";
 
 /**
  * Filters for a transaction list query — page controls plus a consensus
