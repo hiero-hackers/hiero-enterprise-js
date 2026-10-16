@@ -8,6 +8,10 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ## [Unreleased](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.4.0...HEAD)
 
+### Added
+
+- Added `TransactionRepository.findAllById` and `MirrorNodeClient.queryTransactionRows`, which return every row the mirror node sends for a transaction ID: parent and child transactions, or a `SCHEDULECREATE` and its scheduled execution. `findById` / `queryTransaction` returned only the first row, so the scheduled execution and child transactions were unreachable. `findById` still returns the first row. Applies to `@hiero-hackers/enterprise-mirror`. [#203](https://github.com/hiero-hackers/hiero-enterprise-js/issues/203)
+
 ## [0.4.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.3.0...v0.4.0) - 2026-10-15
 
 ### Added

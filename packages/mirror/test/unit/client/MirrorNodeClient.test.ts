@@ -203,6 +203,61 @@ describe("MirrorNodeClient", () => {
         });
     });
 
+    describe("queryTransactionRows", () => {
+        // A schedule's transaction ID: the SCHEDULECREATE and the scheduled
+        // execution share it (shape captured from mainnet).
+        const row = (name: string, scheduled: boolean, ts: string) => ({
+            transaction_id: "0.0.10924172-1792170607-753000756",
+            name,
+            scheduled,
+            nonce: 0,
+            result: "SUCCESS",
+            consensus_timestamp: ts,
+            valid_start_timestamp: "1792170607.753000756",
+            charged_tx_fee: 1,
+            transfers: [],
+            token_transfers: [],
+            nft_transfers: [],
+            staking_reward_transfers: [],
+        });
+
+        beforeEach(() => {
+            vi.spyOn(globalThis, "fetch").mockResolvedValue(
+                new Response(
+                    JSON.stringify({
+                        transactions: [
+                            row("SCHEDULECREATE", false, "1792170610.1"),
+                            row("CRYPTOTRANSFER", true, "1792170610.2"),
+                        ],
+                    }),
+                    {
+                        status: 200,
+                        headers: { "Content-Type": "application/json" },
+                    },
+                ),
+            );
+        });
+
+        it("returns every row in wire order", async () => {
+            const rows = await client.queryTransactionRows(
+                "0.0.10924172-1792170607-753000756",
+            );
+            expect(
+                rows.map(({ name, scheduled }) => ({ name, scheduled })),
+            ).toEqual([
+                { name: "SCHEDULECREATE", scheduled: false },
+                { name: "CRYPTOTRANSFER", scheduled: true },
+            ]);
+        });
+
+        it("queryTransaction still returns the first row", async () => {
+            const tx = await client.queryTransaction(
+                "0.0.10924172-1792170607-753000756",
+            );
+            expect(tx.name).toBe("SCHEDULECREATE");
+        });
+    });
+
     describe("schema validation", () => {
         it("rejects account response missing 'account' field", async () => {
             vi.spyOn(globalThis, "fetch").mockResolvedValue(
