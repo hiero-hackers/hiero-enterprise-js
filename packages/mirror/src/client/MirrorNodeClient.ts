@@ -351,6 +351,14 @@ export class MirrorNodeClient {
         while (url.endsWith("/")) {
             url = url.slice(0, -1);
         }
+        // Every path already starts with /api/v1; a doubled prefix 404s,
+        // which would read as "not found" everywhere.
+        if (url.endsWith("/api/v1")) {
+            throw new MirrorError(
+                `The mirror node base URL must not include /api/v1, got "${baseUrl}". Use "${url.slice(0, -"/api/v1".length)}".`,
+                { code: MirrorErrorCodes.ConfigInvalid },
+            );
+        }
         this.baseUrl = url;
         this.timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
         this.maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES;
