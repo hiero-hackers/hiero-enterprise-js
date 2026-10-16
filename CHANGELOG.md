@@ -10,7 +10,7 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ### Fixed
 
-- Fixed `TransactionType` missing 26 of the 68 transaction types the mirror node can filter on, so `TransactionQuery.transactionType` rejected common values such as `ETHEREUMTRANSACTION`, `CRYPTODELETEALLOWANCE`, `TOKENCLAIMAIRDROP`, `TOKENREJECT`, `UTILPRNG` and `ATOMICBATCH` without a cast. The union now matches the spec's `TransactionTypes` enum, and a test keeps it in sync when the spec snapshot is refreshed. Applies to `@hiero-hackers/enterprise-mirror`. [#332](https://github.com/hiero-hackers/hiero-enterprise-js/issues/332)
+- Fixed `TransactionType` missing 26 of the 68 transaction types the mirror node can filter on, so `TransactionQuery.transactionType` rejected common values such as `ETHEREUMTRANSACTION`, `CRYPTODELETEALLOWANCE`, `TOKENCLAIMAIRDROP`, `TOKENREJECT`, `UTILPRNG` and `ATOMICBATCH` without a cast. The union now matches the spec's `TransactionTypes` enum, and a test keeps it in sync when the spec snapshot is refreshed. Applies to `@hiero-hackers/enterprise-mirror`. [#332](https://github.com/hiero-hackers/hiero-enterprise-js/issues/332) [#342](https://github.com/hiero-hackers/hiero-enterprise-js/pull/342)
 
 ## [0.4.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.3.0...v0.4.0) - 2026-10-15
 
