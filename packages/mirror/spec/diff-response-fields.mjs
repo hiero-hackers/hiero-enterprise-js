@@ -150,8 +150,11 @@ const PAIRS = [
     ["ServiceEndpoint", "MirrorServiceEndpoint"],
     ["RegisteredNode", "MirrorRegisteredNode"],
     ["RegisteredServiceEndpoint", "MirrorRegisteredServiceEndpoint"],
-    ["RegisteredBlockNodeEndpoint", "MirrorRegisteredServiceEndpoint"],
-    ["RegisteredGeneralServiceEndpoint", "MirrorRegisteredServiceEndpoint"],
+    ["RegisteredBlockNodeEndpoint", "MirrorRegisteredBlockNodeEndpoint"],
+    [
+        "RegisteredGeneralServiceEndpoint",
+        "MirrorRegisteredGeneralServiceEndpoint",
+    ],
     ["NetworkStakeResponse", "MirrorNetworkStakeResponse"],
     ["NetworkSupplyResponse", "MirrorNetworkSupplyResponse"],
     ["NetworkFeesResponse", "MirrorNetworkFeesResponse"],
