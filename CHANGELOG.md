@@ -8,6 +8,10 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ## [Unreleased](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.4.0...HEAD)
 
+### Added
+
+- Added `MirrorError.detail`, the mirror node's own diagnostic from an HTTP error body (`_status.messages[0]`, as `"message (detail)"`), so callers can show it — for example `CONTRACT_REVERT_EXECUTED (0x08c379a0…)` from a failed `contracts/call` — without splitting `message` at its `" — "` separator. It is `undefined` when the body carries no diagnostic; `message` is unchanged. Applies to `@hiero-hackers/enterprise-mirror`. [#209](https://github.com/hiero-hackers/hiero-enterprise-js/issues/209)
+
 ## [0.4.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.3.0...v0.4.0) - 2026-10-15
 
 ### Added
