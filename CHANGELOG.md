@@ -10,7 +10,7 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ### Fixed
 
-- Fixed balance pagination (`AccountRepository.listBalances`, `TokenRepository.findHolders`, `collectAll` / `paginate` over them) skipping accounts: each next-page link got the response body's `timestamp` appended, which moved page 2 onward to the latest balance snapshot instead of current balances, so accounts created since that snapshot were silently missing (16 consecutive mainnet accounts in one observed run). The client now follows `links.next` as the mirror node sends it; a `timestamp` you pass is still kept by the mirror node in every link. Applies to `@hiero-hackers/enterprise-mirror`. [#328](https://github.com/hiero-hackers/hiero-enterprise-js/issues/328)
+- Fixed balance pagination (`AccountRepository.listBalances`, `TokenRepository.findHolders`, `collectAll` / `paginate` over them) skipping accounts: each next-page link got the response body's `timestamp` appended, which moved page 2 onward to the latest balance snapshot instead of current balances, so accounts created since that snapshot were silently missing (16 consecutive mainnet accounts in one observed run). The client now follows `links.next` as the mirror node sends it; a `timestamp` you pass is still kept by the mirror node in every link. Applies to `@hiero-hackers/enterprise-mirror`. [#328](https://github.com/hiero-hackers/hiero-enterprise-js/issues/328) [#344](https://github.com/hiero-hackers/hiero-enterprise-js/pull/344)
 
 ## [0.4.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.3.0...v0.4.0) - 2026-10-15
 
