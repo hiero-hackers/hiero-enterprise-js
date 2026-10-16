@@ -188,6 +188,28 @@ describe("MirrorNodeClient", () => {
         });
     });
 
+    describe("queryAccountBalance", () => {
+        it("returns the account ID from the response for an EVM address lookup", async () => {
+            vi.spyOn(globalThis, "fetch").mockResolvedValue(
+                new Response(
+                    JSON.stringify({
+                        account: "0.0.98",
+                        balance: { balance: 1, timestamp: "1.0", tokens: [] },
+                    }),
+                    {
+                        status: 200,
+                        headers: { "Content-Type": "application/json" },
+                    },
+                ),
+            );
+
+            const balance = await client.queryAccountBalance(
+                "0x0000000000000000000000000000000000000062",
+            );
+            expect(balance.accountId).toBe("0.0.98");
+        });
+    });
+
     describe("queryTransaction", () => {
         it("throws NOT_FOUND for empty transactions", async () => {
             vi.spyOn(globalThis, "fetch").mockResolvedValue(

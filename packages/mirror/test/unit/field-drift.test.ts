@@ -188,9 +188,6 @@ describe("field-drift guard: token", () => {
 
 describe("field-drift guard: balance", () => {
     it("carries every wire field", () => {
-        // convertBalance reads only balance.*; accountId is supplied as an
-        // argument, so seed raw.account with the same id we pass in so the
-        // (otherwise-unread) leaf still appears in the output.
         const raw: MirrorAccountResponse = {
             account: "0.0.9000001",
             balance: {
@@ -205,7 +202,7 @@ describe("field-drift guard: balance", () => {
                 ],
             },
         };
-        assertNoSilentDrops(raw, convertBalance("0.0.9000001", raw));
+        assertNoSilentDrops(raw, convertBalance(raw));
     });
 });
 
