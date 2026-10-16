@@ -5,7 +5,10 @@ import {
     createMirrorNodeClient,
 } from "../../../src/config/MirrorConfig.js";
 import { MirrorNodeClient } from "../../../src/client/MirrorNodeClient.js";
-import { MirrorError } from "../../../src/errors/MirrorError.js";
+import {
+    MirrorError,
+    MirrorErrorCodes,
+} from "../../../src/errors/MirrorError.js";
 
 describe("resolveMirrorNodeUrl", () => {
     it("resolves known networks (case-insensitive)", () => {
@@ -120,6 +123,57 @@ describe("createMirrorNodeClient", () => {
                 mirrorNodeMaxConcurrent: 0,
             }),
         ).toThrow(MirrorError);
+    });
+
+    it.each([
+        [
+            "mirrorNodeTimeoutMs",
+            NaN,
+            /timeoutMs must be a finite number > 0, got NaN/,
+        ],
+        [
+            "mirrorNodeTimeoutMs",
+            0,
+            /timeoutMs must be a finite number > 0, got 0/,
+        ],
+        [
+            "mirrorNodeTimeoutMs",
+            Infinity,
+            /timeoutMs must be a finite number > 0/,
+        ],
+        [
+            "mirrorNodeMaxRetries",
+            NaN,
+            /maxRetries must be an integer >= 0, got NaN/,
+        ],
+        [
+            "mirrorNodeMaxRetries",
+            -1,
+            /maxRetries must be an integer >= 0, got -1/,
+        ],
+        [
+            "mirrorNodeMaxRetries",
+            1.5,
+            /maxRetries must be an integer >= 0, got 1.5/,
+        ],
+    ])("rejects %s = %s with CONFIG_INVALID", (field, value, message) => {
+        expect(() =>
+            createMirrorNodeClient({ network: "testnet", [field]: value }),
+        ).toThrow(
+            expect.objectContaining({
+                code: MirrorErrorCodes.ConfigInvalid,
+                message: expect.stringMatching(message),
+            }),
+        );
+    });
+
+    it("accepts maxRetries 0 (retries off)", () => {
+        expect(() =>
+            createMirrorNodeClient({
+                network: "testnet",
+                mirrorNodeMaxRetries: 0,
+            }),
+        ).not.toThrow();
     });
 
     it("forwards mirrorNodeRetryOn404 to the client", async () => {

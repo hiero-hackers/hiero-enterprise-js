@@ -8,6 +8,10 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ## [Unreleased](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.4.0...HEAD)
 
+### Fixed
+
+- Fixed `MirrorNodeClient` accepting an invalid `timeoutMs` or `maxRetries`: a typo such as `HIERO_MIRROR_NODE_TIMEOUT_MS=10s` built a client whose every request failed with `TIMED_OUT … after NaNms`, and `HIERO_MIRROR_NODE_MAX_RETRIES=three` silently turned retries off. The constructor (and so `createMirrorNodeClient`) now throws a `CONFIG_INVALID` `MirrorError` unless `timeoutMs` is a finite number > 0 and `maxRetries` is an integer >= 0, as it already did for `maxConcurrent` and `maxRequestsPerSecond`. Applies to `@hiero-hackers/enterprise-mirror`. [#333](https://github.com/hiero-hackers/hiero-enterprise-js/issues/333)
+
 ## [0.4.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.3.0...v0.4.0) - 2026-10-15
 
 ### Added

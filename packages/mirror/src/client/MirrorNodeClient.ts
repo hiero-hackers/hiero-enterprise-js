@@ -353,7 +353,19 @@ export class MirrorNodeClient {
         }
         this.baseUrl = url;
         this.timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+        if (!Number.isFinite(this.timeoutMs) || this.timeoutMs <= 0) {
+            throw new MirrorError(
+                `timeoutMs must be a finite number > 0, got ${this.timeoutMs}.`,
+                { code: MirrorErrorCodes.ConfigInvalid },
+            );
+        }
         this.maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES;
+        if (!Number.isInteger(this.maxRetries) || this.maxRetries < 0) {
+            throw new MirrorError(
+                `maxRetries must be an integer >= 0, got ${this.maxRetries}.`,
+                { code: MirrorErrorCodes.ConfigInvalid },
+            );
+        }
         this.observer = options?.observer;
         this.retryOn404 = options?.retryOn404 ?? false;
         // A shared gate (from withRetryOn404) already carries the concurrency
