@@ -8,6 +8,10 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ## [Unreleased](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.4.0...HEAD)
 
+### Fixed
+
+- **Behavior change:** fixed fields the mirror node sends as `null` reaching callers as `null` although their types did not allow it. On `MirrorAccountInfo`, `alias`, `evmAddress`, `autoRenewPeriod`, `memo`, `maxAutomaticTokenAssociations`, `stakedAccountId`, `stakedNodeId`, `stakePeriodStart` and `createdTimestamp`; on `Nft`, `createdTimestamp`, `spender` and `delegatingSpender`; and a fixed fee's `denominatingTokenId` (HBAR fees) are now `undefined` instead of `null`, so `info.alias !== undefined` and `fee.denominatingTokenId === undefined` mean what they say. `NftTransferInfo.senderAccountId` (null on mint), `NftTransferInfo.receiverAccountId` and `NftTransaction.receiverAccountId` (null on burn) are now typed `string | null`. The `Mirror*` wire types include `null` for all of them. Applies to `@hiero-hackers/enterprise-mirror`. [#331](https://github.com/hiero-hackers/hiero-enterprise-js/issues/331)
+
 ## [0.4.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.3.0...v0.4.0) - 2026-10-15
 
 ### Added
