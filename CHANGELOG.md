@@ -8,6 +8,10 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ## [Unreleased](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.4.0...HEAD)
 
+### Fixed
+
+- Fixed the mirror client's request gate briefly running more requests than `maxConcurrent` (`HIERO_MIRROR_NODE_MAX_CONCURRENT`): a finished request freed its slot before the next queued request had taken it, so a request arriving in between took the slot as well (two in flight under `maxConcurrent: 1`). A freed slot now passes directly to the next queued request. Applies to `@hiero-hackers/enterprise-mirror`. [#334](https://github.com/hiero-hackers/hiero-enterprise-js/issues/334)
+
 ## [0.4.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.3.0...v0.4.0) - 2026-10-15
 
 ### Added
