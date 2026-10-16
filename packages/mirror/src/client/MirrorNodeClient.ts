@@ -487,9 +487,10 @@ export class MirrorNodeClient {
      *
      * - Each attempt is bounded by `timeoutMs` via AbortController.
      * - HTTP 429 and 5xx responses are retried up to `maxRetries` times,
-     *   honouring the `Retry-After` header when present. The only POST
-     *   endpoint (`/contracts/call`) is a transient simulation, so it is
-     *   as safe to retry as a GET.
+     *   honouring the `Retry-After` header when present (up to 5 s; a
+     *   longer `Retry-After` ends the request with that response's error).
+     *   The only POST endpoint (`/contracts/call`) is a transient
+     *   simulation, so it is as safe to retry as a GET.
      * - HTTP 404 is retried on the same budget only when `retryOn404` is
      *   enabled (for mirror-node eventual consistency on freshly-created
      *   entities); otherwise, and once retries are exhausted, it surfaces
@@ -572,7 +573,13 @@ export class MirrorNodeClient {
             response.status === 429 ||
             response.status >= 500 ||
             (this.retryOn404 && response.status === 404);
-        if (retryableStatus && attempt < this.maxRetries) {
+        // A 404 carries no `Retry-After`, so parseRetryAfter returns null and
+        // the eventual-consistency case just backs off. A server asking for
+        // longer than the backoff cap gets its error now, instead of the
+        // request holding a gate slot for the whole wait.
+        const retryAfter = parseRetryAfter(response.headers.get("retry-after"));
+        const waitTooLong = retryAfter !== null && retryAfter > BACKOFF_CAP_MS;
+        if (retryableStatus && !waitTooLong && attempt < this.maxRetries) {
             clearTimeout(timer);
             // Release the unread body so undici can reuse the connection
             // instead of holding it open across the backoff (no-op when the
@@ -580,11 +587,6 @@ export class MirrorNodeClient {
             // rejects must not abort the retry loop — the connection just
             // isn't reused.
             await response.body?.cancel().catch(() => {});
-            // A 404 carries no `Retry-After`, so parseRetryAfter returns
-            // null and the eventual-consistency case just backs off.
-            const retryAfter = parseRetryAfter(
-                response.headers.get("retry-after"),
-            );
             const delayMs = retryAfter ?? this.backoffMs(attempt);
             notifyObserver(this.observer?.onRetry, {
                 path,

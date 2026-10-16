@@ -8,6 +8,10 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ## [Unreleased](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.4.0...HEAD)
 
+### Changed
+
+- **Behavior change:** the mirror client honours `Retry-After` only up to 5 seconds. A `429` or 5xx whose `Retry-After` asks for longer now ends the request with that response's error instead of sleeping: a request with `timeoutMs: 500` used to take 5 s on `Retry-After: 5`, and `Retry-After: 60` held a concurrency slot for about 3 minutes across the default retries. Shorter `Retry-After` values are honoured as before. Applies to `@hiero-hackers/enterprise-mirror`. [#338](https://github.com/hiero-hackers/hiero-enterprise-js/issues/338)
+
 ## [0.4.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.3.0...v0.4.0) - 2026-10-15
 
 ### Added

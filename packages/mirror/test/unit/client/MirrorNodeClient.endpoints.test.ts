@@ -202,6 +202,20 @@ describe("MirrorNodeClient remaining endpoints", () => {
         expect(spy).toHaveBeenCalledTimes(3);
     });
 
+    it("throws a 429 at once when Retry-After asks for longer than 5 s", async () => {
+        spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+            new Response(null, {
+                status: 429,
+                statusText: "Too Many Requests",
+                headers: { "retry-after": "60" },
+            }),
+        );
+        await expect(client.queryAccount("0.0.1")).rejects.toMatchObject({
+            status: 429,
+        });
+        expect(spy).toHaveBeenCalledTimes(1);
+    });
+
     it("gives up after maxRetries and surfaces the HTTP error", async () => {
         const impatient = new MirrorNodeClient("https://x", { maxRetries: 1 });
         vi.spyOn(globalThis, "fetch").mockResolvedValue(
