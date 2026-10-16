@@ -109,7 +109,6 @@ describe("field-drift guard: account", () => {
                 {
                     token_id: "0.0.7770",
                     balance: "28912437152291031",
-                    decimals: 3302,
                 },
             ],
         },
@@ -200,7 +199,6 @@ describe("field-drift guard: balance", () => {
                     {
                         token_id: "0.0.9000011",
                         balance: 4242011,
-                        decimals: 4242012,
                     },
                 ],
             },

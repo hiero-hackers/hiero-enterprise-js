@@ -92,13 +92,13 @@ describe("account converters", () => {
             account: "0.0.9",
             balance: {
                 balance: 100,
-                tokens: [{ token_id: "0.0.5", balance: 7, decimals: 2 }],
+                tokens: [{ token_id: "0.0.5", balance: 7 }],
             },
         });
         expect(balance).toEqual({
             accountId: "0.0.9",
             tinybars: "100",
-            tokens: [{ tokenId: "0.0.5", balance: "7", decimals: 2 }],
+            tokens: [{ tokenId: "0.0.5", balance: "7" }],
         });
     });
 
@@ -527,7 +527,7 @@ describe("convertAccountInfo — balance snapshot fields", () => {
         balance: {
             balance: 1026735128,
             timestamp: "1780503998.708125000",
-            tokens: [{ token_id: "0.0.720", balance: 500, decimals: 6 }],
+            tokens: [{ token_id: "0.0.720", balance: 500 }],
         },
     };
 
@@ -539,7 +539,7 @@ describe("convertAccountInfo — balance snapshot fields", () => {
 
     it("carries the token balances", () => {
         expect(convertAccountInfo(raw).tokenBalances).toEqual([
-            { tokenId: "0.0.720", balance: "500", decimals: 6 },
+            { tokenId: "0.0.720", balance: "500" },
         ]);
     });
 

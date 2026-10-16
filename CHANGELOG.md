@@ -8,6 +8,10 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ## [Unreleased](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.4.0...HEAD)
 
+### Fixed
+
+- **Behavior change:** fixed `TokenBalance.decimals` being typed `number` on the token entries of `Balance.tokens` (`AccountRepository.getBalance`) and `AccountInfo.tokenBalances`, where it was always `undefined`: the account response carries only `token_id` and `balance` per token. `TokenBalance.decimals` is now optional and is set only by the account-tokens listing (`queryAccountTokens`), which does report it. Read decimals from the token (`TokenRepository.findById`) or from that listing. Applies to `@hiero-hackers/enterprise-mirror`. [#329](https://github.com/hiero-hackers/hiero-enterprise-js/issues/329)
+
 ## [0.4.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.3.0...v0.4.0) - 2026-10-15
 
 ### Added

@@ -207,7 +207,6 @@ function convertTokenBalances(raw: MirrorAccountResponse): TokenBalance[] {
     return (raw.balance?.tokens ?? []).map((t) => ({
         tokenId: t.token_id,
         balance: amountString(t.balance),
-        decimals: t.decimals,
     }));
 }
 
