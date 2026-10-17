@@ -12,6 +12,10 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 - Added `MirrorError.detail`, the mirror node's own diagnostic from an HTTP error body (`_status.messages[0]`, as `"message (detail)"`), so callers can show it — for example `CONTRACT_REVERT_EXECUTED (0x08c379a0…)` from a failed `contracts/call` — without splitting `message` at its `" — "` separator. It is `undefined` when the body carries no diagnostic; `message` is unchanged. Applies to `@hiero-hackers/enterprise-mirror`. [#209](https://github.com/hiero-hackers/hiero-enterprise-js/issues/209) [#325](https://github.com/hiero-hackers/hiero-enterprise-js/pull/325)
 
+### Fixed
+
+- **Behavior change:** fixed fields the mirror node sends as `null` reaching callers as `null` although their types did not allow it. On `MirrorAccountInfo`, `alias`, `evmAddress`, `autoRenewPeriod`, `memo`, `maxAutomaticTokenAssociations`, `stakedAccountId`, `stakedNodeId`, `stakePeriodStart` and `createdTimestamp`; on `Nft`, `createdTimestamp`, `spender` and `delegatingSpender`; and a fixed fee's `denominatingTokenId` (HBAR fees) are now `undefined` instead of `null`, so `info.alias !== undefined` and `fee.denominatingTokenId === undefined` mean what they say. `NftTransferInfo.senderAccountId` (null on mint), `NftTransferInfo.receiverAccountId` and `NftTransaction.receiverAccountId` (null on burn) are now typed `string | null`. The `Mirror*` wire types include `null` for all of them. Applies to `@hiero-hackers/enterprise-mirror`. [#331](https://github.com/hiero-hackers/hiero-enterprise-js/issues/331) [#349](https://github.com/hiero-hackers/hiero-enterprise-js/pull/349)
+
 ## [0.4.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.3.0...v0.4.0) - 2026-10-15
 
 ### Added
