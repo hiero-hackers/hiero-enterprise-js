@@ -60,11 +60,32 @@ export class TransactionRepository {
     /**
      * Find a specific transaction by ID — pass `{ nonce }` or
      * `{ scheduled: true }` to select a child or scheduled execution.
+     * Returns the first row; use {@link findAllById} for all of them.
      */
     findById(
         transactionId: string,
         options?: TransactionLookupQuery,
     ): Promise<TransactionInfo> {
         return this.mirrorNodeClient.queryTransaction(transactionId, options);
+    }
+
+    /**
+     * Find every row the mirror node returns for a transaction ID: parent
+     * and child transactions, or a schedule create and its scheduled
+     * execution.
+     *
+     * @example
+     * // The SCHEDULECREATE and the scheduled execution it triggered:
+     * const rows = await repo.findAllById("0.0.123-1700000000-000000001");
+     * const executed = rows.find((row) => row.scheduled);
+     */
+    findAllById(
+        transactionId: string,
+        options?: TransactionLookupQuery,
+    ): Promise<TransactionInfo[]> {
+        return this.mirrorNodeClient.queryTransactionRows(
+            transactionId,
+            options,
+        );
     }
 }
