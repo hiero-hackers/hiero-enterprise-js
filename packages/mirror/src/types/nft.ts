@@ -46,8 +46,8 @@ export interface NftTransaction {
     isApproval?: boolean;
     /** Transaction nonce */
     nonce?: number;
-    /** Receiving account */
-    receiverAccountId: string;
+    /** Receiving account, or null on burn */
+    receiverAccountId: string | null;
     /** Sending account, or null on mint */
     senderAccountId: string | null;
     /** The transaction's ID */
