@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
+    AddressBookQuery,
     NetworkVersionInfoQuery,
     Query,
     Status,
@@ -7,6 +8,7 @@ import {
     TransactionReceiptQuery,
     TransactionRecordQuery,
     type NetworkVersionInfo,
+    type NodeAddressBook,
     type TransactionReceipt,
     type TransactionRecord,
 } from "@hiero-ledger/sdk";
@@ -293,6 +295,67 @@ describe("NetworkService [facade contract]", () => {
                     status: "SUCCESS",
                 }),
             );
+        });
+    });
+
+    describe("getAddressBook", () => {
+        const book = { nodeAddresses: [] } as unknown as NodeAddressBook;
+        let stream: ReturnType<typeof vi.spyOn>;
+
+        /** The address book query sent to the mirror node. */
+        const sentBookQuery = () => stream.mock.contexts[0] as AddressBookQuery;
+
+        beforeEach(() => {
+            // A mirror-node stream: AddressBookQuery overrides execute.
+            stream = vi
+                .spyOn(AddressBookQuery.prototype, "execute")
+                .mockResolvedValue(book);
+        });
+
+        it("reads file 0.0.102 by default", async () => {
+            const result = await service.getAddressBook();
+
+            expect(result).toBe(book);
+            expect(stream).toHaveBeenCalledWith(context.client);
+            expect(sentBookQuery().fileId?.toString()).toBe("0.0.102");
+            expect(sentBookQuery().limit).toBeNull();
+        });
+
+        it("passes the file ID and limit", async () => {
+            await service.getAddressBook({ fileId: "0.0.101", limit: 3 });
+
+            expect(sentBookQuery().fileId?.toString()).toBe("0.0.101");
+            expect(sentBookQuery().limit).toBe(3);
+        });
+
+        it.each([
+            [{ limit: 0 }, "limit must be an integer >= 1, got 0."],
+            [{ limit: 1.5 }, "limit must be an integer >= 1, got 1.5."],
+            [{ fileId: "abc" }, 'got "abc"'],
+            [{ fileId: "0.0.150" }, 'got "0.0.150"'],
+        ])(
+            "rejects %j with INPUT_INVALID before querying",
+            async (options, message) => {
+                await expect(
+                    service.getAddressBook(options),
+                ).rejects.toMatchObject({
+                    code: "INPUT_INVALID",
+                    context: "NetworkService.getAddressBook",
+                    message: expect.stringContaining(message),
+                });
+                expect(stream).not.toHaveBeenCalled();
+            },
+        );
+
+        it("normalizes a stream failure", async () => {
+            stream.mockRejectedValueOnce(
+                new Error("failed to query address book"),
+            );
+
+            await expect(service.getAddressBook()).rejects.toMatchObject({
+                name: "HieroError",
+                context: "NetworkService.getAddressBook",
+            });
         });
     });
 });
