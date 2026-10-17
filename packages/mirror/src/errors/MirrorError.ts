@@ -44,6 +44,12 @@ export class MirrorError extends Error {
      * alternative is parsing the number back out of `message`.
      */
     public readonly status?: number;
+    /**
+     * The mirror node's own diagnostic from the error body
+     * (`_status.messages[0]`, as `"message (detail)"`), when one was sent.
+     * Carried so callers can show it without parsing `message`.
+     */
+    public readonly detail?: string;
     /** The underlying error, when one was caught */
     public override readonly cause?: Error;
 
@@ -53,6 +59,7 @@ export class MirrorError extends Error {
             code?: MirrorErrorCode;
             context?: string;
             status?: number;
+            detail?: string;
             cause?: Error;
         } = {},
     ) {
@@ -61,6 +68,7 @@ export class MirrorError extends Error {
         this.code = options.code ?? MirrorErrorCodes.MirrorNodeError;
         this.context = options.context;
         this.status = options.status;
+        this.detail = options.detail;
         this.cause = options.cause;
     }
 }

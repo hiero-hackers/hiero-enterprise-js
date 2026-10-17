@@ -78,6 +78,8 @@ export type {
     ServiceEndpoint,
     RegisteredNode,
     RegisteredServiceEndpoint,
+    RegisteredBlockNodeEndpoint,
+    RegisteredGeneralServiceEndpoint,
     StakingReward,
     FeeExtra,
     FeeEstimateComponent,
@@ -188,6 +190,8 @@ export type {
     MirrorAmount,
     MirrorServiceEndpoint,
     MirrorRegisteredServiceEndpoint,
+    MirrorRegisteredBlockNodeEndpoint,
+    MirrorRegisteredGeneralServiceEndpoint,
     MirrorAccessListEntry,
     MirrorAuthorizationListEntry,
 } from "./mirror-node.js";
