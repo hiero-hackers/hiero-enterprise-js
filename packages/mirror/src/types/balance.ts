@@ -1,10 +1,9 @@
 /**
  * HBAR and token balance for an account.
  *
- * Structurally identical to core's `Balance` (the SDK-side balance query
- * returns the same shape) — TypeScript's structural typing keeps the two
- * freely assignable. If a third copy ever appears, extract a shared
- * package instead.
+ * Mirrors core's `Balance`, except that `tokens` entries carry no
+ * `decimals`: the account response doesn't include them. Read decimals
+ * from the token, or from the account-tokens listing.
  */
 export interface Balance {
     /** Account ID */
@@ -25,8 +24,8 @@ export interface TokenBalance {
     tokenId: string;
     /** Balance in the token's smallest unit — decimal string */
     balance: string;
-    /** Token decimals */
-    decimals: number;
+    /** Token decimals (account-tokens listing) */
+    decimals?: number;
     /** Whether the association was automatic (account-tokens listing) */
     automaticAssociation?: boolean;
     /** When the token was associated (account-tokens listing) */

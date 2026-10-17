@@ -92,6 +92,31 @@ describe("RequestGate concurrency", () => {
         expect(gate.queued).toBe(0);
     });
 
+    it("never exceeds maxConcurrent when a caller arrives during a hand-off", async () => {
+        // The third caller arrives after the first release but before the
+        // woken waiter resumes; it must queue, not take the slot.
+        for (let hops = 0; hops < 8; hops++) {
+            const gate = new RequestGate({ maxConcurrent: 1 });
+            let running = 0;
+            let peak = 0;
+            const task = async () => {
+                running++;
+                peak = Math.max(peak, running);
+                await Promise.resolve();
+                running--;
+            };
+            let late: Promise<void> = Promise.resolve();
+            for (let i = 0; i < hops; i++) late = late.then(() => {});
+            await Promise.all([
+                gate.run(task),
+                gate.run(task),
+                late.then(() => gate.run(task)),
+            ]);
+            expect(peak, `after ${hops} microtask hops`).toBe(1);
+            expect(gate.inFlight).toBe(0);
+        }
+    });
+
     it("releases the slot even when the task throws", async () => {
         const gate = new RequestGate({ maxConcurrent: 1 });
         await expect(

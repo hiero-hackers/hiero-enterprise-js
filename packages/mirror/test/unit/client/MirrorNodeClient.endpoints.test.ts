@@ -243,6 +243,20 @@ describe("MirrorNodeClient remaining endpoints", () => {
 describe("MirrorNodeClient edge branches", () => {
     afterEach(() => vi.restoreAllMocks());
 
+    it.each([
+        "https://mainnet.mirrornode.hedera.com/api/v1",
+        "https://mainnet.mirrornode.hedera.com/api/v1/",
+    ])("rejects a base URL ending in /api/v1 (%s)", (baseUrl) => {
+        expect(() => new MirrorNodeClient(baseUrl)).toThrow(
+            expect.objectContaining({
+                code: MirrorErrorCodes.ConfigInvalid,
+                message: expect.stringContaining(
+                    'Use "https://mainnet.mirrornode.hedera.com"',
+                ),
+            }),
+        );
+    });
+
     it("strips trailing slashes from the base URL", async () => {
         const client = new MirrorNodeClient("https://x///");
         const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(

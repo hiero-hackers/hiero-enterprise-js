@@ -351,9 +351,29 @@ export class MirrorNodeClient {
         while (url.endsWith("/")) {
             url = url.slice(0, -1);
         }
+        // Every path already starts with /api/v1; a doubled prefix 404s,
+        // which would read as "not found" everywhere.
+        if (url.endsWith("/api/v1")) {
+            throw new MirrorError(
+                `The mirror node base URL must not include /api/v1, got "${baseUrl}". Use "${url.slice(0, -"/api/v1".length)}".`,
+                { code: MirrorErrorCodes.ConfigInvalid },
+            );
+        }
         this.baseUrl = url;
         this.timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+        if (!Number.isFinite(this.timeoutMs) || this.timeoutMs <= 0) {
+            throw new MirrorError(
+                `timeoutMs must be a finite number > 0, got ${this.timeoutMs}.`,
+                { code: MirrorErrorCodes.ConfigInvalid },
+            );
+        }
         this.maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES;
+        if (!Number.isInteger(this.maxRetries) || this.maxRetries < 0) {
+            throw new MirrorError(
+                `maxRetries must be an integer >= 0, got ${this.maxRetries}.`,
+                { code: MirrorErrorCodes.ConfigInvalid },
+            );
+        }
         this.observer = options?.observer;
         this.retryOn404 = options?.retryOn404 ?? false;
         // A shared gate (from withRetryOn404) already carries the concurrency
@@ -718,7 +738,7 @@ export class MirrorNodeClient {
         });
         const raw = await this.request<MirrorAccountResponse>(path);
         assertAccountResponse(raw, path);
-        return convertBalance(accountId, raw);
+        return convertBalance(raw);
     }
 
     /**
@@ -960,30 +980,45 @@ export class MirrorNodeClient {
         return this.queryTransactions({ ...options, accountId });
     }
 
+    /**
+     * The first row the mirror node returns for a transaction ID. Use
+     * {@link queryTransactionRows} for every row (parent and child
+     * transactions, or a schedule create and its scheduled execution).
+     */
     async queryTransaction(
         transactionId: string,
         options?: TransactionLookupQuery,
     ): Promise<TransactionInfo> {
+        const rows = await this.queryTransactionRows(transactionId, options);
+        return rows[0];
+    }
+
+    /**
+     * Every row the mirror node returns for a transaction ID, in the order
+     * it sent them: parent and child transactions, or a `SCHEDULECREATE`
+     * and its scheduled execution. Throws `NotFound` when there are none.
+     */
+    async queryTransactionRows(
+        transactionId: string,
+        options?: TransactionLookupQuery,
+    ): Promise<TransactionInfo[]> {
+        const path = `/api/v1/transactions/${segment(transactionId)}`;
         const raw = await this.request<MirrorTransactionListResponse>(
-            appendQuery(`/api/v1/transactions/${segment(transactionId)}`, {
+            appendQuery(path, {
                 nonce: options?.nonce,
                 scheduled: options?.scheduled,
             }),
         );
-        assertTransactionListResponse(
-            raw,
-            `/api/v1/transactions/${segment(transactionId)}`,
-        );
+        assertTransactionListResponse(raw, path);
         if (!raw.transactions || raw.transactions.length === 0) {
             throw new MirrorError(`Transaction not found: ${transactionId}`, {
                 code: MirrorErrorCodes.NotFound,
             });
         }
-        assertTransactionResponse(
-            raw.transactions[0],
-            `/api/v1/transactions/${segment(transactionId)}`,
-        );
-        return convertTransactionInfo(raw.transactions[0]);
+        return raw.transactions.map((row) => {
+            assertTransactionResponse(row, path);
+            return convertTransactionInfo(row);
+        });
     }
 
     // ─── Network ─────────────────────────────────────────────────
@@ -1575,23 +1610,12 @@ export class MirrorNodeClient {
             raw as MirrorPageResponse<never>,
             converter,
         );
-        // Balance-family responses carry the mirror's snapshot timestamp,
-        // but their next-page links do NOT — so unpinned pagination can
-        // straddle two snapshots if a new one lands mid-drain. Pin the
-        // snapshot onto the next link to keep every page consistent.
-        let nextLink = links.next;
-        if (
-            nextLink !== null &&
-            timestamp != null &&
-            !nextLink.includes("timestamp=")
-        ) {
-            nextLink +=
-                (nextLink.includes("?") ? "&" : "?") +
-                `timestamp=${encodeURIComponent(timestamp)}`;
-        }
+        // Follow `links.next` as sent: adding the body `timestamp` to it
+        // moved balance pages to an older snapshot and dropped accounts.
+        const nextLink = links.next;
         return {
             data,
-            links: { ...links, next: nextLink },
+            links,
             ...(timestamp !== undefined && { timestamp }),
             next: nextLink ? () => this.getPage(nextLink, converter) : null,
         };

@@ -188,6 +188,28 @@ describe("MirrorNodeClient", () => {
         });
     });
 
+    describe("queryAccountBalance", () => {
+        it("returns the account ID from the response for an EVM address lookup", async () => {
+            vi.spyOn(globalThis, "fetch").mockResolvedValue(
+                new Response(
+                    JSON.stringify({
+                        account: "0.0.98",
+                        balance: { balance: 1, timestamp: "1.0", tokens: [] },
+                    }),
+                    {
+                        status: 200,
+                        headers: { "Content-Type": "application/json" },
+                    },
+                ),
+            );
+
+            const balance = await client.queryAccountBalance(
+                "0x0000000000000000000000000000000000000062",
+            );
+            expect(balance.accountId).toBe("0.0.98");
+        });
+    });
+
     describe("queryTransaction", () => {
         it("throws NOT_FOUND for empty transactions", async () => {
             vi.spyOn(globalThis, "fetch").mockResolvedValue(
@@ -200,6 +222,61 @@ describe("MirrorNodeClient", () => {
             await expect(
                 client.queryTransaction("0.0.12345@1234567890.000"),
             ).rejects.toThrow(/Transaction not found/);
+        });
+    });
+
+    describe("queryTransactionRows", () => {
+        // A schedule's transaction ID: the SCHEDULECREATE and the scheduled
+        // execution share it (shape captured from mainnet).
+        const row = (name: string, scheduled: boolean, ts: string) => ({
+            transaction_id: "0.0.10924172-1792170607-753000756",
+            name,
+            scheduled,
+            nonce: 0,
+            result: "SUCCESS",
+            consensus_timestamp: ts,
+            valid_start_timestamp: "1792170607.753000756",
+            charged_tx_fee: 1,
+            transfers: [],
+            token_transfers: [],
+            nft_transfers: [],
+            staking_reward_transfers: [],
+        });
+
+        beforeEach(() => {
+            vi.spyOn(globalThis, "fetch").mockResolvedValue(
+                new Response(
+                    JSON.stringify({
+                        transactions: [
+                            row("SCHEDULECREATE", false, "1792170610.1"),
+                            row("CRYPTOTRANSFER", true, "1792170610.2"),
+                        ],
+                    }),
+                    {
+                        status: 200,
+                        headers: { "Content-Type": "application/json" },
+                    },
+                ),
+            );
+        });
+
+        it("returns every row in wire order", async () => {
+            const rows = await client.queryTransactionRows(
+                "0.0.10924172-1792170607-753000756",
+            );
+            expect(
+                rows.map(({ name, scheduled }) => ({ name, scheduled })),
+            ).toEqual([
+                { name: "SCHEDULECREATE", scheduled: false },
+                { name: "CRYPTOTRANSFER", scheduled: true },
+            ]);
+        });
+
+        it("queryTransaction still returns the first row", async () => {
+            const tx = await client.queryTransaction(
+                "0.0.10924172-1792170607-753000756",
+            );
+            expect(tx.name).toBe("SCHEDULECREATE");
         });
     });
 

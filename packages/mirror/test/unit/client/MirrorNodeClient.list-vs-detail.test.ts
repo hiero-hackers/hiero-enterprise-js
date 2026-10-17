@@ -46,10 +46,10 @@ describe("contract result list vs detail shape", () => {
     });
 });
 
-describe("balance pagination snapshot pinning", () => {
+describe("balance pagination", () => {
     afterEach(() => vi.restoreAllMocks());
 
-    it("pins the snapshot timestamp onto the next-page link", async () => {
+    it("follows the next-page link without adding the body timestamp", async () => {
         const urls: string[] = [];
         vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
             urls.push(String(input));
@@ -77,19 +77,18 @@ describe("balance pagination snapshot pinning", () => {
 
         const client = new MirrorNodeClient("https://mirror.example");
         const page = await client.queryTokenBalances("0.0.5", { limit: 1 });
-        expect(page.links.next).toContain(
-            "timestamp=1783171755.402827000", // pinned for manual followers too
+        expect(page.links.next).toBe(
+            "/api/v1/tokens/0.0.5/balances?limit=1&account.id=lt:0.0.1",
         );
         await page.next?.();
 
         expect(urls[1]).toBe(
             "https://mirror.example/api/v1/tokens/0.0.5/balances" +
-                "?limit=1&account.id=lt:0.0.1" +
-                "&timestamp=1783171755.402827000",
+                "?limit=1&account.id=lt:0.0.1",
         );
     });
 
-    it("leaves non-snapshot pagination (no body timestamp) unpinned", async () => {
+    it("follows next links on endpoints without a body timestamp", async () => {
         const urls: string[] = [];
         vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
             urls.push(String(input));

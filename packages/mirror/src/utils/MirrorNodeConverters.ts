@@ -209,16 +209,12 @@ function convertTokenBalances(raw: MirrorAccountResponse): TokenBalance[] {
     return (raw.balance?.tokens ?? []).map((t) => ({
         tokenId: t.token_id,
         balance: amountString(t.balance),
-        decimals: t.decimals,
     }));
 }
 
-export function convertBalance(
-    accountId: string,
-    raw: MirrorAccountResponse,
-): Balance {
+export function convertBalance(raw: MirrorAccountResponse): Balance {
     return {
-        accountId,
+        accountId: raw.account,
         tinybars: amountString(raw.balance?.balance ?? 0),
         timestamp: raw.balance?.timestamp,
         tokens: convertTokenBalances(raw),

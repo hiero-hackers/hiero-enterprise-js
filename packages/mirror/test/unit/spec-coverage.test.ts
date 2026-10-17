@@ -21,6 +21,10 @@ interface SpecOperation {
     parameters?: Array<{ $ref?: string } & Partial<SpecParameter>>;
 }
 
+const readSource = (path: string) =>
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- constant paths derived from import.meta.url, no user input
+    readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
+
 const spec = parse(
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- constant path derived from import.meta.url, no user input
     readFileSync(
@@ -29,7 +33,10 @@ const spec = parse(
     ),
 ) as {
     paths: Record<string, Record<string, SpecOperation>>;
-    components: { parameters: Record<string, SpecParameter> };
+    components: {
+        parameters: Record<string, SpecParameter>;
+        schemas: { TransactionTypes: { enum: string[] } };
+    };
 };
 
 /** `"GET /api/v1/accounts"` → its spec-defined query param names. */
@@ -101,5 +108,19 @@ describe("spec coverage manifest", () => {
             }
         }
         expect(mismatches).toEqual([]);
+    });
+});
+
+describe("TransactionType", () => {
+    it("lists exactly the spec's TransactionTypes enum", () => {
+        const union = readSource("../../src/types/transaction.ts").match(
+            /export type TransactionType =([^;]*);/,
+        )?.[1];
+        const members = [...(union ?? "").matchAll(/"([A-Z_]+)"/g)].map(
+            (match) => match[1],
+        );
+        expect(members.sort()).toEqual(
+            [...spec.components.schemas.TransactionTypes.enum].sort(),
+        );
     });
 });

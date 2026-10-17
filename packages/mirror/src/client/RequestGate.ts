@@ -82,9 +82,12 @@ export class RequestGate {
      */
     async acquire(): Promise<void> {
         if (this.active >= this.maxConcurrent) {
+            // `release` hands its slot straight to us, so `active` already
+            // counts this request.
             await new Promise<void>((resolve) => this.waiters.push(resolve));
+        } else {
+            this.active++;
         }
-        this.active++;
 
         if (this.minRequestIntervalMs > 0) {
             const now = Date.now();
@@ -97,11 +100,17 @@ export class RequestGate {
         }
     }
 
-    /** Release a slot and wake the next queued waiter, if any. */
+    /**
+     * Release a slot. With a waiter queued, the slot passes to it directly,
+     * so no other caller can take it before the waiter resumes.
+     */
     release(): void {
-        this.active--;
         const next = this.waiters.shift();
-        if (next) next();
+        if (next) {
+            next();
+        } else {
+            this.active--;
+        }
     }
 
     /**
