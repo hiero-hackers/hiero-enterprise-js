@@ -1,4 +1,10 @@
-import type { AccountId, TokenId, Transaction, Hbar } from "@hiero-ledger/sdk";
+import type {
+    AccountId,
+    TokenId,
+    Transaction,
+    TransactionRecord,
+    Hbar,
+} from "@hiero-ledger/sdk";
 import type { Account, Balance, TokenBalance } from "../../types/index.js";
 import type { IHieroContext } from "../../context/index.js";
 import { validationError } from "../../errors/index.js";
@@ -38,6 +44,7 @@ import type {
 } from "./operations/index.js";
 import {
     AccountBalanceQuery,
+    AccountRecordsQuery,
     AccountSignatureQuery,
     TokenBalanceQuery,
 } from "./queries/index.js";
@@ -67,6 +74,7 @@ export class AccountService {
     private readonly transferTokenOperation: TransferTokenOperation;
     private readonly transferNftOperation: TransferNftOperation;
     private readonly balanceQuery: AccountBalanceQuery;
+    private readonly recordsQuery: AccountRecordsQuery;
     private readonly tokenBalanceQuery: TokenBalanceQuery;
     private readonly signatureQuery: AccountSignatureQuery;
 
@@ -103,6 +111,7 @@ export class AccountService {
         this.transferTokenOperation = new TransferTokenOperation(context);
         this.transferNftOperation = new TransferNftOperation(context);
         this.balanceQuery = new AccountBalanceQuery(context);
+        this.recordsQuery = new AccountRecordsQuery(context);
         this.tokenBalanceQuery = new TokenBalanceQuery(context);
         this.signatureQuery = new AccountSignatureQuery(context);
     }
@@ -270,6 +279,22 @@ export class AccountService {
      */
     async getAccountBalance(accountId: string | AccountId): Promise<Balance> {
         return await this.balanceQuery.execute(accountId);
+    }
+
+    /**
+     * Get the transaction records a consensus node still holds for an
+     * account: its transactions from the last few minutes. Older history
+     * is in the mirror node (`@hiero-hackers/enterprise-mirror`).
+     *
+     * @param accountId - Account whose records to fetch
+     * @param options - Optional query options (payer, payment caps, node targeting)
+     * @returns The SDK `TransactionRecord`s, possibly empty
+     */
+    async getAccountRecords(
+        accountId: string | AccountId,
+        options?: QueryOptions,
+    ): Promise<TransactionRecord[]> {
+        return await this.recordsQuery.execute(accountId, options);
     }
 
     /**
