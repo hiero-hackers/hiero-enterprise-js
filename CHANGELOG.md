@@ -12,6 +12,10 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 - **Behavior change:** the mirror client honours `Retry-After` only up to 5 seconds. A `429` or 5xx whose `Retry-After` asks for longer now ends the request with that response's error instead of sleeping: a request with `timeoutMs: 500` used to take 5 s on `Retry-After: 5`, and `Retry-After: 60` held a concurrency slot for about 3 minutes across the default retries. Shorter `Retry-After` values are honoured as before. Applies to `@hiero-hackers/enterprise-mirror`. [#338](https://github.com/hiero-hackers/hiero-enterprise-js/issues/338) [#347](https://github.com/hiero-hackers/hiero-enterprise-js/pull/347)
 
+### Fixed
+
+- **Behavior change:** fixed fields the mirror node sends as `null` reaching callers as `null` although their types did not allow it. On `MirrorAccountInfo`, `alias`, `evmAddress`, `autoRenewPeriod`, `memo`, `maxAutomaticTokenAssociations`, `stakedAccountId`, `stakedNodeId`, `stakePeriodStart` and `createdTimestamp`; on `Nft`, `createdTimestamp`, `spender` and `delegatingSpender`; and a fixed fee's `denominatingTokenId` (HBAR fees) are now `undefined` instead of `null`, so `info.alias !== undefined` and `fee.denominatingTokenId === undefined` mean what they say. `NftTransferInfo.senderAccountId` (null on mint), `NftTransferInfo.receiverAccountId` and `NftTransaction.receiverAccountId` (null on burn) are now typed `string | null`. The `Mirror*` wire types include `null` for all of them. Applies to `@hiero-hackers/enterprise-mirror`. [#331](https://github.com/hiero-hackers/hiero-enterprise-js/issues/331) [#349](https://github.com/hiero-hackers/hiero-enterprise-js/pull/349)
+
 ## [0.4.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.3.0...v0.4.0) - 2026-10-15
 
 ### Added
