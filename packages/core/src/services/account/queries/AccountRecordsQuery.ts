@@ -11,9 +11,9 @@ import type { QueryOptions } from "../../transaction/index.js";
 const CONTEXT = "AccountService.getAccountRecords";
 
 /**
- * Fetch the transaction records a consensus node still holds for an
- * account (the last few minutes of its transactions). Older history is in
- * the mirror node.
+ * Fetch the records of the transactions an account paid for in the last
+ * 3 minutes, which a consensus node still holds. Older history is in the
+ * mirror node.
  */
 export class AccountRecordsQuery {
     private readonly executor: QueryExecutor;

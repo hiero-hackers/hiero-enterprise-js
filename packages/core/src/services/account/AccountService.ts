@@ -282,9 +282,10 @@ export class AccountService {
     }
 
     /**
-     * Get the transaction records a consensus node still holds for an
-     * account: its transactions from the last few minutes. Older history
-     * is in the mirror node (`@hiero-hackers/enterprise-mirror`).
+     * Get the records of the transactions an account paid for in the last
+     * 3 minutes, which a consensus node still holds. Transfers to the
+     * account that it didn't pay for are not included; older history is
+     * in the mirror node (`@hiero-hackers/enterprise-mirror`).
      *
      * @param accountId - Account whose records to fetch
      * @param options - Optional query options (payer, payment caps, node targeting)

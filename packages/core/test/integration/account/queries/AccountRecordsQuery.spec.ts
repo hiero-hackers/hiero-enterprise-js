@@ -14,7 +14,7 @@ describe("AccountRecordsQuery (via AccountService) [Integration]", () => {
     });
 
     it("fetches the operator's recent records", async () => {
-        // A transfer gives the operator at least one recent transaction.
+        // The operator pays for this transfer, so it has a recent record.
         await client.transferHbar("0.0.98", 1, ctx.operatorAccountId);
 
         const records = await client.getAccountRecords(ctx.operatorAccountId);
