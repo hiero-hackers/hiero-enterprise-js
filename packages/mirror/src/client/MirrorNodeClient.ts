@@ -619,6 +619,7 @@ export class MirrorNodeClient {
                         // Carried so callers can act on it without parsing
                         // `message` — e.g. distinguishing 400 from 409.
                         status: response.status,
+                        detail: detail || undefined,
                     },
                 );
             }

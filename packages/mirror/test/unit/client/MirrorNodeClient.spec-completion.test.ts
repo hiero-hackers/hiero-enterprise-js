@@ -138,10 +138,13 @@ describe("MirrorNodeClient spec-completion", () => {
                     { status: 400, statusText: "Bad Request" },
                 ),
             );
-            await expect(client.queryBlocks()).rejects.toThrow(
-                "Mirror node returned 400: Bad Request — " +
+            await expect(client.queryBlocks()).rejects.toMatchObject({
+                message:
+                    "Mirror node returned 400: Bad Request — " +
                     "Invalid parameter: timestamp (out of range)",
-            );
+                status: 400,
+                detail: "Invalid parameter: timestamp (out of range)",
+            });
         });
 
         it("falls back to the status line when the body is not JSON", async () => {
@@ -151,9 +154,11 @@ describe("MirrorNodeClient spec-completion", () => {
                     statusText: "Not Found",
                 }),
             );
-            await expect(client.queryBlock(1)).rejects.toThrow(
+            const error = await client.queryBlock(1).catch((e) => e);
+            expect(error.message).toMatch(
                 /Mirror node returned 404: Not Found$/,
             );
+            expect(error.detail).toBeUndefined();
         });
     });
 
