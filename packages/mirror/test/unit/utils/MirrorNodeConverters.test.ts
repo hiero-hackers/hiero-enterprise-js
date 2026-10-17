@@ -14,6 +14,7 @@ import {
     convertTokenHolder,
     convertAccountTokenBalance,
     convertNetworkNode,
+    convertRegisteredNode,
     convertKey,
 } from "../../../src/utils/MirrorNodeConverters.js";
 
@@ -284,6 +285,64 @@ describe("misc converters", () => {
                 stake_not_rewarded: 1,
             }).nodeAccountId,
         ).toBe("0.0.4");
+    });
+});
+
+describe("convertRegisteredNode — endpoint roles", () => {
+    // Shape captured from mainnet /api/v1/network/registered-nodes.
+    const node = (endpoint: object) =>
+        convertRegisteredNode({
+            created_timestamp: "1787154605.435466104",
+            description: "Hosted by Swirlds",
+            registered_node_id: 40,
+            service_endpoints: [endpoint],
+            timestamp: { from: "1787154605.435466104", to: null },
+        }).serviceEndpoints[0];
+
+    it("carries the block-node role's endpoint APIs and keeps other roles null", () => {
+        expect(
+            node({
+                block_node: { endpoint_apis: ["SUBSCRIBE_STREAM"] },
+                domain_name: null,
+                general_service: null,
+                ip_address: "91.242.214.237",
+                mirror_node: null,
+                port: 40980,
+                requires_tls: false,
+                rpc_relay: null,
+                type: "BLOCK_NODE",
+            }),
+        ).toEqual({
+            blockNode: { endpointApis: ["SUBSCRIBE_STREAM"] },
+            domainName: null,
+            generalService: null,
+            ipAddress: "91.242.214.237",
+            mirrorNode: null,
+            port: 40980,
+            requiresTls: false,
+            rpcRelay: null,
+            type: "BLOCK_NODE",
+        });
+    });
+
+    it("carries the general-service role's description", () => {
+        expect(
+            node({
+                block_node: null,
+                general_service: { description: "explorer" },
+                type: "GENERAL_SERVICE",
+            }).generalService,
+        ).toEqual({ description: "explorer" });
+    });
+
+    it("keeps an empty role object distinct from null", () => {
+        const endpoint = node({
+            block_node: null,
+            mirror_node: {},
+            type: "MIRROR_NODE",
+        });
+        expect(endpoint.mirrorNode).toEqual({});
+        expect(endpoint.blockNode).toBeNull();
     });
 });
 

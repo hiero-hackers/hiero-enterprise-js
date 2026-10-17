@@ -510,21 +510,29 @@ export interface MirrorHookStorageSlot {
     timestamp: string;
 }
 
-/** A raw endpoint served by a registered node (richer than consensus
- * node endpoints: role flags, TLS requirement). */
-export interface MirrorRegisteredServiceEndpoint {
-    block_node?: boolean;
-    /** Block-node variant: APIs the endpoint exposes */
+/** Raw block-node role of a registered endpoint. */
+export interface MirrorRegisteredBlockNodeEndpoint {
+    /** APIs the endpoint exposes (e.g. `PUBLISH`, `SUBSCRIBE_STREAM`) */
     endpoint_apis?: string[];
-    /** General-service variant: what the endpoint serves */
-    description?: string | null;
+}
+
+/** Raw general-service role of a registered endpoint. */
+export interface MirrorRegisteredGeneralServiceEndpoint {
+    /** What the endpoint serves */
+    description?: string;
+}
+
+/** A raw endpoint served by a registered node. Each role field holds the
+ * role's details, or `null` when the endpoint serves another role. */
+export interface MirrorRegisteredServiceEndpoint {
+    block_node?: MirrorRegisteredBlockNodeEndpoint | null;
     domain_name?: string | null;
-    general_service?: boolean;
+    general_service?: MirrorRegisteredGeneralServiceEndpoint | null;
     ip_address?: string | null;
-    mirror_node?: boolean;
+    mirror_node?: Record<string, unknown> | null;
     port?: number;
     requires_tls?: boolean;
-    rpc_relay?: boolean;
+    rpc_relay?: Record<string, unknown> | null;
     type?: string;
 }
 
