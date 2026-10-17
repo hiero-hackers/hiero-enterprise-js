@@ -140,7 +140,7 @@ export interface MirrorFixedFee extends MirrorCustomFee {
     type: "fixed";
     /** Amount of the fee */
     amount: string;
-    /** Token ID for the fee (null = HBAR) */
+    /** Token ID for the fee; absent when the fee is in HBAR */
     denominatingTokenId?: string;
 }
 
