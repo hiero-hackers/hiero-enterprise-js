@@ -4,6 +4,7 @@ import {
     ContractCreateOperation,
     ContractCreateFlowOperation,
     ContractExecuteOperation,
+    EthereumOperation,
     ContractUpdateOperation,
     ContractDeleteOperation,
 } from "./operations/index.js";
@@ -11,6 +12,7 @@ import type {
     ContractCreateOperationOptions,
     ContractCreateFlowOperationOptions,
     ContractExecuteOperationOptions,
+    EthereumOperationOptions,
     ContractUpdateOperationOptions,
     ContractDeleteOperationOptions,
 } from "./operations/index.js";
@@ -64,6 +66,12 @@ export type CreateContractFlowOptions = ContractCreateFlowOperationOptions;
  * no consensus round-trip, no gas charged on success).
  */
 export type ExecuteContractOptions = ContractExecuteOperationOptions;
+
+/**
+ * Options for `ContractService.executeEthereumTransaction`: a signed,
+ * RLP-encoded Ethereum transaction relayed through Hedera (HIP-410).
+ */
+export type ExecuteEthereumTransactionOptions = EthereumOperationOptions;
 
 /**
  * Options for mutating fields on an already-deployed contract via
@@ -120,6 +128,7 @@ export class ContractService {
     private readonly createOperation: ContractCreateOperation;
     private readonly createFlowOperation: ContractCreateFlowOperation;
     private readonly executeOperation: ContractExecuteOperation;
+    private readonly ethereumOperation: EthereumOperation;
     private readonly updateOperation: ContractUpdateOperation;
     private readonly deleteOperation: ContractDeleteOperation;
     private readonly callQuery: ContractCallQuery;
@@ -130,6 +139,7 @@ export class ContractService {
         this.createOperation = new ContractCreateOperation(context);
         this.createFlowOperation = new ContractCreateFlowOperation(context);
         this.executeOperation = new ContractExecuteOperation(context);
+        this.ethereumOperation = new EthereumOperation(context);
         this.updateOperation = new ContractUpdateOperation(context);
         this.deleteOperation = new ContractDeleteOperation(context);
         this.callQuery = new ContractCallQuery(context);
@@ -275,6 +285,26 @@ export class ContractService {
      */
     async executeContract(options: ExecuteContractOptions) {
         return await this.executeOperation.execute(options);
+    }
+
+    /**
+     * Relay a signed Ethereum transaction through Hedera
+     * (`EthereumTransaction`, HIP-410), as JSON-RPC relays and wallets do.
+     *
+     * The Ethereum sender signs `ethereumData`; the Hedera payer (the
+     * operator by default) submits it and covers up to `maxGasAllowance`
+     * of gas the sender's gas price doesn't. Not schedulable.
+     *
+     * @param options.ethereumData - Signed RLP bytes, or a signed SDK `EthereumTransactionData`
+     * @param options.callDataFileId - File with the call data, when it is too large for the transaction
+     * @param options.maxGasAllowance - Most HBAR the payer covers for gas (default `0`)
+     * @param options.withFunctionResult - Also fetch the EVM outcome (one extra paid query)
+     * @returns The executor result, `contractId` for a contract creation, and `functionResult` when requested
+     */
+    async executeEthereumTransaction(
+        options: ExecuteEthereumTransactionOptions,
+    ) {
+        return await this.ethereumOperation.execute(options);
     }
 
     /**

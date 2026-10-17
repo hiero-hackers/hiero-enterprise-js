@@ -8,6 +8,10 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ## [Unreleased](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.5.0...HEAD)
 
+### Added
+
+- Added `ContractService.executeEthereumTransaction({ ethereumData, callDataFileId?, maxGasAllowance?, withFunctionResult? })`, which relays a signed Ethereum transaction through Hedera (`EthereumTransaction`, HIP-410), as JSON-RPC relays and wallets do. `ethereumData` is the signed RLP bytes or a signed SDK `EthereumTransactionData`; `maxGasAllowance` is the most HBAR the payer covers for gas the sender's gas price doesn't. It returns the executor result, `contractId` when the transaction created a contract, and, with `withFunctionResult`, the EVM outcome from the record. Missing, empty or unsigned `ethereumData`, a malformed `callDataFileId` or a negative `maxGasAllowance` is rejected with an `INPUT_INVALID` `HieroError` before anything is sent. Applies to `@hiero-hackers/enterprise-core`. [#356](https://github.com/hiero-hackers/hiero-enterprise-js/issues/356)
+
 ## [0.5.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.4.0...v0.5.0) - 2026-10-17
 
 ### Added

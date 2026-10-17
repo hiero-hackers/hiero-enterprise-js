@@ -6,13 +6,13 @@ import type {
     ContractFunctionParameters,
 } from "@hiero-ledger/sdk";
 import { ContractExecuteTransaction } from "@hiero-ledger/sdk";
-import { HieroError, HieroErrorCodes } from "../../../errors/index.js";
 import { BaseOperation } from "../../transaction/index.js";
 import type {
     TransactionOptions,
     ScheduleOptions,
 } from "../../transaction/index.js";
 import { ContractExecuteValidator } from "../validation/index.js";
+import { fetchFunctionResult } from "./functionResult.js";
 
 /**
  * Low-level options for the `ContractExecute` SDK transaction.
@@ -92,51 +92,14 @@ export class ContractExecuteOperation extends BaseOperation<ContractExecuteOpera
         }
 
         // The EVM outcome lives on the transaction *record* — a separate,
-        // paid query, which is why it is opt-in. Query it directly rather
-        // than via response.getRecord(): the SDK method first re-fetches
-        // the receipt to await consensus, which the executor has already
-        // done — skipping it saves a pointless round-trip before the paid
-        // query.
-        let record;
-        try {
-            record = await results.response
-                .getRecordQuery(this.context.client)
-                .execute(this.context.client);
-        } catch (error) {
-            // The call reached consensus — only fetching its record
-            // failed. A plain rethrow would read as a failed transaction
-            // and invite a resubmit; say what actually happened and hand
-            // back the transaction id to recover the outcome with.
-            const reason =
-                error instanceof Error ? error.message : String(error);
-            throw new HieroError(
-                `Transaction ${results.transactionId} reached consensus ` +
-                    `with status ${results.status}, but fetching its record ` +
-                    `for the function result failed: ${reason}. Do ` +
-                    `not resubmit — look up the outcome via the transaction id.`,
-                {
-                    code: HieroErrorCodes.ResultMappingFailed,
-                    context: "ContractService.executeContract",
-                    transactionId: results.transactionId,
-                    cause: error,
-                },
-            );
-        }
-
-        const fn = record.contractFunctionResult;
-
+        // paid query, which is why it is opt-in.
         return {
             ...results,
-            functionResult: fn
-                ? {
-                      returnDataHex: `0x${Buffer.from(fn.bytes).toString("hex")}`,
-                      gasUsed: fn.gasUsed.toNumber(),
-                      errorMessage:
-                          fn.errorMessage != null && fn.errorMessage !== ""
-                              ? fn.errorMessage
-                              : null,
-                  }
-                : null,
+            functionResult: await fetchFunctionResult(
+                this.context,
+                results,
+                "ContractService.executeContract",
+            ),
         };
     }
 

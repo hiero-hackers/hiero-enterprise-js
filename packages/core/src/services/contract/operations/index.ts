@@ -18,3 +18,7 @@ export {
     ContractDeleteOperation,
     type ContractDeleteOperationOptions,
 } from "./ContractDeleteOperation.js";
+export {
+    EthereumOperation,
+    type EthereumOperationOptions,
+} from "./EthereumOperation.js";

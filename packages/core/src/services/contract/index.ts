@@ -3,6 +3,7 @@ export type {
     CreateContractOptions,
     CreateContractFlowOptions,
     ExecuteContractOptions,
+    ExecuteEthereumTransactionOptions,
     UpdateContractOptions,
     DeleteContractOptions,
     CallContractOptions,
