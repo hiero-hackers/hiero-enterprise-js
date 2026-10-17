@@ -90,32 +90,41 @@ export interface ServiceEndpoint {
     domainName?: string;
 }
 
+/** Block-node role of a registered endpoint. */
+export interface RegisteredBlockNodeEndpoint {
+    /** APIs the endpoint exposes (e.g. `PUBLISH`, `SUBSCRIBE_STREAM`) */
+    endpointApis?: string[];
+}
+
+/** General-service role of a registered endpoint. */
+export interface RegisteredGeneralServiceEndpoint {
+    /** What the endpoint serves */
+    description?: string;
+}
+
 /**
  * An endpoint served by a registered node — richer than a consensus
- * node's {@link ServiceEndpoint}: role flags and TLS requirement.
+ * node's {@link ServiceEndpoint}. Each role field holds the role's details,
+ * or `null` when the endpoint serves another role; check `type` for the role.
  */
 export interface RegisteredServiceEndpoint {
-    /** Whether the endpoint serves the block-node role */
-    blockNode?: boolean;
-    /** Block-node variant: APIs the endpoint exposes */
-    endpointApis?: string[];
-    /** General-service variant: what the endpoint serves */
-    description?: string | null;
+    /** Block-node role details, or `null` */
+    blockNode?: RegisteredBlockNodeEndpoint | null;
     /** Domain name, if published instead of an IP */
     domainName?: string | null;
-    /** Whether the endpoint serves a general service */
-    generalService?: boolean;
+    /** General-service role details, or `null` */
+    generalService?: RegisteredGeneralServiceEndpoint | null;
     /** IP address, if published */
     ipAddress?: string | null;
-    /** Whether the endpoint serves the mirror-node role */
-    mirrorNode?: boolean;
+    /** Mirror-node role details (currently no fields), or `null` */
+    mirrorNode?: Record<string, unknown> | null;
     /** Port number */
     port?: number;
     /** Whether TLS is required */
     requiresTls?: boolean;
-    /** Whether the endpoint serves the RPC-relay role */
-    rpcRelay?: boolean;
-    /** The endpoint type */
+    /** RPC-relay role details (currently no fields), or `null` */
+    rpcRelay?: Record<string, unknown> | null;
+    /** The endpoint role: `BLOCK_NODE`, `GENERAL_SERVICE`, `MIRROR_NODE` or `RPC_RELAY` */
     type?: string;
 }
 
