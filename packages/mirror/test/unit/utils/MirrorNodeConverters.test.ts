@@ -89,7 +89,7 @@ describe("account converters", () => {
     });
 
     it("converts balances with token entries", () => {
-        const balance = convertBalance("0.0.9", {
+        const balance = convertBalance({
             account: "0.0.9",
             balance: {
                 balance: 100,
@@ -664,8 +664,14 @@ describe("converter default branches", () => {
         expect(tx.stakingRewardTransfers).toEqual([]);
     });
 
+    it("takes accountId from the response, not the lookup input", () => {
+        // The endpoint also accepts an alias or EVM address.
+        const balance = convertBalance({ account: "0.0.98" });
+        expect(balance.accountId).toBe("0.0.98");
+    });
+
     it("handles an account with no balance object", () => {
-        const balance = convertBalance("0.0.9", { account: "0.0.9" });
+        const balance = convertBalance({ account: "0.0.9" });
         expect(balance.tinybars).toBe("0");
         expect(balance.tokens).toEqual([]);
     });
@@ -698,7 +704,7 @@ describe("convertAccountInfo — balance snapshot fields", () => {
 
     it("agrees with convertBalance, which reads the same response", () => {
         const account = convertAccountInfo(raw);
-        const balance = convertBalance("0.0.1234", raw);
+        const balance = convertBalance(raw);
         expect(account.tokenBalances).toEqual(balance.tokens);
         expect(account.balanceTimestamp).toEqual(balance.timestamp);
         expect(String(account.balance)).toEqual(balance.tinybars);
