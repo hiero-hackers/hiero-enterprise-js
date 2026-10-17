@@ -137,10 +137,10 @@ export interface NftTransferInfo {
     tokenId: string;
     /** Serial number */
     serialNumber: number;
-    /** Sender account ID */
-    senderAccountId: string;
-    /** Receiver account ID */
-    receiverAccountId: string;
+    /** Sender account ID, or null on mint */
+    senderAccountId: string | null;
+    /** Receiver account ID, or null on burn */
+    receiverAccountId: string | null;
     /** Whether this leg spent an allowance */
     isApproval?: boolean;
 }
