@@ -37,7 +37,7 @@ describe("MirrorNodeClient precision (#136)", () => {
         respond(
             '{"account":"0.0.10620677","balance":{"timestamp":"1700000000.000000000",' +
                 '"balance":31869085891081369,"tokens":[' +
-                '{"token_id":"0.0.7","balance":75429753064560425,"decimals":8}]},' +
+                '{"token_id":"0.0.7","balance":75429753064560425}]},' +
                 '"deleted":false}',
         );
 

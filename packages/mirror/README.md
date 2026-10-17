@@ -227,7 +227,7 @@ The client limits its own request rate, so large reads stay under the mirror nod
 | `maxConcurrent` | `25` | Requests in flight at once; the rest wait. `Infinity` turns it off. |
 | `maxRequestsPerSecond` | none | Sustained request rate, e.g. `50` |
 
-Both work with the built-in retry, which honours `Retry-After`. Invalid values throw a `MirrorError` when the client is created. Set them per client, in `MirrorConfig`, or in the environment:
+Both work with the built-in retry, which honours `Retry-After` up to 5 seconds; a server asking for a longer wait gets its error back at once. Invalid values throw a `MirrorError` when the client is created. Set them per client, in `MirrorConfig`, or in the environment:
 
 ```sh
 HIERO_MIRROR_NODE_MAX_CONCURRENT=25

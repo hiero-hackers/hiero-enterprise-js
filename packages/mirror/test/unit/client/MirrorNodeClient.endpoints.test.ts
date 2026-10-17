@@ -202,6 +202,20 @@ describe("MirrorNodeClient remaining endpoints", () => {
         expect(spy).toHaveBeenCalledTimes(3);
     });
 
+    it("throws a 429 at once when Retry-After asks for longer than 5 s", async () => {
+        spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+            new Response(null, {
+                status: 429,
+                statusText: "Too Many Requests",
+                headers: { "retry-after": "60" },
+            }),
+        );
+        await expect(client.queryAccount("0.0.1")).rejects.toMatchObject({
+            status: 429,
+        });
+        expect(spy).toHaveBeenCalledTimes(1);
+    });
+
     it("gives up after maxRetries and surfaces the HTTP error", async () => {
         const impatient = new MirrorNodeClient("https://x", { maxRetries: 1 });
         vi.spyOn(globalThis, "fetch").mockResolvedValue(
@@ -211,10 +225,37 @@ describe("MirrorNodeClient remaining endpoints", () => {
             /Mirror node returned 503/,
         );
     });
+
+    it("does not retry 501 Not Implemented", async () => {
+        const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+            new Response(null, {
+                status: 501,
+                statusText: "Not Implemented",
+            }),
+        );
+        await expect(client.queryAccount("0.0.1")).rejects.toMatchObject({
+            status: 501,
+        });
+        expect(spy).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe("MirrorNodeClient edge branches", () => {
     afterEach(() => vi.restoreAllMocks());
+
+    it.each([
+        "https://mainnet.mirrornode.hedera.com/api/v1",
+        "https://mainnet.mirrornode.hedera.com/api/v1/",
+    ])("rejects a base URL ending in /api/v1 (%s)", (baseUrl) => {
+        expect(() => new MirrorNodeClient(baseUrl)).toThrow(
+            expect.objectContaining({
+                code: MirrorErrorCodes.ConfigInvalid,
+                message: expect.stringContaining(
+                    'Use "https://mainnet.mirrornode.hedera.com"',
+                ),
+            }),
+        );
+    });
 
     it("strips trailing slashes from the base URL", async () => {
         const client = new MirrorNodeClient("https://x///");

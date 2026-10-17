@@ -355,9 +355,29 @@ export class MirrorNodeClient {
         while (url.endsWith("/")) {
             url = url.slice(0, -1);
         }
+        // Every path already starts with /api/v1; a doubled prefix 404s,
+        // which would read as "not found" everywhere.
+        if (url.endsWith("/api/v1")) {
+            throw new MirrorError(
+                `The mirror node base URL must not include /api/v1, got "${baseUrl}". Use "${url.slice(0, -"/api/v1".length)}".`,
+                { code: MirrorErrorCodes.ConfigInvalid },
+            );
+        }
         this.baseUrl = url;
         this.timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+        if (!Number.isFinite(this.timeoutMs) || this.timeoutMs <= 0) {
+            throw new MirrorError(
+                `timeoutMs must be a finite number > 0, got ${this.timeoutMs}.`,
+                { code: MirrorErrorCodes.ConfigInvalid },
+            );
+        }
         this.maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES;
+        if (!Number.isInteger(this.maxRetries) || this.maxRetries < 0) {
+            throw new MirrorError(
+                `maxRetries must be an integer >= 0, got ${this.maxRetries}.`,
+                { code: MirrorErrorCodes.ConfigInvalid },
+            );
+        }
         this.observer = options?.observer;
         this.retryOn404 = options?.retryOn404 ?? false;
         // A shared gate (from withRetryOn404) already carries the concurrency
@@ -490,10 +510,12 @@ export class MirrorNodeClient {
      * semantics — a GET, or a JSON POST when `body` is provided.
      *
      * - Each attempt is bounded by `timeoutMs` via AbortController.
-     * - HTTP 429 and 5xx responses are retried up to `maxRetries` times,
-     *   honouring the `Retry-After` header when present. The only POST
-     *   endpoint (`/contracts/call`) is a transient simulation, so it is
-     *   as safe to retry as a GET.
+     * - HTTP 429 and 5xx responses (except 501) are retried up to
+     *   `maxRetries` times, honouring the `Retry-After` header when present
+     *   (up to 5 s; a longer `Retry-After` ends the request with that
+     *   response's error).
+     *   The only POST endpoint (`/contracts/call`) is a transient
+     *   simulation, so it is as safe to retry as a GET.
      * - HTTP 404 is retried on the same budget only when `retryOn404` is
      *   enabled (for mirror-node eventual consistency on freshly-created
      *   entities); otherwise, and once retries are exhausted, it surfaces
@@ -572,11 +594,18 @@ export class MirrorNodeClient {
                 },
             );
         }
+        // 501 Not Implemented is a fixed answer, not a transient failure.
         const retryableStatus =
             response.status === 429 ||
-            response.status >= 500 ||
+            (response.status >= 500 && response.status !== 501) ||
             (this.retryOn404 && response.status === 404);
-        if (retryableStatus && attempt < this.maxRetries) {
+        // A 404 carries no `Retry-After`, so parseRetryAfter returns null and
+        // the eventual-consistency case just backs off. A server asking for
+        // longer than the backoff cap gets its error now, instead of the
+        // request holding a gate slot for the whole wait.
+        const retryAfter = parseRetryAfter(response.headers.get("retry-after"));
+        const waitTooLong = retryAfter !== null && retryAfter > BACKOFF_CAP_MS;
+        if (retryableStatus && !waitTooLong && attempt < this.maxRetries) {
             clearTimeout(timer);
             // Release the unread body so undici can reuse the connection
             // instead of holding it open across the backoff (no-op when the
@@ -584,11 +613,6 @@ export class MirrorNodeClient {
             // rejects must not abort the retry loop — the connection just
             // isn't reused.
             await response.body?.cancel().catch(() => {});
-            // A 404 carries no `Retry-After`, so parseRetryAfter returns
-            // null and the eventual-consistency case just backs off.
-            const retryAfter = parseRetryAfter(
-                response.headers.get("retry-after"),
-            );
             const delayMs = retryAfter ?? this.backoffMs(attempt);
             notifyObserver(this.observer?.onRetry, {
                 path,
@@ -718,7 +742,7 @@ export class MirrorNodeClient {
         });
         const raw = await this.request<MirrorAccountResponse>(path);
         assertAccountResponse(raw, path);
-        return convertBalance(accountId, raw);
+        return convertBalance(raw);
     }
 
     /**
@@ -1590,23 +1614,12 @@ export class MirrorNodeClient {
             raw as MirrorPageResponse<never>,
             converter,
         );
-        // Balance-family responses carry the mirror's snapshot timestamp,
-        // but their next-page links do NOT — so unpinned pagination can
-        // straddle two snapshots if a new one lands mid-drain. Pin the
-        // snapshot onto the next link to keep every page consistent.
-        let nextLink = links.next;
-        if (
-            nextLink !== null &&
-            timestamp != null &&
-            !nextLink.includes("timestamp=")
-        ) {
-            nextLink +=
-                (nextLink.includes("?") ? "&" : "?") +
-                `timestamp=${encodeURIComponent(timestamp)}`;
-        }
+        // Follow `links.next` as sent: adding the body `timestamp` to it
+        // moved balance pages to an older snapshot and dropped accounts.
+        const nextLink = links.next;
         return {
             data,
-            links: { ...links, next: nextLink },
+            links,
             ...(timestamp !== undefined && { timestamp }),
             next: nextLink ? () => this.getPage(nextLink, converter) : null,
         };
