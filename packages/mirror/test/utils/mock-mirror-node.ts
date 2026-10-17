@@ -43,6 +43,7 @@ export function createMockMirrorNodeClient(): MockMirrorNodeClient {
         queryTopicMessageBySequence: () => Promise.resolve(topicMessage()),
         queryTransactionsByAccount: () => Promise.resolve(emptyPage()),
         queryTransaction: () => Promise.resolve(transactionInfo()),
+        queryTransactionRows: () => Promise.resolve([transactionInfo()]),
         queryExchangeRates: () => Promise.resolve(exchangeRates()),
         queryNetworkSupplies: () => Promise.resolve(networkSupplies()),
         queryNetworkStake: () => Promise.resolve(networkStake()),
