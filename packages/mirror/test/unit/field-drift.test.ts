@@ -888,7 +888,7 @@ describe("field-drift guard: networkNode", () => {
 });
 
 describe("field-drift guard: registeredNode", () => {
-    it("carries every wire field (flat endpoint role flags + siblings)", () => {
+    it("carries every wire field (endpoint role objects + siblings)", () => {
         const raw: DeepRequired<MirrorRegisteredNode> = {
             admin_key: { key: "REGNODE_ADMIN_HEX", _type: "ED25519" },
             created_timestamp: "1660000001.600000001",
@@ -896,16 +896,18 @@ describe("field-drift guard: registeredNode", () => {
             registered_node_id: 660011,
             service_endpoints: [
                 {
-                    block_node: true,
-                    endpoint_apis: ["BLOCK_API_ONE", "BLOCK_API_TWO"],
-                    description: "regnode-endpoint-desc-sentinel",
+                    block_node: {
+                        endpoint_apis: ["BLOCK_API_ONE", "BLOCK_API_TWO"],
+                    },
                     domain_name: "regnode-endpoint.sentinel",
-                    general_service: false,
+                    general_service: {
+                        description: "regnode-endpoint-desc-sentinel",
+                    },
                     ip_address: "10.66.0.1",
-                    mirror_node: false,
+                    mirror_node: { mirror_sentinel: "regnode-mirror-sentinel" },
                     port: 66011,
                     requires_tls: true,
-                    rpc_relay: false,
+                    rpc_relay: { relay_sentinel: "regnode-relay-sentinel" },
                     type: "REGNODE_ENDPOINT_TYPE",
                 },
             ],
