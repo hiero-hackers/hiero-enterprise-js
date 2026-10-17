@@ -486,10 +486,10 @@ export class MirrorNodeClient {
      * semantics — a GET, or a JSON POST when `body` is provided.
      *
      * - Each attempt is bounded by `timeoutMs` via AbortController.
-     * - HTTP 429 and 5xx responses (except 501) are retried up to `maxRetries` times,
-     *   honouring the `Retry-After` header when present. The only POST
-     *   endpoint (`/contracts/call`) is a transient simulation, so it is
-     *   as safe to retry as a GET.
+     * - HTTP 429 and 5xx responses (except 501) are retried up to
+     *   `maxRetries` times, honouring the `Retry-After` header when present.
+     *   The only POST endpoint (`/contracts/call`) is a transient
+     *   simulation, so it is as safe to retry as a GET.
      * - HTTP 404 is retried on the same budget only when `retryOn404` is
      *   enabled (for mirror-node eventual consistency on freshly-created
      *   entities); otherwise, and once retries are exhausted, it surfaces
