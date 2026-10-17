@@ -959,33 +959,45 @@ export class MirrorNodeClient {
         return this.queryTransactions({ ...options, accountId });
     }
 
+    /**
+     * The first row the mirror node returns for a transaction ID. Use
+     * {@link queryTransactionRows} for every row (parent and child
+     * transactions, or a schedule create and its scheduled execution).
+     */
     async queryTransaction(
         transactionId: string,
         options?: TransactionLookupQuery,
     ): Promise<TransactionInfo> {
+        const rows = await this.queryTransactionRows(transactionId, options);
+        return rows[0];
+    }
+
+    /**
+     * Every row the mirror node returns for a transaction ID, in the order
+     * it sent them: parent and child transactions, or a `SCHEDULECREATE`
+     * and its scheduled execution. Throws `NotFound` when there are none.
+     */
+    async queryTransactionRows(
+        transactionId: string,
+        options?: TransactionLookupQuery,
+    ): Promise<TransactionInfo[]> {
+        const path = `/api/v1/transactions/${transactionIdSegment(transactionId)}`;
         const raw = await this.request<MirrorTransactionListResponse>(
-            appendQuery(
-                `/api/v1/transactions/${transactionIdSegment(transactionId)}`,
-                {
-                    nonce: options?.nonce,
-                    scheduled: options?.scheduled,
-                },
-            ),
+            appendQuery(path, {
+                nonce: options?.nonce,
+                scheduled: options?.scheduled,
+            }),
         );
-        assertTransactionListResponse(
-            raw,
-            `/api/v1/transactions/${transactionIdSegment(transactionId)}`,
-        );
+        assertTransactionListResponse(raw, path);
         if (!raw.transactions || raw.transactions.length === 0) {
             throw new MirrorError(`Transaction not found: ${transactionId}`, {
                 code: MirrorErrorCodes.NotFound,
             });
         }
-        assertTransactionResponse(
-            raw.transactions[0],
-            `/api/v1/transactions/${transactionIdSegment(transactionId)}`,
-        );
-        return convertTransactionInfo(raw.transactions[0]);
+        return raw.transactions.map((row) => {
+            assertTransactionResponse(row, path);
+            return convertTransactionInfo(row);
+        });
     }
 
     // ─── Network ─────────────────────────────────────────────────
