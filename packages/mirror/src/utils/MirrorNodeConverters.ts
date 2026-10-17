@@ -172,8 +172,9 @@ export function convertAccountInfo(
 ): MirrorAccountInfo {
     return {
         accountId: raw.account,
-        evmAddress: raw.evm_address,
-        alias: raw.alias,
+        // Null on the wire for accounts without one; absent here.
+        evmAddress: raw.evm_address ?? undefined,
+        alias: raw.alias ?? undefined,
         delegationAddress: raw.delegation_address ?? undefined,
         key: convertKey(raw.key),
         balance: amountString(raw.balance?.balance ?? 0),
@@ -185,13 +186,14 @@ export function convertAccountInfo(
         balanceTimestamp: raw.balance?.timestamp,
         tokenBalances: convertTokenBalances(raw),
         deleted: raw.deleted ?? false,
-        autoRenewPeriod: raw.auto_renew_period,
-        memo: raw.memo,
-        maxAutomaticTokenAssociations: raw.max_automatic_token_associations,
-        stakedAccountId: raw.staked_account_id,
-        stakedNodeId: raw.staked_node_id,
-        stakePeriodStart: raw.stake_period_start,
-        createdTimestamp: raw.created_timestamp,
+        autoRenewPeriod: raw.auto_renew_period ?? undefined,
+        memo: raw.memo ?? undefined,
+        maxAutomaticTokenAssociations:
+            raw.max_automatic_token_associations ?? undefined,
+        stakedAccountId: raw.staked_account_id ?? undefined,
+        stakedNodeId: raw.staked_node_id ?? undefined,
+        stakePeriodStart: raw.stake_period_start ?? undefined,
+        createdTimestamp: raw.created_timestamp ?? undefined,
         expirationTimestamp: raw.expiry_timestamp,
         declineReward: raw.decline_reward,
         ethereumNonce: raw.ethereum_nonce,
@@ -289,11 +291,11 @@ export function convertNft(raw: MirrorNft): Nft {
         serialNumber: raw.serial_number,
         accountId: raw.account_id,
         metadata: raw.metadata,
-        createdTimestamp: raw.created_timestamp,
+        createdTimestamp: raw.created_timestamp ?? undefined,
         modifiedTimestamp: raw.modified_timestamp,
         deleted: raw.deleted,
-        delegatingSpender: raw.delegating_spender,
-        spender: raw.spender,
+        delegatingSpender: raw.delegating_spender ?? undefined,
+        spender: raw.spender ?? undefined,
     };
 }
 
@@ -408,7 +410,7 @@ export function convertTokenInfo(raw: MirrorTokenResponse): MirrorTokenInfo {
                 amount: amountString(f.amount),
                 collectorAccountId: f.collector_account_id,
                 allCollectorsAreExempt: f.all_collectors_are_exempt ?? false,
-                denominatingTokenId: f.denominating_token_id,
+                denominatingTokenId: f.denominating_token_id ?? undefined,
             };
             customFees.push(fee);
         }

@@ -42,8 +42,8 @@ export type MirrorAmount = number | string;
 
 export interface MirrorAccountResponse {
     account: string;
-    alias?: string;
-    evm_address?: string;
+    alias?: string | null;
+    evm_address?: string | null;
     /**
      * EIP-7702 delegation indicator ("0x" when none). Implemented on
      * upstream main (rest/model/entity.js, HIP-1340) and returned by
@@ -59,13 +59,13 @@ export interface MirrorAccountResponse {
         tokens: MirrorTokenBalance[];
     };
     deleted?: boolean;
-    auto_renew_period?: number;
-    memo?: string;
-    max_automatic_token_associations?: number;
-    staked_account_id?: string;
-    staked_node_id?: number;
-    stake_period_start?: string;
-    created_timestamp?: string;
+    auto_renew_period?: number | null;
+    memo?: string | null;
+    max_automatic_token_associations?: number | null;
+    staked_account_id?: string | null;
+    staked_node_id?: number | null;
+    stake_period_start?: string | null;
+    created_timestamp?: string | null;
     expiry_timestamp?: string;
     decline_reward?: boolean;
     ethereum_nonce?: number | null;
@@ -133,11 +133,11 @@ export interface MirrorNft {
     serial_number: number;
     account_id: string | null;
     metadata: string;
-    created_timestamp?: string;
+    created_timestamp?: string | null;
     modified_timestamp?: string | null;
     deleted: boolean;
-    delegating_spender?: string;
-    spender?: string;
+    delegating_spender?: string | null;
+    spender?: string | null;
 }
 
 /**
@@ -206,7 +206,7 @@ export interface MirrorTokenResponse {
 export interface MirrorFixedFeeRaw {
     amount: MirrorAmount;
     collector_account_id: string;
-    denominating_token_id?: string;
+    denominating_token_id?: string | null;
     all_collectors_are_exempt?: boolean;
 }
 
@@ -314,8 +314,10 @@ export interface MirrorTokenTransfer {
 export interface MirrorNftTransfer {
     token_id: string;
     serial_number: number;
-    sender_account_id: string;
-    receiver_account_id: string;
+    /** Null on mint */
+    sender_account_id: string | null;
+    /** Null on burn */
+    receiver_account_id: string | null;
     is_approval?: boolean;
 }
 
@@ -467,7 +469,7 @@ export interface MirrorNftTransaction {
     consensus_timestamp: string;
     is_approval?: boolean;
     nonce?: number;
-    receiver_account_id: string;
+    receiver_account_id: string | null;
     sender_account_id: string | null;
     transaction_id: string;
     type: string;

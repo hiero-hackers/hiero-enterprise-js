@@ -287,6 +287,100 @@ describe("misc converters", () => {
     });
 });
 
+describe("nullable wire fields (mainnet shapes)", () => {
+    it("reads null account fields as absent", () => {
+        const info = convertAccountInfo({
+            account: "0.0.1001",
+            alias: null,
+            evm_address: null,
+            auto_renew_period: null,
+            memo: null,
+            max_automatic_token_associations: null,
+            staked_account_id: null,
+            staked_node_id: null,
+            stake_period_start: null,
+            created_timestamp: null,
+        });
+        expect(info.accountId).toBe("0.0.1001");
+        // toEqual ignores undefined properties, so this fails on any null.
+        expect({
+            alias: info.alias,
+            evmAddress: info.evmAddress,
+            autoRenewPeriod: info.autoRenewPeriod,
+            memo: info.memo,
+            maxAutomaticTokenAssociations: info.maxAutomaticTokenAssociations,
+            stakedAccountId: info.stakedAccountId,
+            stakedNodeId: info.stakedNodeId,
+            stakePeriodStart: info.stakePeriodStart,
+            createdTimestamp: info.createdTimestamp,
+        }).toEqual({});
+    });
+
+    it("reads null NFT spender fields as absent", () => {
+        const nft = convertNft({
+            token_id: "0.0.1350444",
+            serial_number: 1,
+            account_id: "0.0.2",
+            metadata: "",
+            created_timestamp: null,
+            deleted: false,
+            delegating_spender: null,
+            spender: null,
+        });
+        expect(nft.spender).toBeUndefined();
+        expect(nft.delegatingSpender).toBeUndefined();
+        expect(nft.createdTimestamp).toBeUndefined();
+    });
+
+    it("keeps the null sender of a mint and receiver of a burn", () => {
+        const leg = (sender: string | null, receiver: string | null) =>
+            convertTransactionInfo({
+                transaction_id: "0.0.2-1-1",
+                name: "TOKENMINT",
+                result: "SUCCESS",
+                consensus_timestamp: "1.0",
+                valid_start_timestamp: "1.0",
+                charged_tx_fee: 1,
+                transfers: [],
+                token_transfers: [],
+                staking_reward_transfers: [],
+                nft_transfers: [
+                    {
+                        token_id: "0.0.5",
+                        serial_number: 1,
+                        sender_account_id: sender,
+                        receiver_account_id: receiver,
+                    },
+                ],
+            }).nftTransfers[0];
+        expect(leg(null, "0.0.2")).toMatchObject({
+            senderAccountId: null,
+            receiverAccountId: "0.0.2",
+        });
+        expect(leg("0.0.2", null)).toMatchObject({
+            senderAccountId: "0.0.2",
+            receiverAccountId: null,
+        });
+    });
+
+    it("reads an HBAR fixed fee's null denominating token as absent", () => {
+        const [fee] = convertTokenInfo({
+            token_id: "0.0.10812229",
+            custom_fees: {
+                fixed_fees: [
+                    {
+                        amount: 100,
+                        collector_account_id: "0.0.10812208",
+                        denominating_token_id: null,
+                    },
+                ],
+            },
+        } as Parameters<typeof convertTokenInfo>[0]).customFees;
+        expect(fee).toMatchObject({ type: "fixed", amount: "100" });
+        expect(fee).not.toHaveProperty("denominatingTokenId", null);
+    });
+});
+
 describe("converter default branches", () => {
     it("handles a minimal token (no custom fees, fungible, unpaused)", () => {
         const token = convertTokenInfo({
