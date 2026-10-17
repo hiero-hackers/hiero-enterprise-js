@@ -58,4 +58,14 @@ describe("TransactionRepository", () => {
             nonce: 1,
         });
     });
+
+    it("delegates findAllById to queryTransactionRows", async () => {
+        const spy = vi.spyOn(mockClient, "queryTransactionRows");
+        await repo.findAllById("0.0.123-1234567890-000000000", {
+            scheduled: true,
+        });
+        expect(spy).toHaveBeenCalledWith("0.0.123-1234567890-000000000", {
+            scheduled: true,
+        });
+    });
 });
