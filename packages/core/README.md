@@ -52,7 +52,7 @@ Every service takes the same `HieroContext`. It holds the SDK client and the ope
 | `FileService` | Files: create, append, update, delete, read |
 | `ContractService` | Smart contracts: deploy, execute, update, delete, read-only calls |
 | `ScheduleService` | Scheduled transactions: sign, cancel, inspect |
-| `NetworkService` | Transaction receipts and records, network version |
+| `NetworkService` | Transaction receipts and records, network version, pseudo-random numbers |
 
 Many write methods have a `schedule…` version that returns a schedule ID instead of executing, so other keys can sign it later with `ScheduleService.sign`.
 

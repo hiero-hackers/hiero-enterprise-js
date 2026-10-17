@@ -8,6 +8,10 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ## [Unreleased](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.5.0...HEAD)
 
+### Added
+
+- Added `NetworkService.generateRandom({ range? })`, which submits a `PrngTransaction` (HIP-351) and returns the executor result plus the random value read from the transaction record: `prngNumber`, an integer in `[0, range)`, when `range` is given, or `prngBytes`, 384 bits, without it. A `range` that is not an integer from 1 to 2147483647 is rejected with an `INPUT_INVALID` `HieroError` before anything is sent. If the record lookup fails after the transaction reached consensus, it throws `RESULT_MAPPING_FAILED` with the transaction ID instead of reading as a failed transaction. Applies to `@hiero-hackers/enterprise-core`. [#353](https://github.com/hiero-hackers/hiero-enterprise-js/issues/353) [#365](https://github.com/hiero-hackers/hiero-enterprise-js/pull/365)
+
 ## [0.5.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.4.0...v0.5.0) - 2026-10-17
 
 ### Added
