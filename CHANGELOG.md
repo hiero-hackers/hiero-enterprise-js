@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Only changes that users of the published packages would notice are recorded. Test-only changes, CI and tooling tweaks, and dependency bumps are left out, unless they change something contributors work with. All packages are versioned in lockstep, so each entry names the package it applies to.
 
-## [Unreleased](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.4.0...HEAD)
+## [Unreleased](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.5.0...HEAD)
+
+## [0.5.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.4.0...v0.5.0) - 2026-10-17
 
 ### Added
 
