@@ -78,4 +78,21 @@ describe("NetworkService [Integration]", () => {
             expect(typeof version.servicesVersion.patch).toBe("number");
         }, 60_000);
     });
+
+    describe("getAddressBook", () => {
+        it("lists the network's consensus nodes from the mirror node", async () => {
+            const book = await networkService.getAddressBook();
+
+            expect(book.nodeAddresses.length).toBeGreaterThan(0);
+            for (const node of book.nodeAddresses) {
+                expect(node.accountId?.toString()).toMatch(/^\d+\.\d+\.\d+$/);
+            }
+        }, 60_000);
+
+        it("honours the limit", async () => {
+            const book = await networkService.getAddressBook({ limit: 1 });
+
+            expect(book.nodeAddresses).toHaveLength(1);
+        }, 60_000);
+    });
 });

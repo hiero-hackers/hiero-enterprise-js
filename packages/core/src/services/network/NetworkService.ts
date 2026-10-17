@@ -1,18 +1,29 @@
 import type {
     NetworkVersionInfo,
+    NodeAddressBook,
     TransactionReceipt,
     TransactionRecord,
 } from "@hiero-ledger/sdk";
 import {
+    AddressBookQuery,
+    FileId,
     NetworkVersionInfoQuery,
     TransactionId,
     TransactionReceiptQuery,
     TransactionRecordQuery,
 } from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../context/index.js";
-import { validationError } from "../../errors/index.js";
+import { normalizeError, validationError } from "../../errors/index.js";
 import type { QueryOptions } from "../transaction/index.js";
 import { QueryExecutor } from "../transaction/index.js";
+
+/** Options for fetching the network's node address book. */
+export interface GetAddressBookOptions {
+    /** Address book file to read: `0.0.102` (default) or `0.0.101`. */
+    fileId?: string | FileId;
+    /** Return at most this many nodes. */
+    limit?: number;
+}
 
 /**
  * Options for fetching a transaction receipt.
@@ -204,5 +215,51 @@ export class NetworkService {
             methodName: "getNetworkVersionInfo",
             timestamp: new Date(),
         });
+    }
+
+    /**
+     * Fetch the node address book from the mirror node's gRPC API: each
+     * consensus node's ID, account, description, endpoints (IP or domain
+     * name, and port) and public key.
+     * Custom networks need `mirrorNetwork` set in the config.
+     *
+     * @param options.fileId - `0.0.102` (default) or `0.0.101`
+     * @param options.limit - Return at most this many nodes
+     * @returns The SDK `NodeAddressBook`
+     */
+    async getAddressBook(
+        options: GetAddressBookOptions = {},
+    ): Promise<NodeAddressBook> {
+        const context = "NetworkService.getAddressBook";
+        if (
+            options.limit != null &&
+            (!Number.isInteger(options.limit) || options.limit < 1)
+        ) {
+            throw validationError(
+                context,
+                `limit must be an integer >= 1, got ${options.limit}.`,
+            );
+        }
+        // The mirror node serves only the two address book files.
+        const fileId = options.fileId ?? FileId.ADDRESS_BOOK;
+        const num = fileId.toString().split(".")[2];
+        if (num !== "101" && num !== "102") {
+            throw validationError(
+                context,
+                `fileId must be the address book file 0.0.101 or 0.0.102, got "${fileId.toString()}".`,
+            );
+        }
+
+        // A mirror-node stream, not a paid consensus query, so it skips
+        // QueryExecutor (like the mirror-backed balance queries).
+        const query = new AddressBookQuery().setFileId(fileId);
+        if (options.limit != null) {
+            query.setLimit(options.limit);
+        }
+        try {
+            return await query.execute(this.context.client);
+        } catch (error) {
+            throw normalizeError(error, context);
+        }
     }
 }

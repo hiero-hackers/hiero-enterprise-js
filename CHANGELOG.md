@@ -8,6 +8,10 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ## [Unreleased](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.5.0...HEAD)
 
+### Added
+
+- Added `NetworkService.getAddressBook({ fileId?, limit? })`, which reads the node address book from the mirror node's gRPC API and returns the SDK `NodeAddressBook`: each consensus node's ID, account, description, endpoints and public key. `fileId` is `0.0.102` by default or `0.0.101`, the two files the mirror node serves; another file or a `limit` that is not an integer >= 1 is rejected with an `INPUT_INVALID` `HieroError` before anything is sent. Custom networks need `mirrorNetwork` set. Applies to `@hiero-hackers/enterprise-core`. [#355](https://github.com/hiero-hackers/hiero-enterprise-js/issues/355) [#366](https://github.com/hiero-hackers/hiero-enterprise-js/pull/366)
+
 ## [0.5.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.4.0...v0.5.0) - 2026-10-17
 
 ### Added
