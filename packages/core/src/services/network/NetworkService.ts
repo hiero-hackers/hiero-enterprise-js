@@ -113,7 +113,9 @@ export class NetworkService {
 
     /**
      * Get a pseudo-random value from the network (`PrngTransaction`,
-     * HIP-351), read from the transaction's record.
+     * HIP-351), read from the transaction's record. There is no scheduled
+     * variant: a scheduled PRNG's value lands in the scheduled execution's
+     * record, not this call's.
      *
      * @param options.range - Upper bound (exclusive) for an integer in
      *   `[0, range)`, from 1 to 2147483647; omit it for 384 bits of bytes

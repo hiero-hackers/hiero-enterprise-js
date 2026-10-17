@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
     AccountId,
     PrngTransaction,
+    TransactionRecordQuery,
     TransactionId,
     TransactionResponse,
 } from "@hiero-ledger/sdk";
@@ -38,7 +39,7 @@ describe("PrngOperation (via NetworkService.generateRandom)", () => {
         run = vi
             .spyOn(TransactionExecutor.prototype, "run")
             .mockResolvedValue(result as never);
-        getRecord = vi.spyOn(TransactionResponse.prototype, "getRecord");
+        getRecord = vi.spyOn(TransactionRecordQuery.prototype, "execute");
         service = new NetworkService(createMockContext());
     });
 

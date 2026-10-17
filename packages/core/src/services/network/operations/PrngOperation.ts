@@ -32,9 +32,13 @@ export class PrngOperation extends BaseOperation<PrngOptions> {
     async execute(options: PrngOptions = {}) {
         const results = await this.run(options);
 
+        // getRecordQuery skips the receipt re-fetch getRecord would do; the
+        // executor has already awaited consensus.
         let record;
         try {
-            record = await results.response.getRecord(this.context.client);
+            record = await results.response
+                .getRecordQuery(this.context.client)
+                .execute(this.context.client);
         } catch (error) {
             // The transaction landed; a plain rethrow would read as a failed
             // transaction and invite a resubmit.
