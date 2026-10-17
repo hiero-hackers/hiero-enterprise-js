@@ -89,17 +89,17 @@ describe("account converters", () => {
     });
 
     it("converts balances with token entries", () => {
-        const balance = convertBalance("0.0.9", {
+        const balance = convertBalance({
             account: "0.0.9",
             balance: {
                 balance: 100,
-                tokens: [{ token_id: "0.0.5", balance: 7, decimals: 2 }],
+                tokens: [{ token_id: "0.0.5", balance: 7 }],
             },
         });
         expect(balance).toEqual({
             accountId: "0.0.9",
             tinybars: "100",
-            tokens: [{ tokenId: "0.0.5", balance: "7", decimals: 2 }],
+            tokens: [{ tokenId: "0.0.5", balance: "7" }],
         });
     });
 
@@ -664,8 +664,14 @@ describe("converter default branches", () => {
         expect(tx.stakingRewardTransfers).toEqual([]);
     });
 
+    it("takes accountId from the response, not the lookup input", () => {
+        // The endpoint also accepts an alias or EVM address.
+        const balance = convertBalance({ account: "0.0.98" });
+        expect(balance.accountId).toBe("0.0.98");
+    });
+
     it("handles an account with no balance object", () => {
-        const balance = convertBalance("0.0.9", { account: "0.0.9" });
+        const balance = convertBalance({ account: "0.0.9" });
         expect(balance.tinybars).toBe("0");
         expect(balance.tokens).toEqual([]);
     });
@@ -680,7 +686,7 @@ describe("convertAccountInfo — balance snapshot fields", () => {
         balance: {
             balance: 1026735128,
             timestamp: "1780503998.708125000",
-            tokens: [{ token_id: "0.0.720", balance: 500, decimals: 6 }],
+            tokens: [{ token_id: "0.0.720", balance: 500 }],
         },
     };
 
@@ -692,13 +698,13 @@ describe("convertAccountInfo — balance snapshot fields", () => {
 
     it("carries the token balances", () => {
         expect(convertAccountInfo(raw).tokenBalances).toEqual([
-            { tokenId: "0.0.720", balance: "500", decimals: 6 },
+            { tokenId: "0.0.720", balance: "500" },
         ]);
     });
 
     it("agrees with convertBalance, which reads the same response", () => {
         const account = convertAccountInfo(raw);
-        const balance = convertBalance("0.0.1234", raw);
+        const balance = convertBalance(raw);
         expect(account.tokenBalances).toEqual(balance.tokens);
         expect(account.balanceTimestamp).toEqual(balance.timestamp);
         expect(String(account.balance)).toEqual(balance.tinybars);

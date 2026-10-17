@@ -353,7 +353,19 @@ export class MirrorNodeClient {
         }
         this.baseUrl = url;
         this.timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+        if (!Number.isFinite(this.timeoutMs) || this.timeoutMs <= 0) {
+            throw new MirrorError(
+                `timeoutMs must be a finite number > 0, got ${this.timeoutMs}.`,
+                { code: MirrorErrorCodes.ConfigInvalid },
+            );
+        }
         this.maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES;
+        if (!Number.isInteger(this.maxRetries) || this.maxRetries < 0) {
+            throw new MirrorError(
+                `maxRetries must be an integer >= 0, got ${this.maxRetries}.`,
+                { code: MirrorErrorCodes.ConfigInvalid },
+            );
+        }
         this.observer = options?.observer;
         this.retryOn404 = options?.retryOn404 ?? false;
         // A shared gate (from withRetryOn404) already carries the concurrency
@@ -486,10 +498,10 @@ export class MirrorNodeClient {
      * semantics — a GET, or a JSON POST when `body` is provided.
      *
      * - Each attempt is bounded by `timeoutMs` via AbortController.
-     * - HTTP 429 and 5xx responses are retried up to `maxRetries` times,
-     *   honouring the `Retry-After` header when present. The only POST
-     *   endpoint (`/contracts/call`) is a transient simulation, so it is
-     *   as safe to retry as a GET.
+     * - HTTP 429 and 5xx responses (except 501) are retried up to
+     *   `maxRetries` times, honouring the `Retry-After` header when present.
+     *   The only POST endpoint (`/contracts/call`) is a transient
+     *   simulation, so it is as safe to retry as a GET.
      * - HTTP 404 is retried on the same budget only when `retryOn404` is
      *   enabled (for mirror-node eventual consistency on freshly-created
      *   entities); otherwise, and once retries are exhausted, it surfaces
@@ -568,9 +580,10 @@ export class MirrorNodeClient {
                 },
             );
         }
+        // 501 Not Implemented is a fixed answer, not a transient failure.
         const retryableStatus =
             response.status === 429 ||
-            response.status >= 500 ||
+            (response.status >= 500 && response.status !== 501) ||
             (this.retryOn404 && response.status === 404);
         if (retryableStatus && attempt < this.maxRetries) {
             clearTimeout(timer);
@@ -714,7 +727,7 @@ export class MirrorNodeClient {
         });
         const raw = await this.request<MirrorAccountResponse>(path);
         assertAccountResponse(raw, path);
-        return convertBalance(accountId, raw);
+        return convertBalance(raw);
     }
 
     /**
@@ -956,30 +969,45 @@ export class MirrorNodeClient {
         return this.queryTransactions({ ...options, accountId });
     }
 
+    /**
+     * The first row the mirror node returns for a transaction ID. Use
+     * {@link queryTransactionRows} for every row (parent and child
+     * transactions, or a schedule create and its scheduled execution).
+     */
     async queryTransaction(
         transactionId: string,
         options?: TransactionLookupQuery,
     ): Promise<TransactionInfo> {
+        const rows = await this.queryTransactionRows(transactionId, options);
+        return rows[0];
+    }
+
+    /**
+     * Every row the mirror node returns for a transaction ID, in the order
+     * it sent them: parent and child transactions, or a `SCHEDULECREATE`
+     * and its scheduled execution. Throws `NotFound` when there are none.
+     */
+    async queryTransactionRows(
+        transactionId: string,
+        options?: TransactionLookupQuery,
+    ): Promise<TransactionInfo[]> {
+        const path = `/api/v1/transactions/${segment(transactionId)}`;
         const raw = await this.request<MirrorTransactionListResponse>(
-            appendQuery(`/api/v1/transactions/${segment(transactionId)}`, {
+            appendQuery(path, {
                 nonce: options?.nonce,
                 scheduled: options?.scheduled,
             }),
         );
-        assertTransactionListResponse(
-            raw,
-            `/api/v1/transactions/${segment(transactionId)}`,
-        );
+        assertTransactionListResponse(raw, path);
         if (!raw.transactions || raw.transactions.length === 0) {
             throw new MirrorError(`Transaction not found: ${transactionId}`, {
                 code: MirrorErrorCodes.NotFound,
             });
         }
-        assertTransactionResponse(
-            raw.transactions[0],
-            `/api/v1/transactions/${segment(transactionId)}`,
-        );
-        return convertTransactionInfo(raw.transactions[0]);
+        return raw.transactions.map((row) => {
+            assertTransactionResponse(row, path);
+            return convertTransactionInfo(row);
+        });
     }
 
     // ─── Network ─────────────────────────────────────────────────

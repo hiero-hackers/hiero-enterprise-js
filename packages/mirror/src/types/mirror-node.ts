@@ -73,10 +73,10 @@ export interface MirrorAccountResponse {
     receiver_sig_required?: boolean | null;
 }
 
+/** A token entry in an account response's `balance.tokens`. */
 export interface MirrorTokenBalance {
     token_id: string;
     balance: MirrorAmount;
-    decimals: number;
 }
 
 /** A single entry in the raw `/api/v1/tokens/{id}/balances` response. */
