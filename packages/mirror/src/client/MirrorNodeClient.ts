@@ -486,9 +486,10 @@ export class MirrorNodeClient {
      * semantics — a GET, or a JSON POST when `body` is provided.
      *
      * - Each attempt is bounded by `timeoutMs` via AbortController.
-     * - HTTP 429 and 5xx responses are retried up to `maxRetries` times,
-     *   honouring the `Retry-After` header when present (up to 5 s; a
-     *   longer `Retry-After` ends the request with that response's error).
+     * - HTTP 429 and 5xx responses (except 501) are retried up to
+     *   `maxRetries` times, honouring the `Retry-After` header when present
+     *   (up to 5 s; a longer `Retry-After` ends the request with that
+     *   response's error).
      *   The only POST endpoint (`/contracts/call`) is a transient
      *   simulation, so it is as safe to retry as a GET.
      * - HTTP 404 is retried on the same budget only when `retryOn404` is
@@ -569,9 +570,10 @@ export class MirrorNodeClient {
                 },
             );
         }
+        // 501 Not Implemented is a fixed answer, not a transient failure.
         const retryableStatus =
             response.status === 429 ||
-            response.status >= 500 ||
+            (response.status >= 500 && response.status !== 501) ||
             (this.retryOn404 && response.status === 404);
         // A 404 carries no `Retry-After`, so parseRetryAfter returns null and
         // the eventual-consistency case just backs off. A server asking for

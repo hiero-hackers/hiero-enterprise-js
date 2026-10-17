@@ -225,6 +225,19 @@ describe("MirrorNodeClient remaining endpoints", () => {
             /Mirror node returned 503/,
         );
     });
+
+    it("does not retry 501 Not Implemented", async () => {
+        const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+            new Response(null, {
+                status: 501,
+                statusText: "Not Implemented",
+            }),
+        );
+        await expect(client.queryAccount("0.0.1")).rejects.toMatchObject({
+            status: 501,
+        });
+        expect(spy).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe("MirrorNodeClient edge branches", () => {
