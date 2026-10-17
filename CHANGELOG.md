@@ -8,6 +8,10 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ## [Unreleased](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.5.0...HEAD)
 
+### Added
+
+- Added `AccountService.getAccountRecords(accountId, options?)`, which returns the records of the transactions an account paid for in the last 3 minutes, as a consensus node still holds them, as SDK `TransactionRecord`s (possibly empty). It runs through the same query path as the other consensus queries, so it takes `QueryOptions` (payer, payment caps, node targeting) and reports to transaction listeners. A missing or malformed `accountId` is rejected with an `INPUT_INVALID` `HieroError` before any query is sent. Applies to `@hiero-hackers/enterprise-core`. [#354](https://github.com/hiero-hackers/hiero-enterprise-js/issues/354) [#364](https://github.com/hiero-hackers/hiero-enterprise-js/pull/364)
+
 ## [0.5.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.4.0...v0.5.0) - 2026-10-17
 
 ### Added
