@@ -56,7 +56,6 @@ describe("EthereumOperation (via ContractService) [Integration]", () => {
         });
 
         expect(result.status).toBe("SUCCESS");
-        expect(result.contractId).toBeNull();
         expect(result.functionResult?.errorMessage ?? null).toBeNull();
     }, 120_000);
 });

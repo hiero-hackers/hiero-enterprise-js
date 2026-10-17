@@ -41,9 +41,9 @@ export class EthereumOperation extends BaseOperation<EthereumOperationOptions> {
     /**
      * Submit the `EthereumTransaction`.
      *
-     * @returns The executor's shared fields, `contractId` when the
-     *   transaction created a contract (else `null`), and `functionResult`
-     *   when `withFunctionResult` is set (else `null`)
+     * @returns The executor's shared fields, `contractId` (the contract
+     *   the receipt names: the one created or called, else `null`), and
+     *   `functionResult` when `withFunctionResult` is set (else `null`)
      * @throws HieroError with code `RESULT_MAPPING_FAILED` when the
      *   transaction reached consensus but the opt-in record fetch failed
      */

@@ -299,7 +299,7 @@ export class ContractService {
      * @param options.callDataFileId - File with the call data, when it is too large for the transaction
      * @param options.maxGasAllowance - Most HBAR the payer covers for gas (default `0`)
      * @param options.withFunctionResult - Also fetch the EVM outcome (one extra paid query)
-     * @returns The executor result, `contractId` for a contract creation, and `functionResult` when requested
+     * @returns The executor result, the receipt's `contractId` (the contract created or called), and `functionResult` when requested
      */
     async executeEthereumTransaction(
         options: ExecuteEthereumTransactionOptions,

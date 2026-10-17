@@ -101,7 +101,7 @@ describe("EthereumOperation (via ContractService.executeEthereumTransaction)", (
         expect(sentTx().maxGasAllowance).toBeNull();
     });
 
-    it("returns the created contract from the receipt", async () => {
+    it("returns the contract the receipt names", async () => {
         run.mockResolvedValueOnce(
             result(ContractId.fromString("0.0.7777")) as never,
         );
