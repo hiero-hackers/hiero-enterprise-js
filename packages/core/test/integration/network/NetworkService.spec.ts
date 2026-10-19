@@ -95,4 +95,22 @@ describe("NetworkService [Integration]", () => {
             expect(book.nodeAddresses).toHaveLength(1);
         }, 60_000);
     });
+
+    describe("generateRandom", () => {
+        it("returns an integer below the range", async () => {
+            const random = await networkService.generateRandom({ range: 10 });
+
+            expect(random.status).toBe("SUCCESS");
+            expect(Number.isInteger(random.prngNumber)).toBe(true);
+            expect(random.prngNumber).toBeGreaterThanOrEqual(0);
+            expect(random.prngNumber).toBeLessThan(10);
+        }, 60_000);
+
+        it("returns 384 bits of bytes without a range", async () => {
+            const random = await networkService.generateRandom();
+
+            expect(random.prngBytes?.length).toBe(48);
+            expect(random.prngNumber).toBeNull();
+        }, 60_000);
+    });
 });

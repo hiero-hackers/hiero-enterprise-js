@@ -387,6 +387,7 @@ Before submitting your pull request, refer to the pull request readiness checkli
 - [ ] Git commit message is detailed and includes context behind the change
 - [ ] Commits are signed off (`git commit -s`) and GPG-signed
 - [ ] If the change is related to an existing Bug Report or Feature Request, please include its issue number
+- [ ] The pull request has an assignee: the person responsible for it. CI fails a pull request without one. If you can't assign yourself from a fork, a maintainer will.
 
 To contribute, please fork the GitHub repository and submit a pull request to the `main` branch.
 
