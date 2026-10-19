@@ -33,13 +33,13 @@ describe("EthereumOperation (via ContractService) [Integration]", () => {
 
         // A zero-value transfer to the operator on Solo's chain (298). The
         // sender offers no gas price; the operator covers the gas through
-        // maxGasAllowance.
+        // maxGasAllowance. 21000 gas is too little on consensus v0.73+.
         const ethereumData = new EthereumTransactionDataEip1559({
             chainId: hex("012a"),
             nonce: new Uint8Array(),
             maxPriorityGas: new Uint8Array(),
             maxGas: new Uint8Array(),
-            gasLimit: hex("5208"),
+            gasLimit: hex("0186a0"),
             to: hex(ctx.operatorAccountId.toEvmAddress()),
             value: new Uint8Array(),
             callData: new Uint8Array(),
