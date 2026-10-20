@@ -1,18 +1,31 @@
 import type {
     NetworkVersionInfo,
+    NodeAddressBook,
     TransactionReceipt,
     TransactionRecord,
 } from "@hiero-ledger/sdk";
 import {
+    AddressBookQuery,
+    FileId,
     NetworkVersionInfoQuery,
     TransactionId,
     TransactionReceiptQuery,
     TransactionRecordQuery,
 } from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../context/index.js";
-import { validationError } from "../../errors/index.js";
+import { normalizeError, validationError } from "../../errors/index.js";
 import type { QueryOptions } from "../transaction/index.js";
 import { QueryExecutor } from "../transaction/index.js";
+import { PrngOperation } from "./operations/index.js";
+import type { PrngOptions } from "./operations/index.js";
+
+/** Options for fetching the network's node address book. */
+export interface GetAddressBookOptions {
+    /** Address book file to read: `0.0.102` (default) or `0.0.101`. */
+    fileId?: string | FileId;
+    /** Return at most this many nodes. */
+    limit?: number;
+}
 
 /**
  * Options for fetching a transaction receipt.
@@ -78,8 +91,8 @@ function parseTransactionId(
 }
 
 /**
- * Public facade for cross-cutting consensus-node queries:
- * receipt / record retrieval and network version info.
+ * Public facade for cross-cutting consensus-node calls: receipt / record
+ * retrieval, network version info, and pseudo-random numbers.
  *
  * Use this when you need to query the outcome of a transaction whose
  * `TransactionResponse` you do not have (e.g., submitted out-of-band, by
@@ -102,9 +115,31 @@ function parseTransactionId(
  */
 export class NetworkService {
     private readonly queryExecutor: QueryExecutor;
+    private readonly prngOperation: PrngOperation;
 
     constructor(private readonly context: IHieroContext) {
         this.queryExecutor = new QueryExecutor(context);
+        this.prngOperation = new PrngOperation(context);
+    }
+
+    /**
+     * Get a pseudo-random value from the network (`PrngTransaction`,
+     * HIP-351), read from the transaction's record. There is no scheduled
+     * variant: a scheduled PRNG's value lands in the scheduled execution's
+     * record, not this call's.
+     *
+     * @param options.range - Upper bound (exclusive) for an integer in
+     *   `[0, range)`, from 1 to 2147483647; omit it for 384 bits of bytes
+     * @returns The executor result plus `prngNumber` (with `range`) or
+     *   `prngBytes` (without); the other is `null`
+     *
+     * @example
+     * ```ts
+     * const { prngNumber } = await networkService.generateRandom({ range: 100 });
+     * ```
+     */
+    async generateRandom(options?: PrngOptions) {
+        return await this.prngOperation.execute(options);
     }
 
     /**
@@ -204,5 +239,51 @@ export class NetworkService {
             methodName: "getNetworkVersionInfo",
             timestamp: new Date(),
         });
+    }
+
+    /**
+     * Fetch the node address book from the mirror node's gRPC API: each
+     * consensus node's ID, account, description, endpoints (IP or domain
+     * name, and port) and public key.
+     * Custom networks need `mirrorNetwork` set in the config.
+     *
+     * @param options.fileId - `0.0.102` (default) or `0.0.101`
+     * @param options.limit - Return at most this many nodes
+     * @returns The SDK `NodeAddressBook`
+     */
+    async getAddressBook(
+        options: GetAddressBookOptions = {},
+    ): Promise<NodeAddressBook> {
+        const context = "NetworkService.getAddressBook";
+        if (
+            options.limit != null &&
+            (!Number.isInteger(options.limit) || options.limit < 1)
+        ) {
+            throw validationError(
+                context,
+                `limit must be an integer >= 1, got ${options.limit}.`,
+            );
+        }
+        // The mirror node serves only the two address book files.
+        const fileId = options.fileId ?? FileId.ADDRESS_BOOK;
+        const num = fileId.toString().split(".")[2];
+        if (num !== "101" && num !== "102") {
+            throw validationError(
+                context,
+                `fileId must be the address book file 0.0.101 or 0.0.102, got "${fileId.toString()}".`,
+            );
+        }
+
+        // A mirror-node stream, not a paid consensus query, so it skips
+        // QueryExecutor (like the mirror-backed balance queries).
+        const query = new AddressBookQuery().setFileId(fileId);
+        if (options.limit != null) {
+            query.setLimit(options.limit);
+        }
+        try {
+            return await query.execute(this.context.client);
+        } catch (error) {
+            throw normalizeError(error, context);
+        }
     }
 }

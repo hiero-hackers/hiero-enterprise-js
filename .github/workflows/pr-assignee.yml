@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: Apache-2.0
+# Fails a pull request that has no assignee, so every PR has an owner.
+# Re-runs when someone is assigned or unassigned; the latest run is the
+# check's state. Dependabot PRs are exempt.
+
+name: "PR Assignee"
+
+on:
+    pull_request:
+        types:
+            - opened
+            - reopened
+            - synchronize
+            - ready_for_review
+            - assigned
+            - unassigned
+
+permissions:
+    contents: read
+
+jobs:
+    assignee:
+        name: PR has an assignee
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
+        runs-on: ubuntu-latest
+        steps:
+            - name: Harden Runner
+              uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+              with:
+                  egress-policy: audit
+
+            - name: Check assignees
+              env:
+                  ASSIGNEES: ${{ join(github.event.pull_request.assignees.*.login, ', ') }}
+              run: |
+                  if [ -z "$ASSIGNEES" ]; then
+                      echo "::error::Assign this pull request to the person responsible for it."
+                      exit 1
+                  fi
+                  echo "Assigned to: $ASSIGNEES"
