@@ -123,7 +123,7 @@ export class TopicService {
      * @param options.topicMemo - Topic-level memo (max 100 bytes)
      * @param options.adminKey - Admin key required to later update or delete the topic
      * @param options.submitKey - Submit key; when set, only signers holding it may submit messages
-     * @param options.autoRenewAccountId - Account charged for auto-renewal (required when adminKey is set)
+     * @param options.autoRenewAccountId - Account charged for auto-renewal (defaults to the payer)
      * @param options.autoRenewPeriod - Auto-renew period in seconds (network bounds apply)
      * @param options.feeScheduleKey - Fee schedule key (HIP-991) for later customFees updates
      * @param options.feeExemptKeys - Keys whose holders are exempt from customFees on submit
