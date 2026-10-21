@@ -19,12 +19,31 @@ export class UpdateAccountValidator {
      * @throws {HieroError} If validation fails
      */
     validate(options: UpdateAccountOptions): void {
+        this.validateAccountId(options);
         this.validateKeyRotation(options);
         this.validateExpirationTime(options);
         this.validateStakingOptions(options);
         this.validateMemo(options);
         this.validateAutoRenewPeriod(options);
         this.validateHighVolume(options);
+    }
+
+    private validateAccountId(options: UpdateAccountOptions): void {
+        if (options.accountId == null) {
+            throw validationError(
+                "UpdateAccountValidator",
+                "accountId is required.",
+            );
+        }
+        if (
+            typeof options.accountId === "string" &&
+            options.accountId.trim() === ""
+        ) {
+            throw validationError(
+                "UpdateAccountValidator",
+                "accountId cannot be an empty string.",
+            );
+        }
     }
 
     private validateKeyRotation(options: UpdateAccountOptions): void {
