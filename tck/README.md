@@ -23,3 +23,7 @@ Requests core can't express (for example a custom `transactionId`, or a multi-le
    ```sh
    npx mocha --require ts-node/register --require tsconfig-paths/register --require src/preflight.ts 'src/tests/topic-service/**/*.ts' --timeout 90000 --exit
    ```
+
+## In CI
+
+`.github/workflows/tck.yml` runs the covered TCK folders on every pull request and on demand: it builds core, starts this adapter and a Solo network on the TCK's default ports, then runs the TCK's own action (`hiero-ledger/hiero-sdk-tck`, pinned to a release commit). The job summary has the counts and the mochawesome report is uploaded as `tck-report`.

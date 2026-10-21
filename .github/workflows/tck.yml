@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: Apache-2.0
+# Runs the Hiero SDK TCK (hiero-ledger/hiero-sdk-tck) against enterprise-core
+# through the JSON-RPC adapter in tck/, on every pull request and on demand.
+#
+# The TCK's own action waits for the adapter, runs the suite, writes the
+# counts to the job summary, uploads the mochawesome report and fails last.
+# It starts no network and no server: this workflow builds core, starts the
+# adapter and a Solo network on the TCK's default ports (consensus 50211,
+# mirror REST 5551, mirror gRPC 5600, REST Java 8084, genesis operator 0.0.2).
+#
+# The commit pins the suite and the action together, so bump it on purpose,
+# with a TCK release: pin the full commit SHA of the release tag and name the
+# tag in the comment.
+
+name: TCK
+
+on:
+    pull_request:
+        branches:
+            - main
+    workflow_dispatch:
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+jobs:
+    tck:
+        name: TCK compatibility
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
+        env:
+            NODE_VERSION: "22"
+        steps:
+            - name: Harden Runner
+              uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+              with:
+                  egress-policy: audit
+
+            - name: Checkout code
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Setup pnpm
+              uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+            - name: Setup Node
+              uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: pnpm
+
+            - name: Install dependencies and build core
+              run: |
+                  pnpm install --frozen-lockfile
+                  pnpm --filter @hiero-hackers/enterprise-core run build
+
+            - name: Start the TCK adapter
+              env:
+                  MIRROR_NODE_REST_URL: http://127.0.0.1:5551
+              run: nohup pnpm --filter @hiero-hackers/tck-adapter start > "${RUNNER_TEMP}/tck-adapter.log" 2>&1 &
+
+            - name: Prepare Hiero Solo
+              uses: hiero-ledger/hiero-solo-action@c982fe02b37db2a25a6a5e61139d9fe5d0917cff # 0.26.0
+              with:
+                  installMirrorNode: true
+                  soloVersion: v0.91.0
+                  nodeVersion: ${{ env.NODE_VERSION }}
+                  hieroVersion: v0.73.0
+                  mirrorNodeVersion: v0.153.0
+                  haproxyPort: 50211
+                  mirrorNodePortRest: 5551
+                  grpcProxyPort: 8080
+
+            # The adapter covers the topic and account tests so far (#370);
+            # widen the matrix as it grows (#371).
+            - name: Run the TCK
+              timeout-minutes: 30
+              uses: hiero-ledger/hiero-sdk-tck@c9e7169888d86be4793cde5932ce57d9450a9761 # v0.14.0
+              with:
+                  artifact-name: tck-report
+                  test-matrix: |
+                      src/tests/topic-service/**/*.ts
+                      src/tests/crypto-service/**/*.ts
+
+            - name: Show the TCK adapter log
+              if: always()
+              run: cat "${RUNNER_TEMP}/tck-adapter.log" || true
