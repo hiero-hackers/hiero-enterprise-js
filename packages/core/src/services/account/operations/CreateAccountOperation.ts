@@ -90,7 +90,7 @@ export interface CreateAccountOptions extends TransactionOptions {
     declineStakingReward?: boolean;
 
     /**
-     * Auto-renew period in seconds (must be between 30 and 90 days).
+     * Auto-renew period in seconds (network bounds apply, by default 30 days to 8,000,001 s).
      * Controls how long the account survives without being explicitly renewed.
      */
     autoRenewPeriod?: number;

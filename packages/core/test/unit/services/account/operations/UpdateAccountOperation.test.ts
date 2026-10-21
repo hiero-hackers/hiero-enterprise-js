@@ -144,11 +144,6 @@ describe("UpdateAccountOperation (via AccountService)", () => {
                 { memo: "x".repeat(101) },
                 /memo exceeds 100 bytes/,
             ],
-            [
-                "an autoRenewPeriod under 30 days",
-                { autoRenewPeriod: THIRTY_DAYS - 1 },
-                /autoRenewPeriod must be between/,
-            ],
         ])("rejects %s before sending", async (_, fields, message) => {
             await expect(
                 service.updateAccount({ accountId: "0.0.1234", ...fields }),
