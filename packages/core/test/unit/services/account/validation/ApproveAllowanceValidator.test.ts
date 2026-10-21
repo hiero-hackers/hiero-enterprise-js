@@ -301,6 +301,25 @@ describe("ApproveAllowanceValidator", () => {
             ).not.toThrow();
         });
 
+        it.each(["", "   "])(
+            "throws when delegatingSpender is %j",
+            (delegatingSpender) => {
+                expect(() =>
+                    validator.validate({
+                        nftAllowances: [
+                            {
+                                tokenId: "0.0.500",
+                                ownerAccountId: "0.0.100",
+                                spenderAccountId: "0.0.200",
+                                serialNumbers: [1],
+                                delegatingSpender,
+                            },
+                        ],
+                    }),
+                ).toThrow(/delegatingSpender cannot be an empty string/);
+            },
+        );
+
         it("throws when tokenId is missing", () => {
             expect(() =>
                 validator.validate({

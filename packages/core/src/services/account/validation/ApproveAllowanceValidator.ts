@@ -161,6 +161,16 @@ export class ApproveAllowanceValidator {
                     }
                 }
             }
+
+            if (
+                allowance.delegatingSpender != null &&
+                allowance.delegatingSpender.trim() === ""
+            ) {
+                throw validationError(
+                    "ApproveAllowanceValidator",
+                    "nftAllowances[].delegatingSpender cannot be an empty string.",
+                );
+            }
         }
     }
 }
