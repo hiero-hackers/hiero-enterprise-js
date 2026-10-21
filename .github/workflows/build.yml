@@ -85,7 +85,7 @@ jobs:
 
             - name: Report unit coverage
               if: ${{ always() && matrix.node-version == 24 }}
-              uses: davelosert/vitest-coverage-report-action@c4bbc33a89b7ace0e63d35f1f7d4bcee31155a73 # v2.13.0
+              uses: davelosert/vitest-coverage-report-action@8f86cfb56ed6d5613ea8cdc5259f207fbfd51ece # v2.13.1
               with:
                   name: "core / unit"
                   # `working-directory` scopes the paths below; keep them
@@ -102,7 +102,7 @@ jobs:
 
             - name: Report mirror unit coverage
               if: ${{ always() && matrix.node-version == 24 }}
-              uses: davelosert/vitest-coverage-report-action@c4bbc33a89b7ace0e63d35f1f7d4bcee31155a73 # v2.13.0
+              uses: davelosert/vitest-coverage-report-action@8f86cfb56ed6d5613ea8cdc5259f207fbfd51ece # v2.13.1
               with:
                   name: "mirror / unit"
                   working-directory: ./packages/mirror
@@ -193,7 +193,7 @@ jobs:
 
             - name: Report integration coverage
               if: ${{ always() && matrix.node-version == 24 }}
-              uses: davelosert/vitest-coverage-report-action@c4bbc33a89b7ace0e63d35f1f7d4bcee31155a73 # v2.13.0
+              uses: davelosert/vitest-coverage-report-action@8f86cfb56ed6d5613ea8cdc5259f207fbfd51ece # v2.13.1
               with:
                   name: "core / integration"
                   # `working-directory` scopes the paths below; keep them
