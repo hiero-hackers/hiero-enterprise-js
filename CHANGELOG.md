@@ -17,7 +17,7 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ### Fixed
 
-- **Behavior change:** fixed `AccountService.createAccount` and `updateAccount` (and their scheduled variants) rejecting an `autoRenewPeriod` outside 30–90 days with `INPUT_INVALID`, although the network's bounds are configuration and by default reach 8,000,001 s: an account with an 8,000,001 s period could not be created. Core now leaves the range to the network, so an out-of-range period gets the network's `AUTORENEW_DURATION_NOT_IN_RANGE` (or `INVALID_RENEWAL_PERIOD`) instead of `INPUT_INVALID`. Applies to `@hiero-hackers/enterprise-core`. [#378](https://github.com/hiero-hackers/hiero-enterprise-js/issues/378)
+- **Behavior change:** fixed `AccountService.createAccount` and `updateAccount` (and their scheduled variants) rejecting an `autoRenewPeriod` outside 30–90 days with `INPUT_INVALID`, although the network's bounds are configuration and by default reach 8,000,001 s: an account with an 8,000,001 s period could not be created. Core now leaves the range to the network, so an out-of-range period gets the network's `AUTORENEW_DURATION_NOT_IN_RANGE` (or `INVALID_RENEWAL_PERIOD`) instead of `INPUT_INVALID`. Applies to `@hiero-hackers/enterprise-core`. [#378](https://github.com/hiero-hackers/hiero-enterprise-js/issues/378) [#386](https://github.com/hiero-hackers/hiero-enterprise-js/pull/386)
 
 ## [0.5.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.4.0...v0.5.0) - 2026-10-17
 
