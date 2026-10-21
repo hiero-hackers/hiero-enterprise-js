@@ -17,7 +17,7 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ### Fixed
 
-- Fixed `AccountService.updateAccount` (and `scheduleUpdateAccount`) throwing a raw `TypeError: Cannot read properties of undefined (reading 'clone')` when `accountId` is missing, because nothing checked it before the transaction was built. A missing or empty `accountId` is now rejected with an `INPUT_INVALID` `HieroError` ("accountId is required." / "accountId cannot be an empty string.") before anything is sent. Applies to `@hiero-hackers/enterprise-core`. [#379](https://github.com/hiero-hackers/hiero-enterprise-js/issues/379)
+- Fixed `AccountService.updateAccount` (and `scheduleUpdateAccount`) throwing a raw `TypeError: Cannot read properties of undefined (reading 'clone')` when `accountId` is missing, because nothing checked it before the transaction was built. A missing or empty `accountId` is now rejected with an `INPUT_INVALID` `HieroError` ("accountId is required." / "accountId cannot be an empty string.") before anything is sent. Applies to `@hiero-hackers/enterprise-core`. [#379](https://github.com/hiero-hackers/hiero-enterprise-js/issues/379) [#387](https://github.com/hiero-hackers/hiero-enterprise-js/pull/387)
 
 ## [0.5.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.4.0...v0.5.0) - 2026-10-17
 
