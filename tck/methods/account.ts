@@ -227,6 +227,24 @@ export const approveAllowance = async (
         });
         return { status: result.status };
     }
+    // `approvedForAll: false` without serials revokes an all-serials
+    // approval, which core exposes as deleteAllNftAllowances.
+    if (
+        allowances.length > 0 &&
+        allowances.every(
+            (a) =>
+                a.nft?.approvedForAll === false && !a.nft.serialNumbers?.length,
+        )
+    ) {
+        const result = await accounts.deleteAllNftAllowances(
+            allowances.map((a) => ({
+                ...base(a),
+                tokenId: a.nft!.tokenId,
+            })),
+            options,
+        );
+        return { status: result.status };
+    }
     if (allowances.length > 0 && allowances.every((a) => a.nft)) {
         const result = await accounts.approveNftAllowance({
             ...options,
