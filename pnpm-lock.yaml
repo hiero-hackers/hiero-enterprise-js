@@ -150,6 +150,31 @@ importers:
         specifier: ^0.2.0
         version: 0.2.2
 
+  tck:
+    dependencies:
+      '@hiero-hackers/enterprise-core':
+        specifier: workspace:*
+        version: link:../packages/core
+      '@hiero-ledger/proto':
+        specifier: ^2.32.0
+        version: 2.32.0(protobufjs@8.6.6)
+      '@hiero-ledger/sdk':
+        specifier: ^2.90.1
+        version: 2.90.1
+      express:
+        specifier: 5.2.1
+        version: 5.2.1(supports-color@7.2.0)
+      json-rpc-2.0:
+        specifier: 1.7.0
+        version: 1.7.0
+    devDependencies:
+      '@types/express':
+        specifier: ^5.0.6
+        version: 5.0.6
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
+
 packages:
 
   '@adraffy/ens-normalize@1.10.1':
@@ -1774,6 +1799,9 @@ packages:
 
   js-tokens@10.0.0:
     resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
+
+  json-rpc-2.0@1.7.0:
+    resolution: {integrity: sha512-asnLgC1qD5ytP+fvBP8uL0rvj+l8P6iYICbzZ8dVxCpESffVjzA7KkYkbKCIbavs7cllwH1ZUaNtJwphdeRqpg==}
 
   json-schema-ref-resolver@3.0.0:
     resolution: {integrity: sha512-hOrZIVL5jyYFjzk7+y7n5JDzGlU8rfWDuYyHwGa2WA8/pcmMHezp2xsVwxrebD/Q9t8Nc5DboieySDpCp4WG4A==}
@@ -4160,6 +4188,8 @@ snapshots:
   js-base64@3.7.4: {}
 
   js-tokens@10.0.0: {}
+
+  json-rpc-2.0@1.7.0: {}
 
   json-schema-ref-resolver@3.0.0:
     dependencies:
