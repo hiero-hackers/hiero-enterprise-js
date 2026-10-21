@@ -17,7 +17,7 @@ Only changes that users of the published packages would notice are recorded. Tes
 
 ### Fixed
 
-- Fixed `AccountService.approveNftAllowance` (and `approveAllowance`) silently dropping a `delegatingSpender` that is an empty string and approving the allowance without one. An empty or whitespace `delegatingSpender` is now rejected with an `INPUT_INVALID` `HieroError` ("nftAllowances[].delegatingSpender cannot be an empty string.") before anything is sent. Applies to `@hiero-hackers/enterprise-core`. [#380](https://github.com/hiero-hackers/hiero-enterprise-js/issues/380)
+- Fixed `AccountService.approveNftAllowance` (and `approveAllowance`) silently dropping a `delegatingSpender` that is an empty string and approving the allowance without one. An empty or whitespace `delegatingSpender` is now rejected with an `INPUT_INVALID` `HieroError` ("nftAllowances[].delegatingSpender cannot be an empty string.") before anything is sent. Applies to `@hiero-hackers/enterprise-core`. [#380](https://github.com/hiero-hackers/hiero-enterprise-js/issues/380) [#388](https://github.com/hiero-hackers/hiero-enterprise-js/pull/388)
 
 ## [0.5.0](https://github.com/hiero-hackers/hiero-enterprise-js/compare/v0.4.0...v0.5.0) - 2026-10-17
 
