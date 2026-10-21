@@ -65,7 +65,10 @@ server.applyMiddleware(
                 JSONRPCErrorCode.InvalidParams
                     ? JSONRPCErrorCode.InvalidParams
                     : JSONRPCErrorCode.InternalError;
-            console.error(`Internal error in ${method}: ${message}`);
+            console.error(
+                `Internal error in ${method}: ${message}`,
+                error instanceof Error ? `\n${error.stack}` : "",
+            );
             return createJSONRPCErrorResponse(
                 request.id ?? null,
                 code,

@@ -76,6 +76,12 @@ jobs:
                   mirrorNodePortRest: 5551
                   grpcProxyPort: 8080
 
+            # Connect 50211 straight to the node's NodePort instead of the
+            # kubectl port-forward and haproxy chain, which hiero-sdk-js saw
+            # stop answering mid-run on CI runners.
+            - name: Connect the consensus node port directly
+              run: node .github/scripts/forward-consensus-port.mjs
+
             # The adapter covers the topic and account tests so far (#370);
             # widen the matrix as it grows (#371).
             - name: Run the TCK
