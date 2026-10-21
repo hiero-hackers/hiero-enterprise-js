@@ -136,7 +136,7 @@ jobs:
             # Everything above runs without a network. The steps below need
             # the Solo network, so they only start once the offline checks pass.
             - name: Setup Hiero Solo Network
-              uses: hiero-ledger/hiero-solo-action@c5326debc5b38e50fa4032361c0a35f46166c0e7 # v0.25.0
+              uses: hiero-ledger/hiero-solo-action@c982fe02b37db2a25a6a5e61139d9fe5d0917cff # v0.26.0
               id: solo
               with:
                   installMirrorNode: true
