@@ -1,11 +1,18 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { FeeEstimateMode, Hbar, TransferTransaction } from "@hiero-ledger/sdk";
 import {
     setupIntegrationTestEnv,
     IntegrationTracker,
 } from "../../utils/env.js";
 import { waitForMirrorNodeRecord } from "../../utils/mirror-node.js";
-import { createTestAccount } from "../../utils/integration-fixtures.js";
+import {
+    createTestAccount,
+    type TestAccount,
+} from "../../utils/integration-fixtures.js";
+import { resolveConfigFromEnv } from "../../../src/config/index.js";
+import { HieroContext } from "../../../src/context/index.js";
 import { AccountService, NetworkService } from "../../../src/services/index.js";
+import { OperatorKeyType } from "../../../src/types/index.js";
 
 describe("NetworkService [Integration]", () => {
     let accountService: AccountService;
@@ -93,6 +100,66 @@ describe("NetworkService [Integration]", () => {
             const book = await networkService.getAddressBook({ limit: 1 });
 
             expect(book.nodeAddresses).toHaveLength(1);
+        }, 60_000);
+    });
+
+    describe("estimateFee", () => {
+        let payerCtx: HieroContext;
+        let payer: TestAccount;
+
+        beforeAll(async () => {
+            // The env operator is a system account that pays no fees.
+            payer = await createTestAccount(accountService, 10);
+            payerCtx = new HieroContext({
+                ...resolveConfigFromEnv(),
+                operatorId: payer.accountId,
+                operatorKey: payer.key.toStringDer(),
+                operatorKeyType: OperatorKeyType.DER,
+            });
+        });
+
+        afterAll(() => {
+            payerCtx?.close();
+        });
+
+        const transfer = () =>
+            new TransferTransaction()
+                .addHbarTransfer(payer.accountId, Hbar.fromTinybars(-1))
+                .addHbarTransfer("0.0.2", Hbar.fromTinybars(1));
+
+        it("estimates close to the fee the network charges", async () => {
+            const tx = transfer().freezeWith(payerCtx.client);
+            await tx.sign(payer.key);
+
+            const estimate = await new NetworkService(payerCtx).estimateFee(tx);
+            const response = await tx.execute(payerCtx.client);
+            const record = await response.getRecord(payerCtx.client);
+
+            // Tinybars to tinycents with the rate the network applied.
+            const rate = record.receipt.exchangeRate!;
+            const charged =
+                (record.transactionFee.toTinybars().toNumber() * rate.cents) /
+                rate.hbars;
+            expect(Number(estimate.total)).toBeGreaterThan(0);
+            expect(
+                Math.abs(charged - Number(estimate.total)) / charged,
+            ).toBeLessThan(0.05);
+        }, 60_000);
+
+        it("leaves an unfrozen transaction unfrozen", async () => {
+            const tx = transfer();
+
+            const estimate = await new NetworkService(payerCtx).estimateFee(
+                tx,
+                { mode: FeeEstimateMode.STATE },
+            );
+
+            expect(BigInt(estimate.total)).toBe(
+                BigInt(estimate.network.subtotal) +
+                    BigInt(estimate.node.base) +
+                    BigInt(estimate.service.base),
+            );
+            expect(tx.isFrozen()).toBe(false);
         }, 60_000);
     });
 

@@ -1,5 +1,9 @@
 export { NetworkService } from "./NetworkService.js";
 export type {
+    EstimateFeeOptions,
+    FeeComponentEstimate,
+    FeeEstimateResult,
+    FeeExtraEstimate,
     GetAddressBookOptions,
     GetTransactionReceiptOptions,
     GetTransactionRecordOptions,

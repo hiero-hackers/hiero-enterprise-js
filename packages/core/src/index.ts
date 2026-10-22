@@ -22,6 +22,7 @@ export {
     CustomRoyaltyFee,
     ContractId,
     ContractFunctionParameters,
+    FeeEstimateMode,
 } from "@hiero-ledger/sdk";
 
 // Configuration

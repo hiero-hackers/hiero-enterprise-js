@@ -1,4 +1,5 @@
 import type {
+    FeeEstimate,
     NetworkVersionInfo,
     NodeAddressBook,
     TransactionReceipt,
@@ -6,7 +7,10 @@ import type {
 } from "@hiero-ledger/sdk";
 import {
     AddressBookQuery,
+    FeeEstimateMode,
+    FeeEstimateQuery,
     FileId,
+    Transaction,
     NetworkVersionInfoQuery,
     TransactionId,
     TransactionReceiptQuery,
@@ -25,6 +29,62 @@ export interface GetAddressBookOptions {
     fileId?: string | FileId;
     /** Return at most this many nodes. */
     limit?: number;
+}
+
+/** Options for estimating a transaction's fee. */
+export interface EstimateFeeOptions {
+    /**
+     * `FeeEstimateMode.INTRINSIC` (default) prices the payload alone;
+     * `FeeEstimateMode.STATE` also uses the mirror node's latest state.
+     */
+    mode?: (typeof FeeEstimateMode)[keyof typeof FeeEstimateMode];
+    /** High-volume throttle utilization in basis points, 0 to 10000 (default 0). */
+    highVolumeThrottle?: number;
+}
+
+/** One extra charge within a fee component. Amounts are in tinycents. */
+export interface FeeExtraEstimate {
+    /** Name of the extra, e.g. `"SIGNATURES"` */
+    name: string;
+    /** Units included in the base fee */
+    included: number;
+    /** Units the transaction uses */
+    count: number;
+    /** Units charged beyond the included ones */
+    charged: number;
+    /** Fee per charged unit in tinycents — decimal string */
+    feePerUnit: string;
+    /** Fee for the charged units in tinycents — decimal string */
+    subtotal: string;
+}
+
+/** A node or service fee component. Amounts are in tinycents. */
+export interface FeeComponentEstimate {
+    /** Base fee in tinycents — decimal string */
+    base: string;
+    /** Extra charges on top of the base fee */
+    extras: FeeExtraEstimate[];
+}
+
+/**
+ * A transaction's estimated fee (HIP-1261). Amounts are in **tinycents**
+ * (1/100,000,000 of a US cent), not tinybars; convert with the exchange rate.
+ */
+export interface FeeEstimateResult {
+    /** Network fee: the node fee times `multiplier` */
+    network: {
+        multiplier: number;
+        /** Network fee in tinycents — decimal string */
+        subtotal: string;
+    };
+    /** Fee paid to the submitting node */
+    node: FeeComponentEstimate;
+    /** Fee for executing the transaction */
+    service: FeeComponentEstimate;
+    /** High-volume pricing multiplier (HIP-1313); 1 when none applies */
+    highVolumeMultiplier: number;
+    /** Sum of the network, node and service fees in tinycents — decimal string */
+    total: string;
 }
 
 /**
@@ -90,9 +150,25 @@ function parseTransactionId(
     }
 }
 
+/** Convert an SDK fee component to plain data. */
+function toFeeComponent(fee: FeeEstimate): FeeComponentEstimate {
+    return {
+        base: fee.base.toString(),
+        extras: fee.extras.map((extra) => ({
+            name: extra.name,
+            included: extra.included,
+            count: extra.count,
+            charged: extra.charged,
+            feePerUnit: extra.feePerUnit.toString(),
+            subtotal: extra.subtotal.toString(),
+        })),
+    };
+}
+
 /**
- * Public facade for cross-cutting consensus-node calls: receipt / record
- * retrieval, network version info, and pseudo-random numbers.
+ * Public facade for cross-cutting network calls: receipt / record
+ * retrieval, network version info, pseudo-random numbers, the node address
+ * book and fee estimates.
  *
  * Use this when you need to query the outcome of a transaction whose
  * `TransactionResponse` you do not have (e.g., submitted out-of-band, by
@@ -282,6 +358,86 @@ export class NetworkService {
         }
         try {
             return await query.execute(this.context.client);
+        } catch (error) {
+            throw normalizeError(error, context);
+        }
+    }
+
+    /**
+     * Estimate a transaction's fee from the mirror node
+     * (`POST /api/v1/network/fees`, HIP-1261) without submitting it.
+     *
+     * A copy is estimated, so the transaction is not frozen in place; an
+     * unfrozen copy is frozen with the client's operator as payer. An
+     * unsigned transaction under-counts signature costs: sign it first, or
+     * expect the charged fee to be higher. A mirror-node REST call, so it
+     * skips `QueryExecutor` and listeners are not notified.
+     *
+     * @param transaction - Any SDK transaction, frozen or not
+     * @param options.mode - `FeeEstimateMode.INTRINSIC` (default) or `STATE`
+     * @param options.highVolumeThrottle - Basis points, 0 to 10000
+     * @returns The fee components and total, in tinycents
+     *
+     * @example
+     * ```ts
+     * const tx = new TransferTransaction()
+     *     .addHbarTransfer("0.0.1234", new Hbar(-1))
+     *     .addHbarTransfer("0.0.5678", new Hbar(1));
+     * const { total } = await networkService.estimateFee(tx);
+     * ```
+     */
+    async estimateFee(
+        transaction: Transaction,
+        options: EstimateFeeOptions = {},
+    ): Promise<FeeEstimateResult> {
+        const context = "NetworkService.estimateFee";
+        if (transaction == null) {
+            throw validationError(context, "transaction is required.");
+        }
+
+        const modes: number[] = Object.values(FeeEstimateMode);
+        if (options.mode != null && !modes.includes(options.mode)) {
+            throw validationError(
+                context,
+                `mode must be FeeEstimateMode.STATE (0) or FeeEstimateMode.INTRINSIC (1), got ${options.mode}.`,
+            );
+        }
+
+        const throttle = options.highVolumeThrottle;
+        if (
+            throttle != null &&
+            (!Number.isInteger(throttle) || throttle < 0 || throttle > 10000)
+        ) {
+            throw validationError(
+                context,
+                `highVolumeThrottle must be an integer from 0 to 10000, got ${throttle}.`,
+            );
+        }
+
+        try {
+            // execute() freezes the transaction it is given, so estimate a copy.
+            const copy = Transaction.fromBytes(transaction.toBytes());
+            const query = new FeeEstimateQuery().setTransaction(copy);
+            if (options.mode != null) {
+                query.setMode(options.mode);
+            }
+
+            if (throttle != null) {
+                query.setHighVolumeThrottle(throttle);
+            }
+
+            const fee = await query.execute(this.context.client);
+
+            return {
+                network: {
+                    multiplier: fee.networkFee.multiplier,
+                    subtotal: fee.networkFee.subtotal.toString(),
+                },
+                node: toFeeComponent(fee.nodeFee),
+                service: toFeeComponent(fee.serviceFee),
+                highVolumeMultiplier: fee.highVolumeMultiplier.toNumber(),
+                total: fee.total.toString(),
+            };
         } catch (error) {
             throw normalizeError(error, context);
         }
