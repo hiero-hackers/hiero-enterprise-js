@@ -20,8 +20,12 @@ import {
     ContractCallQuery,
     ContractInfoQuery,
     ContractBytecodeQuery,
+    MirrorNodeContractQuery,
 } from "./queries/index.js";
-import type { ContractCallQueryOptions } from "./queries/index.js";
+import type {
+    ContractCallQueryOptions,
+    MirrorNodeContractQueryOptions,
+} from "./queries/index.js";
 import type {
     ContractId,
     ContractInfo,
@@ -108,15 +112,24 @@ export type DeleteContractOptions = ContractDeleteOperationOptions;
 export type CallContractOptions = ContractCallQueryOptions;
 
 /**
+ * Options for `ContractService.simulateContractCall` and
+ * `ContractService.estimateContractGas`: a contract call simulated on the
+ * mirror node instead of a consensus node.
+ */
+export type MirrorContractCallOptions = MirrorNodeContractQueryOptions;
+
+/**
  * Service for managing smart contracts on the Hiero network (HSCS — the
  * Smart Contract Service).
  *
  * Wraps the underlying `ContractCreateTransaction` /
  * `ContractExecuteTransaction` / `ContractCallQuery` / `ContractUpdateTransaction`
  * / `ContractDeleteTransaction` / `ContractInfoQuery` / `ContractBytecodeQuery`
- * SDK surface with validated, observability-aware operations. Listeners
+ * / `MirrorNodeContractCallQuery` / `MirrorNodeContractEstimateQuery` SDK
+ * surface with validated, observability-aware operations. Listeners
  * registered on the surrounding `HieroContext` see `before` / `after` events
- * for every contract transaction submitted here.
+ * for every contract transaction and consensus-node query submitted here;
+ * the mirror node simulations emit none.
  *
  * Operations are organised internally into per-transaction classes under
  * `services/contract/operations/` (write) and `services/contract/queries/`
@@ -134,6 +147,7 @@ export class ContractService {
     private readonly callQuery: ContractCallQuery;
     private readonly infoQuery: ContractInfoQuery;
     private readonly bytecodeQuery: ContractBytecodeQuery;
+    private readonly mirrorQuery: MirrorNodeContractQuery;
 
     constructor(private readonly context: IHieroContext) {
         this.createOperation = new ContractCreateOperation(context);
@@ -145,6 +159,7 @@ export class ContractService {
         this.callQuery = new ContractCallQuery(context);
         this.infoQuery = new ContractInfoQuery(context);
         this.bytecodeQuery = new ContractBytecodeQuery(context);
+        this.mirrorQuery = new MirrorNodeContractQuery(context);
     }
 
     /**
@@ -471,6 +486,68 @@ export class ContractService {
         options: CallContractOptions,
     ): Promise<ContractFunctionResult> {
         return await this.callQuery.execute(options);
+    }
+
+    /**
+     * Simulate a contract call on the mirror node
+     * (`MirrorNodeContractCallQuery`). Free and needs no gas limit, but
+     * reads the mirror node's state, a few seconds behind consensus. Use
+     * `callContract` to read from a consensus node.
+     *
+     * Listeners do not see this call: it never reaches a consensus node.
+     *
+     * @param options.contractId - Contract to call
+     * @param options.functionName - Function name to call; SDK encodes parameters
+     * @param options.functionParameters - ABI-typed parameters (paired with `functionName`)
+     * @param options.rawFunctionParameters - Pre-encoded call data (mutex with `functionName`)
+     * @param options.sender - Account used as `msg.sender`, as its long-zero address
+     * @param options.senderEvmAddress - EVM address used as `msg.sender`, e.g. an ECDSA alias (mutex with `sender`)
+     * @param options.value - Tinybars sent with the call
+     * @param options.gasLimit - Gas limit for the simulation
+     * @param options.gasPrice - Gas price in tinybars
+     * @returns The call's return data as a `0x…` hex string
+     * @throws {HieroError} `INPUT_INVALID` for a bad call target or call
+     *   data over 131072 bytes; `SDK_ERROR` when the mirror node rejects
+     *   the call, e.g. on a revert
+     *
+     * @example
+     * ```typescript
+     * const result = await contractService.simulateContractCall({
+     *     contractId: "0.0.12345",
+     *     functionName: "get",
+     * });
+     * const value = BigInt(result);
+     * ```
+     */
+    async simulateContractCall(
+        options: MirrorContractCallOptions,
+    ): Promise<string> {
+        return await this.mirrorQuery.call(options);
+    }
+
+    /**
+     * Estimate the gas a contract call needs, on the mirror node
+     * (`MirrorNodeContractEstimateQuery`), e.g. to pick the `gas` for
+     * `executeContract`.
+     *
+     * Listeners do not see this call: it never reaches a consensus node.
+     *
+     * @param options - Same fields as `simulateContractCall`
+     * @returns The estimated gas
+     *
+     * @example
+     * ```typescript
+     * const gas = await contractService.estimateContractGas({
+     *     contractId: "0.0.12345",
+     *     functionName: "set",
+     *     functionParameters: new ContractFunctionParameters().addUint256(42),
+     * });
+     * ```
+     */
+    async estimateContractGas(
+        options: MirrorContractCallOptions,
+    ): Promise<number> {
+        return await this.mirrorQuery.estimate(options);
     }
 
     /**

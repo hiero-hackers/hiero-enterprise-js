@@ -7,7 +7,8 @@ import type {
 } from "@hiero-ledger/sdk";
 import { ContractCallQuery as SdkContractCallQuery } from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../../context/index.js";
-import { normalizeError, validationError } from "../../../errors/index.js";
+import { normalizeError } from "../../../errors/index.js";
+import { validateCallTarget } from "../validation/index.js";
 import { QueryExecutor } from "../../transaction/index.js";
 import type { QueryOptions } from "../../transaction/index.js";
 
@@ -68,7 +69,7 @@ export class ContractCallQuery {
     async execute(
         options: ContractCallQueryOptions,
     ): Promise<ContractFunctionResult> {
-        this.validate(options);
+        validateCallTarget("ContractService.callContract", options);
 
         try {
             const query = new SdkContractCallQuery()
@@ -101,32 +102,6 @@ export class ContractCallQuery {
             });
         } catch (error) {
             throw normalizeError(error, "ContractService.callContract");
-        }
-    }
-
-    /**
-     * Minimal input validation. The SDK will throw on most malformed
-     * inputs (missing contractId, invalid IDs, etc.) — we only catch
-     * the cases the SDK silently mis-handles, plus the call-target mutex
-     * that is ambiguous if both forms are supplied.
-     */
-    private validate(options: ContractCallQueryOptions): void {
-        const hasFunctionName =
-            options.functionName != null && options.functionName !== "";
-        const hasRawParameters = options.rawFunctionParameters != null;
-
-        if (!hasFunctionName && !hasRawParameters) {
-            throw validationError(
-                "ContractService.callContract",
-                "ContractCallQuery requires either functionName or rawFunctionParameters.",
-            );
-        }
-
-        if (hasFunctionName && hasRawParameters) {
-            throw validationError(
-                "ContractService.callContract",
-                "ContractCallQuery accepts functionName or rawFunctionParameters, not both.",
-            );
         }
     }
 }

@@ -7,4 +7,5 @@ export type {
     UpdateContractOptions,
     DeleteContractOptions,
     CallContractOptions,
+    MirrorContractCallOptions,
 } from "./ContractService.js";

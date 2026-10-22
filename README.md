@@ -107,13 +107,13 @@ A Hiero network has two kinds of servers:
 | `TokenService` | Fungible tokens and NFTs: create, mint, burn, freeze, pause, KYC, fees, airdrops |
 | `TopicService` | Topics: create, update, delete, submit messages, subscribe |
 | `FileService` | Files: create, append, update, delete, read |
-| `ContractService` | Smart contracts: deploy, execute, update, delete, read-only calls |
+| `ContractService` | Smart contracts: deploy, execute, update, delete, read-only calls, gas estimates |
 | `ScheduleService` | Scheduled transactions: sign, cancel, inspect |
 | `NetworkService` | Transaction receipts and records, network version |
 
 - Input is checked before sending. Bad input fails with `INPUT_INVALID` and costs no fee.
 - Many write methods have a `schedule…` version, so several keys can sign the same transaction.
-- Listeners get an event before and after every transaction and query, for logs and metrics.
+- Listeners get an event before and after every transaction and consensus node query, for logs and metrics.
 
 **Mirror** — the whole mirror node REST API:
 
