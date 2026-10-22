@@ -35,6 +35,7 @@ export class UpdateAccountValidator {
                 "accountId is required.",
             );
         }
+
         if (
             typeof options.accountId === "string" &&
             options.accountId.trim() === ""
