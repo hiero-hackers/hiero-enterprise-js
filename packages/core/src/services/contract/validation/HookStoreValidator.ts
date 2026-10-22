@@ -17,8 +17,8 @@ export class HookStoreValidator {
      */
     validate(options: HookStoreOperationOptions): void {
         this.validateOwner(options);
-        this.validateHookId(options);
-        this.validateStorageUpdates(options);
+        this.validateHook(options);
+        this.validateUpdates(options);
     }
 
     /** The hook's owner is exactly one of an account or a contract. */
@@ -50,7 +50,7 @@ export class HookStoreValidator {
         }
     }
 
-    private validateHookId(options: HookStoreOperationOptions): void {
+    private validateHook(options: HookStoreOperationOptions): void {
         if (options.hookId == null) {
             throw validationError("HookStoreValidator", "hookId is required.");
         }
@@ -58,7 +58,7 @@ export class HookStoreValidator {
         validateHookId("HookStoreValidator", "hookId", options.hookId);
     }
 
-    private validateStorageUpdates(options: HookStoreOperationOptions): void {
+    private validateUpdates(options: HookStoreOperationOptions): void {
         if (
             options.storageUpdates == null ||
             options.storageUpdates.length === 0

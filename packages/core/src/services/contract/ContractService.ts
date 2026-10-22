@@ -464,11 +464,10 @@ export class ContractService {
 
     /**
      * Update the storage of an EVM hook (HIP-1195) owned by an account or a
-     * contract. Lives here because `HookStore` is a smart contract service
-     * transaction and covers both kinds of owner.
+     * contract.
      *
-     * The hook's admin key, if it has one, must sign; otherwise the
-     * owner's key. Pass it via `additionalSigners`. Not schedulable.
+     * Either the owner's key or the hook's admin key must sign; pass it via
+     * `additionalSigners`. Not schedulable.
      *
      * @param options.accountId - Account that owns the hook (mutex with `contractId`)
      * @param options.contractId - Contract that owns the hook (mutex with `accountId`)

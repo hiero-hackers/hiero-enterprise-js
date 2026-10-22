@@ -18,8 +18,8 @@ import { HookStoreValidator } from "../validation/index.js";
  * A hook is identified by its owner, an account or a contract (exactly one
  * of `accountId` / `contractId`), plus the owner's hook ID.
  *
- * The hook's admin key, if it has one, must sign; otherwise the owner's
- * key. Pass the key via `additionalSigners`.
+ * Either the owner's key or the hook's admin key must sign; pass it via
+ * `additionalSigners`.
  *
  * Extends `TransactionOptions` for fees, validity window and additional
  * signers. The network does not allow scheduling a `HookStore`.
@@ -53,18 +53,21 @@ export class HookStoreOperation extends BaseOperation<HookStoreOperationOptions>
 
     /** Construct the `HookStoreTransaction` from the caller-provided options. */
     protected build(options: HookStoreOperationOptions): HookStoreTransaction {
-        const entityId =
-            options.accountId != null
-                ? new HookEntityId({
-                      accountId: AccountId.fromString(
-                          options.accountId.toString(),
-                      ),
-                  })
-                : new HookEntityId({
-                      contractId: ContractId.fromString(
-                          options.contractId!.toString(),
-                      ),
-                  });
+        let entityId: HookEntityId;
+
+        if (options.accountId != null) {
+            const accountId =
+                typeof options.accountId === "string"
+                    ? AccountId.fromString(options.accountId)
+                    : options.accountId;
+            entityId = new HookEntityId({ accountId });
+        } else {
+            const contractId =
+                typeof options.contractId === "string"
+                    ? ContractId.fromString(options.contractId)
+                    : options.contractId;
+            entityId = new HookEntityId({ contractId });
+        }
 
         return new HookStoreTransaction()
             .setHookId(
