@@ -241,7 +241,7 @@ export class AccountService {
      * @param options.stakedAccountId - Account ID to stake to (mutually exclusive with stakedNodeId)
      * @param options.stakedNodeId - Node ID to stake to (mutually exclusive with stakedAccountId)
      * @param options.declineStakingReward - Whether to decline staking rewards
-     * @param options.autoRenewPeriod - Auto-renew period in seconds (30–90 days)
+     * @param options.autoRenewPeriod - Auto-renew period in seconds (network bounds apply, by default 30 days to 8,000,001 s)
      */
     async updateAccount(options: UpdateAccountOptions) {
         return await this.updateOperation.execute(options);
@@ -258,7 +258,7 @@ export class AccountService {
      * @param options.stakedAccountId - Account ID to stake to (mutually exclusive with stakedNodeId)
      * @param options.stakedNodeId - Node ID to stake to (mutually exclusive with stakedAccountId)
      * @param options.declineStakingReward - Whether to decline staking rewards
-     * @param options.autoRenewPeriod - Auto-renew period in seconds (30–90 days)
+     * @param options.autoRenewPeriod - Auto-renew period in seconds (network bounds apply, by default 30 days to 8,000,001 s)
      * @param scheduleOptions - Payer, admin key, and schedule memo
      * @returns The schedule entity ID and the transaction ID of the `ScheduleCreateTransaction`
      */

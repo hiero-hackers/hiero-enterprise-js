@@ -12,6 +12,17 @@ describe("UpdateAccountValidator", () => {
         expect(validate({})).not.toThrow();
     });
 
+    it.each([
+        [undefined, "accountId is required."],
+        [null, "accountId is required."],
+        ["", "accountId cannot be an empty string."],
+        ["   ", "accountId cannot be an empty string."],
+    ])("rejects accountId %j with INPUT_INVALID", (accountId, message) => {
+        expect(validate({ accountId: accountId as unknown as string })).toThrow(
+            expect.objectContaining({ code: "INPUT_INVALID", message }),
+        );
+    });
+
     describe("key rotation", () => {
         const newKey = PrivateKey.generateED25519();
 
@@ -102,18 +113,10 @@ describe("UpdateAccountValidator", () => {
     });
 
     describe("autoRenewPeriod", () => {
-        it("passes at the 30 and 90 day bounds", () => {
-            expect(validate({ autoRenewPeriod: 2_592_000 })).not.toThrow();
-            expect(validate({ autoRenewPeriod: 7_776_000 })).not.toThrow();
-        });
-
-        it("throws below 30 days or above 90 days", () => {
-            expect(validate({ autoRenewPeriod: 2_591_999 })).toThrow(
-                /autoRenewPeriod must be between 30 days/,
-            );
-            expect(validate({ autoRenewPeriod: 7_776_001 })).toThrow(
-                /autoRenewPeriod must be between 30 days/,
-            );
+        it("leaves the range to the network, whose bounds are configurable", () => {
+            expect(validate({ autoRenewPeriod: 2_591_999 })).not.toThrow();
+            expect(validate({ autoRenewPeriod: 8_000_001 })).not.toThrow();
+            expect(validate({ autoRenewPeriod: 9_000_000 })).not.toThrow();
         });
     });
 });

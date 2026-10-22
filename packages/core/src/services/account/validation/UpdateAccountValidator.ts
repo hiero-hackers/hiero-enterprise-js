@@ -19,12 +19,31 @@ export class UpdateAccountValidator {
      * @throws {HieroError} If validation fails
      */
     validate(options: UpdateAccountOptions): void {
+        this.validateAccountId(options);
         this.validateKeyRotation(options);
         this.validateExpirationTime(options);
         this.validateStakingOptions(options);
         this.validateMemo(options);
-        this.validateAutoRenewPeriod(options);
         this.validateHighVolume(options);
+    }
+
+    private validateAccountId(options: UpdateAccountOptions): void {
+        if (options.accountId == null) {
+            throw validationError(
+                "UpdateAccountValidator",
+                "accountId is required.",
+            );
+        }
+
+        if (
+            typeof options.accountId === "string" &&
+            options.accountId.trim() === ""
+        ) {
+            throw validationError(
+                "UpdateAccountValidator",
+                "accountId cannot be an empty string.",
+            );
+        }
     }
 
     private validateKeyRotation(options: UpdateAccountOptions): void {
@@ -75,23 +94,6 @@ export class UpdateAccountValidator {
             throw validationError(
                 "UpdateAccountValidator",
                 `Account memo exceeds 100 bytes (got ${Buffer.byteLength(options.memo, "utf8")}).`,
-            );
-        }
-    }
-
-    private validateAutoRenewPeriod(options: UpdateAccountOptions): void {
-        if (options.autoRenewPeriod == null) return;
-
-        const MIN_AUTO_RENEW = 2_592_000; // 30 days in seconds
-        const MAX_AUTO_RENEW = 7_776_000; // 90 days in seconds
-
-        if (
-            options.autoRenewPeriod < MIN_AUTO_RENEW ||
-            options.autoRenewPeriod > MAX_AUTO_RENEW
-        ) {
-            throw validationError(
-                "UpdateAccountValidator",
-                `autoRenewPeriod must be between 30 days (${MIN_AUTO_RENEW}s) and 90 days (${MAX_AUTO_RENEW}s), got ${options.autoRenewPeriod}s.`,
             );
         }
     }
