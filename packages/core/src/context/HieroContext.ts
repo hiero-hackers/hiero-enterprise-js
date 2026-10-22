@@ -224,6 +224,8 @@ export class HieroContext implements IHieroContext {
     /**
      * Send mirror REST calls to `origin`. The SDK derives the REST URL from
      * the mirror network and has no setting for it, so rewrite each request.
+     * Requests for a different origin, such as a local mirror's rest-java
+     * (8084) and web3 (8545) ports, are left as the SDK built them.
      */
     private useMirrorNodeOrigin(origin: string): void {
         const httpConfig = this.client.getMirrorNodeHttpConfig();
@@ -236,11 +238,17 @@ export class HieroContext implements IHieroContext {
             ...httpConfig,
             transport: {
                 roundTrip: (request, signal) => {
-                    const { pathname, search } = new URL(request.url);
+                    const url = new URL(request.url);
+                    const rest = new URL(this.client.mirrorRestApiBaseUrl);
+
+                    if (url.origin !== rest.origin) {
+                        return transport.roundTrip(request, signal);
+                    }
+
                     return transport.roundTrip(
                         new HttpRequest({
                             ...request,
-                            url: origin + pathname + search,
+                            url: origin + url.pathname + url.search,
                         }),
                         signal,
                     );

@@ -106,7 +106,7 @@ const context = new HieroContext({
 
 - `networkNodes`: the consensus nodes, as `"host:port": "accountId"`. In the environment: `HIERO_NETWORK_NODES="127.0.0.1:50211=0.0.3"`.
 - `mirrorNetwork`: the mirror node's gRPC address, used for topic subscriptions and balances. In the environment: `HIERO_MIRROR_NETWORK="localhost:5600"`.
-- `mirrorNodeUrl`: the mirror node's REST URL, which balances are read from. Without it the SDK uses port 5551 for a local mirror node; Solo serves REST on 38081.
+- `mirrorNodeUrl`: the mirror node's REST URL, which balances are read from. Without it the SDK uses port 5551 for a local mirror node; Solo serves REST on 38081. On a local mirror node, rest-java (8084) and web3 (8545) requests keep their own ports.
 
 See [`custom-network.ts`](../../samples/examples/src/network/custom-network.ts).
 

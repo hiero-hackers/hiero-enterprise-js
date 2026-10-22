@@ -2,8 +2,12 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { inspect } from "node:util";
 import {
     Client,
+    ContractFunctionParameters,
+    ContractId,
     DefaultHttpTransport,
+    FeeEstimateQuery,
     MirrorNodeAccountBalanceQuery,
+    MirrorNodeContractCallQuery,
     PrivateKey,
     TransactionId,
     TransferTransaction,
@@ -461,6 +465,43 @@ describe("HieroContext", () => {
                 /^http:\/\/localhost:38081\/api\/v1\//,
             );
         });
+
+        it.each([
+            [
+                "rest-java",
+                () =>
+                    new FeeEstimateQuery().setTransaction(
+                        new TransferTransaction(),
+                    ),
+                /^http:\/\/localhost:8084\/api\/v1\/network\/fees/,
+            ],
+            [
+                "web3",
+                () =>
+                    new MirrorNodeContractCallQuery()
+                        .setContractId(ContractId.fromString("0.0.1001"))
+                        .setFunction("get", new ContractFunctionParameters()),
+                /^http:\/\/localhost:8545\/api\/v1\/contracts\/call/,
+            ],
+        ])(
+            "leaves a local mirror's %s port alone when mirrorNodeUrl is set",
+            async (_name, query, expected) => {
+                const ctx = create({
+                    ...localConfig,
+                    mirrorNetwork: ["localhost:5600"],
+                    mirrorNodeUrl: "http://localhost:38081",
+                });
+                const roundTrip = vi
+                    .spyOn(DefaultHttpTransport.prototype, "roundTrip")
+                    .mockRejectedValue(new Error("stop"));
+
+                await query()
+                    .execute(ctx.client)
+                    .catch(() => undefined);
+
+                expect(roundTrip.mock.calls[0][0].url).toMatch(expected);
+            },
+        );
 
         it("keeps the SDK's mirror transport when mirrorNodeUrl is unset", () => {
             const ctx = create({

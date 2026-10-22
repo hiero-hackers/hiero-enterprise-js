@@ -30,7 +30,8 @@ export interface HieroConfig {
     /**
      * Mirror node REST URL (e.g., "http://localhost:5551"). Balances are read
      * from it. Without it the SDK derives the URL from the mirror network,
-     * using port 5551 for a local mirror node.
+     * using port 5551 for a local mirror node. A local mirror's rest-java
+     * (8084) and web3 (8545) requests keep their own ports.
      */
     readonly mirrorNodeUrl?: string;
     /** Request timeout in milliseconds (default: 120000) */
