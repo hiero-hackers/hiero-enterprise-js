@@ -2,7 +2,7 @@ import { validationError } from "../../../errors/index.js";
 import {
     validateHookCreations,
     validateHookIds,
-} from "../../contract/validation/hooks.js";
+} from "../../contract/validation/index.js";
 import type { UpdateAccountOptions } from "../operations/index.js";
 
 /**

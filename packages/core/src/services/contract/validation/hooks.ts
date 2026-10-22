@@ -17,13 +17,13 @@ const MAX_WORD_BYTES = 32;
  * Validates hooks to create (HIP-1195): a supported extension point, a
  * non-negative hook ID unique within the list, and an EVM hook contract.
  *
- * @param validator - Validator name used in the error context
+ * @param context - Validator name used in the error context
  * @param field - Option name used in error messages
  * @param hooks - The hooks to validate, if any
  * @throws {HieroError} If a hook is invalid
  */
 export function validateHookCreations(
-    validator: string,
+    context: string,
     field: string,
     hooks: HookCreationDetails[] | undefined,
 ): void {
@@ -36,32 +36,32 @@ export function validateHookCreations(
 
         if (hook.extensionPoint == null) {
             throw validationError(
-                validator,
+                context,
                 `${name}.extensionPoint is required.`,
             );
         }
 
         if (hook.extensionPoint !== HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK) {
             throw validationError(
-                validator,
+                context,
                 `${name}.extensionPoint must be HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK.`,
             );
         }
 
         if (hook.hookId == null) {
-            throw validationError(validator, `${name}.hookId is required.`);
+            throw validationError(context, `${name}.hookId is required.`);
         }
 
         if (hook.hookId.isNegative()) {
             throw validationError(
-                validator,
+                context,
                 `${name}.hookId must be a non-negative integer.`,
             );
         }
 
         if (hookIds.has(hook.hookId.toString())) {
             throw validationError(
-                validator,
+                context,
                 `${field} uses hookId ${hook.hookId.toString()} more than once.`,
             );
         }
@@ -70,13 +70,13 @@ export function validateHookCreations(
 
         if (hook.evmHook?.contractId == null) {
             throw validationError(
-                validator,
+                context,
                 `${name}.evmHook.contractId is required.`,
             );
         }
 
         validateStorageUpdates(
-            validator,
+            context,
             `${name}.evmHook.storageUpdates`,
             hook.evmHook.storageUpdates,
         );
@@ -90,7 +90,7 @@ export function validateHookCreations(
  * @throws {HieroError} If an ID is invalid
  */
 export function validateHookIds(
-    validator: string,
+    context: string,
     field: string,
     hookIds: (number | Long)[] | undefined,
 ): void {
@@ -103,7 +103,7 @@ export function validateHookIds(
 
         if (!valid) {
             throw validationError(
-                validator,
+                context,
                 `${field}[${index}] must be a non-negative integer.`,
             );
         }
@@ -118,7 +118,7 @@ export function validateHookIds(
  * @throws {HieroError} If an update is invalid
  */
 export function validateStorageUpdates(
-    validator: string,
+    context: string,
     field: string,
     updates: EvmHookStorageUpdate[],
 ): void {
@@ -126,34 +126,34 @@ export function validateStorageUpdates(
         const name = `${field}[${index}]`;
 
         if (update instanceof EvmHookStorageSlot) {
-            validateWord(validator, `${name}.key`, update.key);
-            validateWord(validator, `${name}.value`, update.value);
+            validateWord(context, `${name}.key`, update.key);
+            validateWord(context, `${name}.value`, update.value);
 
             return;
         }
 
         if (update instanceof EvmHookMappingEntries) {
-            validateWord(validator, `${name}.mappingSlot`, update.mappingSlot);
+            validateWord(context, `${name}.mappingSlot`, update.mappingSlot);
 
             (update.entries ?? []).forEach((entry, entryIndex) => {
                 const entryName = `${name}.entries[${entryIndex}]`;
 
                 if (entry.key == null && entry.preimage == null) {
                     throw validationError(
-                        validator,
+                        context,
                         `${entryName} needs a key or a preimage.`,
                     );
                 }
 
-                validateWord(validator, `${entryName}.key`, entry.key);
-                validateWord(validator, `${entryName}.value`, entry.value);
+                validateWord(context, `${entryName}.key`, entry.key);
+                validateWord(context, `${entryName}.value`, entry.value);
             });
 
             return;
         }
 
         throw validationError(
-            validator,
+            context,
             `${name} must be an EvmHookStorageSlot or EvmHookMappingEntries.`,
         );
     });
@@ -161,7 +161,7 @@ export function validateStorageUpdates(
 
 /** Checks a 32-byte EVM word is in minimal form. */
 function validateWord(
-    validator: string,
+    context: string,
     name: string,
     bytes: Uint8Array | null,
 ): void {
@@ -169,14 +169,14 @@ function validateWord(
 
     if (bytes.length > MAX_WORD_BYTES) {
         throw validationError(
-            validator,
+            context,
             `${name} must be at most ${MAX_WORD_BYTES} bytes (got ${bytes.length}).`,
         );
     }
 
     if (bytes.length > 0 && bytes[0] === 0) {
         throw validationError(
-            validator,
+            context,
             `${name} must be minimal, with no leading zero bytes.`,
         );
     }

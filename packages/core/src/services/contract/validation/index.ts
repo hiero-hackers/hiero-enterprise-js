@@ -5,3 +5,8 @@ export { ContractUpdateValidator } from "./ContractUpdateValidator.js";
 export { ContractDeleteValidator } from "./ContractDeleteValidator.js";
 export { EthereumValidator } from "./EthereumValidator.js";
 export { validateCallTarget } from "./validateCallTarget.js";
+export {
+    validateHookCreations,
+    validateHookIds,
+    validateStorageUpdates,
+} from "./hooks.js";

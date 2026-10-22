@@ -1,6 +1,6 @@
 import { AccountType } from "../../../types/index.js";
 import { validationError } from "../../../errors/index.js";
-import { validateHookCreations } from "../../contract/validation/hooks.js";
+import { validateHookCreations } from "../../contract/validation/index.js";
 import type { CreateAccountOptions } from "../operations/index.js";
 
 /**
