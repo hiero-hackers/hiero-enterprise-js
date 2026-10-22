@@ -22,3 +22,7 @@ export {
     EthereumOperation,
     type EthereumOperationOptions,
 } from "./EthereumOperation.js";
+export {
+    HookStoreOperation,
+    type HookStoreOperationOptions,
+} from "./HookStoreOperation.js";

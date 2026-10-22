@@ -7,6 +7,7 @@ import {
     EthereumOperation,
     ContractUpdateOperation,
     ContractDeleteOperation,
+    HookStoreOperation,
 } from "./operations/index.js";
 import type {
     ContractCreateOperationOptions,
@@ -15,6 +16,7 @@ import type {
     EthereumOperationOptions,
     ContractUpdateOperationOptions,
     ContractDeleteOperationOptions,
+    HookStoreOperationOptions,
 } from "./operations/index.js";
 import {
     ContractCallQuery,
@@ -119,14 +121,21 @@ export type CallContractOptions = ContractCallQueryOptions;
 export type MirrorContractCallOptions = MirrorNodeContractQueryOptions;
 
 /**
+ * Options for updating an EVM hook's storage via `HookStoreTransaction`
+ * (HIP-1195). The hook's owner is an account or a contract.
+ */
+export type UpdateHookStorageOptions = HookStoreOperationOptions;
+
+/**
  * Service for managing smart contracts on the Hiero network (HSCS — the
  * Smart Contract Service).
  *
  * Wraps the underlying `ContractCreateTransaction` /
  * `ContractExecuteTransaction` / `ContractCallQuery` / `ContractUpdateTransaction`
  * / `ContractDeleteTransaction` / `ContractInfoQuery` / `ContractBytecodeQuery`
- * / `MirrorNodeContractCallQuery` / `MirrorNodeContractEstimateQuery` SDK
- * surface with validated, observability-aware operations. Listeners
+ * / `MirrorNodeContractCallQuery` / `MirrorNodeContractEstimateQuery` /
+ * `HookStoreTransaction` SDK surface with validated, observability-aware
+ * operations. Listeners
  * registered on the surrounding `HieroContext` see `before` / `after` events
  * for every contract transaction and consensus-node query submitted here;
  * the mirror node simulations emit none.
@@ -144,6 +153,7 @@ export class ContractService {
     private readonly ethereumOperation: EthereumOperation;
     private readonly updateOperation: ContractUpdateOperation;
     private readonly deleteOperation: ContractDeleteOperation;
+    private readonly hookStoreOperation: HookStoreOperation;
     private readonly callQuery: ContractCallQuery;
     private readonly infoQuery: ContractInfoQuery;
     private readonly bytecodeQuery: ContractBytecodeQuery;
@@ -156,6 +166,7 @@ export class ContractService {
         this.ethereumOperation = new EthereumOperation(context);
         this.updateOperation = new ContractUpdateOperation(context);
         this.deleteOperation = new ContractDeleteOperation(context);
+        this.hookStoreOperation = new HookStoreOperation(context);
         this.callQuery = new ContractCallQuery(context);
         this.infoQuery = new ContractInfoQuery(context);
         this.bytecodeQuery = new ContractBytecodeQuery(context);
@@ -449,6 +460,38 @@ export class ContractService {
         scheduleOptions?: ScheduleOptions,
     ) {
         return await this.deleteOperation.schedule(options, scheduleOptions);
+    }
+
+    /**
+     * Update the storage of an EVM hook (HIP-1195) owned by an account or a
+     * contract. Lives here because `HookStore` is a smart contract service
+     * transaction and covers both kinds of owner.
+     *
+     * The hook's admin key, if it has one, must sign; otherwise the
+     * owner's key. Pass it via `additionalSigners`. Not schedulable.
+     *
+     * @param options.accountId - Account that owns the hook (mutex with `contractId`)
+     * @param options.contractId - Contract that owns the hook (mutex with `accountId`)
+     * @param options.hookId - The owner's hook ID
+     * @param options.storageUpdates - `EvmHookStorageSlot` / `EvmHookMappingEntries` updates, at least one
+     *
+     * @example
+     * ```typescript
+     * await contractService.updateHookStorage({
+     *     accountId: "0.0.1234",
+     *     hookId: 1,
+     *     storageUpdates: [
+     *         new EvmHookStorageSlot({
+     *             key: new Uint8Array([0x01]),
+     *             value: new Uint8Array([0x2a]),
+     *         }),
+     *     ],
+     *     additionalSigners: [ownerKey],
+     * });
+     * ```
+     */
+    async updateHookStorage(options: UpdateHookStorageOptions) {
+        return await this.hookStoreOperation.execute(options);
     }
 
     /**

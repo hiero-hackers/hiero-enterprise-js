@@ -107,7 +107,7 @@ A Hiero network has two kinds of servers:
 | `TokenService` | Fungible tokens and NFTs: create, mint, burn, freeze, pause, KYC, fees, airdrops |
 | `TopicService` | Topics: create, update, delete, submit messages, subscribe |
 | `FileService` | Files: create, append, update, delete, read |
-| `ContractService` | Smart contracts: deploy, execute, update, delete, read-only calls, gas estimates |
+| `ContractService` | Smart contracts: deploy, execute, update, delete, read-only calls, gas estimates, hook storage |
 | `ScheduleService` | Scheduled transactions: sign, cancel, inspect |
 | `NetworkService` | Transaction receipts and records, network version |
 

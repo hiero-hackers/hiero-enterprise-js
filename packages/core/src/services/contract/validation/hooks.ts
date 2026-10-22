@@ -96,18 +96,31 @@ export function validateHookIds(
 ): void {
     if (hookIds == null) return;
 
-    hookIds.forEach((hookId, index) => {
-        const valid = Long.isLong(hookId)
-            ? !hookId.isNegative()
-            : Number.isSafeInteger(hookId) && hookId >= 0;
+    hookIds.forEach((hookId, index) =>
+        validateHookId(context, `${field}[${index}]`, hookId),
+    );
+}
 
-        if (!valid) {
-            throw validationError(
-                context,
-                `${field}[${index}] must be a non-negative integer.`,
-            );
-        }
-    });
+/**
+ * Validates a hook ID: a hook number (int64), so a non-negative integer.
+ *
+ * @throws {HieroError} If the ID is invalid
+ */
+export function validateHookId(
+    context: string,
+    name: string,
+    hookId: number | Long,
+): void {
+    const valid = Long.isLong(hookId)
+        ? !hookId.isNegative()
+        : Number.isSafeInteger(hookId) && hookId >= 0;
+
+    if (!valid) {
+        throw validationError(
+            context,
+            `${name} must be a non-negative integer.`,
+        );
+    }
 }
 
 /**

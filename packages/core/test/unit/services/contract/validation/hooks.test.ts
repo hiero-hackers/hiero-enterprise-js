@@ -13,6 +13,7 @@ import {
 } from "@hiero-ledger/sdk";
 import {
     validateHookCreations,
+    validateHookId,
     validateHookIds,
     validateStorageUpdates,
 } from "../../../../../src/services/contract/validation/hooks.js";
@@ -141,6 +142,28 @@ describe("validateHookIds", () => {
     it("throws on a fractional ID", () => {
         expect(validate([1.5])).toThrow(
             invalid("hooksToDelete[0] must be a non-negative integer"),
+        );
+    });
+});
+
+describe("validateHookId", () => {
+    const validate = (hookId: number | Long) => () =>
+        validateHookId("TestValidator", "hookId", hookId);
+
+    it("passes with a non-negative integer or Long", () => {
+        expect(validate(0)).not.toThrow();
+        expect(validate(Long.MAX_VALUE)).not.toThrow();
+    });
+
+    it("throws on a negative, fractional or unsafe number", () => {
+        expect(validate(-1)).toThrow(
+            invalid("hookId must be a non-negative integer"),
+        );
+        expect(validate(0.5)).toThrow(
+            invalid("hookId must be a non-negative integer"),
+        );
+        expect(validate(2 ** 53)).toThrow(
+            invalid("hookId must be a non-negative integer"),
         );
     });
 });

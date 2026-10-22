@@ -264,3 +264,24 @@ export async function queryAccountHooks(
 
     return data.hooks ?? [];
 }
+
+export interface MirrorHookStorageSlot {
+    /** 0x-prefixed hex. */
+    key: string;
+    /** 0x-prefixed hex. */
+    value: string | null;
+}
+
+/**
+ * Fetch the storage slots of an account's or contract's hook (HIP-1195).
+ */
+export async function queryHookStorage(
+    ownerId: string | AccountId | ContractId,
+    hookId: number,
+): Promise<MirrorHookStorageSlot[]> {
+    const data = await getJson<{ storage?: MirrorHookStorageSlot[] }>(
+        `${getMirrorUrl()}/api/v1/accounts/${ownerId}/hooks/${hookId}/storage`,
+    );
+
+    return data.storage ?? [];
+}
