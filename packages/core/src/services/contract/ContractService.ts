@@ -545,15 +545,16 @@ export class ContractService {
      * @param options.functionName - Function name to call; SDK encodes parameters
      * @param options.functionParameters - ABI-typed parameters (paired with `functionName`)
      * @param options.rawFunctionParameters - Pre-encoded call data (mutex with `functionName`)
-     * @param options.sender - Account used as `msg.sender`, as its long-zero address
+     * @param options.sender - Account used as `msg.sender`: its alias if the ID carries one, else its long-zero address
      * @param options.senderEvmAddress - EVM address used as `msg.sender`, e.g. an ECDSA alias (mutex with `sender`)
      * @param options.value - Tinybars sent with the call
      * @param options.gasLimit - Gas limit for the simulation
      * @param options.gasPrice - Gas price in tinybars
      * @returns The call's return data as a `0x…` hex string
-     * @throws {HieroError} `INPUT_INVALID` for a bad call target or call
-     *   data over 131072 bytes; `SDK_ERROR` when the mirror node rejects
-     *   the call, e.g. on a revert
+     * @throws {HieroError} `INPUT_INVALID` for a bad call target, both
+     *   `sender` and `senderEvmAddress`, a malformed `senderEvmAddress`, a
+     *   negative or fractional amount, or call data over 131072 bytes;
+     *   `SDK_ERROR` when the mirror node rejects the call, e.g. on a revert
      *
      * @example
      * ```typescript
@@ -579,6 +580,7 @@ export class ContractService {
      *
      * @param options - Same fields as `simulateContractCall`
      * @returns The estimated gas
+     * @throws {HieroError} As `simulateContractCall`
      *
      * @example
      * ```typescript

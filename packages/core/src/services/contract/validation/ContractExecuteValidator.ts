@@ -1,5 +1,6 @@
 import { Long, Hbar } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
+import { validateCallTarget } from "./validateCallTarget.js";
 import type { ContractExecuteOperationOptions } from "../operations/index.js";
 
 /**
@@ -61,25 +62,9 @@ export class ContractExecuteValidator {
      * `setFunctionParameters` would overwrite each other).
      */
     private validateCallTarget(options: ContractExecuteOperationOptions): void {
-        const hasFunctionName =
-            options.functionName != null && options.functionName !== "";
-        const hasRawParameters = options.rawFunctionParameters != null;
+        validateCallTarget("ContractExecuteValidator", options);
 
-        if (!hasFunctionName && !hasRawParameters) {
-            throw validationError(
-                "ContractExecuteValidator",
-                "ContractExecute requires either functionName or rawFunctionParameters.",
-            );
-        }
-
-        if (hasFunctionName && hasRawParameters) {
-            throw validationError(
-                "ContractExecuteValidator",
-                "ContractExecute accepts functionName or rawFunctionParameters, not both.",
-            );
-        }
-
-        if (hasRawParameters && options.rawFunctionParameters!.length === 0) {
+        if (options.rawFunctionParameters?.length === 0) {
             throw validationError(
                 "ContractExecuteValidator",
                 "rawFunctionParameters must not be empty.",

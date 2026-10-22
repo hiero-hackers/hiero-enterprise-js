@@ -226,6 +226,24 @@ describe("MirrorNodeContractQuery (via ContractService)", () => {
             expect(estimateExecute).not.toHaveBeenCalled();
         });
 
+        it("rejects an invalid gasLimit or oversized call data before sending", async () => {
+            await expect(
+                service.estimateContractGas({
+                    contractId: "0.0.12345",
+                    functionName: "get",
+                    gasLimit: 0,
+                }),
+            ).rejects.toThrow(/gasLimit must be an integer of at least 1/);
+            await expect(
+                service.estimateContractGas({
+                    contractId: "0.0.12345",
+                    rawFunctionParameters: new Uint8Array(131_073),
+                }),
+            ).rejects.toThrow(/exceeds 131072 bytes/);
+
+            expect(estimateExecute).not.toHaveBeenCalled();
+        });
+
         it("wraps mirror node failures via normalizeError", async () => {
             estimateExecute.mockRejectedValueOnce(new Error("HTTP 400"));
 

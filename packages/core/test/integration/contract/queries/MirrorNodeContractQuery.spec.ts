@@ -13,9 +13,11 @@ describe("Mirror node contract queries", () => {
     let contractService: ContractService;
     let contractId: string;
 
+    let operatorId: string;
     beforeAll(async () => {
         const ctx = setupIntegrationTestEnv();
         contractService = new ContractService(ctx);
+        operatorId = ctx.client.operatorAccountId!.toString();
 
         const { contractId: newId } = await contractService.createContract({
             bytecode: Buffer.from(SIMPLE_STORAGE_BYTECODE_HEX, "hex"),
@@ -37,7 +39,7 @@ describe("Mirror node contract queries", () => {
             const result = await contractService.simulateContractCall({
                 contractId,
                 functionName: "get",
-                sender: "0.0.2",
+                sender: operatorId,
             });
 
             expect(result).toBe(`0x${(42).toString(16).padStart(64, "0")}`);
@@ -49,7 +51,10 @@ describe("Mirror node contract queries", () => {
                     contractId,
                     functionName: "missing",
                 }),
-            ).rejects.toMatchObject({ code: HieroErrorCodes.SdkError });
+            ).rejects.toMatchObject({
+                code: HieroErrorCodes.SdkError,
+                message: expect.stringMatching(/CONTRACT_REVERT_EXECUTED/),
+            });
         });
     });
 

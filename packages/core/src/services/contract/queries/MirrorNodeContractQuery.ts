@@ -8,7 +8,7 @@ import {
 } from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../../context/index.js";
 import { normalizeError, validationError } from "../../../errors/index.js";
-import { validateCallTarget } from "../validation/index.js";
+import { MirrorContractCallValidator } from "../validation/index.js";
 
 /** Largest call data the mirror node accepts, in bytes. */
 const MAX_CALL_DATA_BYTES = 131_072;
@@ -30,7 +30,7 @@ export interface MirrorNodeContractQueryOptions {
     functionParameters?: ContractFunctionParameters;
     /** Pre-encoded call data. Mutually exclusive with `functionName`. */
     rawFunctionParameters?: Uint8Array;
-    /** Account used as `msg.sender`, as its long-zero EVM address. */
+    /** Account used as `msg.sender`: its alias if the ID carries one, else its long-zero EVM address. */
     sender?: string | AccountId;
     /**
      * EVM address used as `msg.sender`. Use it for an ECDSA-alias account,
@@ -51,14 +51,18 @@ export interface MirrorNodeContractQueryOptions {
  * and nothing reaches a consensus node, so listeners do not see them.
  */
 export class MirrorNodeContractQuery {
+    private readonly validator = new MirrorContractCallValidator();
+
     constructor(private readonly context: IHieroContext) {}
 
     /** Simulate the call and return its result as a `0x…` hex string. */
     async call(options: MirrorNodeContractQueryOptions): Promise<string> {
         const errorContext = "ContractService.simulateContractCall";
+        this.validator.validate(options);
+
         try {
             const query = new MirrorNodeContractCallQuery();
-            this.build(query, options, errorContext);
+            this.build(query, options);
 
             return await query.execute(this.context.client);
         } catch (error) {
@@ -69,9 +73,11 @@ export class MirrorNodeContractQuery {
     /** Estimate the gas the call needs. */
     async estimate(options: MirrorNodeContractQueryOptions): Promise<number> {
         const errorContext = "ContractService.estimateContractGas";
+        this.validator.validate(options);
+
         try {
             const query = new MirrorNodeContractEstimateQuery();
-            this.build(query, options, errorContext);
+            this.build(query, options);
 
             return await query.execute(this.context.client);
         } catch (error) {
@@ -79,21 +85,11 @@ export class MirrorNodeContractQuery {
         }
     }
 
-    /** Validate the options and set them on the SDK query. */
+    /** Set the options on the SDK query. */
     private build(
         query: MirrorNodeContractCallQuery | MirrorNodeContractEstimateQuery,
         options: MirrorNodeContractQueryOptions,
-        errorContext: string,
     ): void {
-        validateCallTarget(errorContext, options);
-
-        if (options.sender != null && options.senderEvmAddress != null) {
-            throw validationError(
-                errorContext,
-                "A contract call accepts sender or senderEvmAddress, not both.",
-            );
-        }
-
         query.setContractId(
             typeof options.contractId === "string"
                 ? ContractId.fromString(options.contractId)
@@ -112,7 +108,7 @@ export class MirrorNodeContractQuery {
 
         if (query.callData!.length > MAX_CALL_DATA_BYTES) {
             throw validationError(
-                errorContext,
+                "MirrorContractCallValidator",
                 `Call data exceeds ${MAX_CALL_DATA_BYTES} bytes (got ${query.callData!.length}).`,
             );
         }
