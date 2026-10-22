@@ -198,7 +198,7 @@ export class ApproveAllowanceOperation extends BaseOperation<ApproveAllowanceOpt
                         serial,
                     );
 
-                    if (allowance.delegatingSpender) {
+                    if (allowance.delegatingSpender != null) {
                         tx.approveTokenNftAllowanceWithDelegatingSpender(
                             nftId,
                             allowance.ownerAccountId,

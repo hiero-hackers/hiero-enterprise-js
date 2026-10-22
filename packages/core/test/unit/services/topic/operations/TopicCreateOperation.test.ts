@@ -122,14 +122,14 @@ describe("TopicCreateOperation (via TopicService)", () => {
             );
         });
 
-        it("rejects when adminKey is set without autoRenewAccountId", async () => {
+        it("creates a topic with an adminKey and no autoRenewAccountId", async () => {
             const adminKey = PrivateKey.generateED25519().publicKey;
 
-            await expect(service.createTopic({ adminKey })).rejects.toThrow(
-                /autoRenewAccountId is required/,
-            );
+            await service.createTopic({ adminKey });
 
-            expect(run).not.toHaveBeenCalled();
+            const tx = sentTx();
+            expect(tx.getAdminKey()?.toString()).toBe(adminKey.toString());
+            expect(tx.getAutoRenewAccountId()).toBeNull();
         });
     });
 
