@@ -23,6 +23,12 @@ export {
     ContractId,
     ContractFunctionParameters,
     FeeEstimateMode,
+    HookCreationDetails,
+    HookExtensionPoint,
+    EvmHook,
+    EvmHookStorageSlot,
+    EvmHookMappingEntries,
+    EvmHookMappingEntry,
 } from "@hiero-ledger/sdk";
 
 // Configuration

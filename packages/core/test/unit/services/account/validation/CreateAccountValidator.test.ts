@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { PrivateKey } from "@hiero-ledger/sdk";
+import {
+    ContractId,
+    EvmHook,
+    HookCreationDetails,
+    HookExtensionPoint,
+    PrivateKey,
+} from "@hiero-ledger/sdk";
 import { CreateAccountValidator } from "../../../../../src/services/account/validation/index.js";
 import type { CreateAccountOptions } from "../../../../../src/services/account/operations/index.js";
 import { AccountType } from "../../../../../src/types/index.js";
@@ -119,6 +125,33 @@ describe("CreateAccountValidator", () => {
             expect(validate({ autoRenewPeriod: 2_591_999 })).not.toThrow();
             expect(validate({ autoRenewPeriod: 8_000_001 })).not.toThrow();
             expect(validate({ autoRenewPeriod: 9_000_000 })).not.toThrow();
+        });
+    });
+
+    describe("hooks", () => {
+        const hook = (hookId: number) =>
+            new HookCreationDetails({
+                extensionPoint: HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK,
+                hookId,
+                evmHook: new EvmHook({
+                    contractId: ContractId.fromString("0.0.1234"),
+                }),
+            });
+
+        it("passes with valid hooks", () => {
+            expect(validate({ hooks: [hook(0), hook(1)] })).not.toThrow();
+        });
+
+        it("throws on a duplicate hook ID", () => {
+            expect(validate({ hooks: [hook(1), hook(1)] })).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    context: "CreateAccountValidator",
+                    message: expect.stringContaining(
+                        "hooks uses hookId 1 more than once",
+                    ),
+                }),
+            );
         });
     });
 });

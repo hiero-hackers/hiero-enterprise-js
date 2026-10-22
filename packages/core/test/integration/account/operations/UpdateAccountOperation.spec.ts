@@ -2,7 +2,14 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { AccountInfoQuery, PrivateKey, type Client } from "@hiero-ledger/sdk";
 import { setupIntegrationTestEnv } from "../../../utils/env.js";
 import { createTestAccount } from "../../../utils/integration-fixtures.js";
-import { AccountService } from "../../../../src/services/index.js";
+import {
+    allowanceHook,
+    deployHookContract,
+} from "../../../utils/hook-contract.js";
+import {
+    AccountService,
+    ContractService,
+} from "../../../../src/services/index.js";
 
 /**
  * Integration tests for `UpdateAccountOperation`.
@@ -13,11 +20,13 @@ import { AccountService } from "../../../../src/services/index.js";
 describe("AccountService.updateAccount [Integration]", () => {
     let client: Client;
     let accountService: AccountService;
+    let contractService: ContractService;
 
     beforeAll(() => {
         const ctx = setupIntegrationTestEnv();
         client = ctx.client;
         accountService = new AccountService(ctx);
+        contractService = new ContractService(ctx);
     });
 
     it("updates the memo, auto-association slots and receiver signature flag", async () => {
@@ -69,5 +78,26 @@ describe("AccountService.updateAccount [Integration]", () => {
             .setAccountId(account.accountId)
             .execute(client);
         expect(info.accountMemo).toBe("");
+    });
+
+    // Skipped: Solo rejects hooks with HOOKS_NOT_ENABLED. Run on a network with HIP-1195 enabled.
+    it.skip("adds an allowance hook and deletes it again (HIP-1195)", async () => {
+        const hookContractId = await deployHookContract(contractService);
+        const account = await createTestAccount(accountService, 1);
+
+        const created = await accountService.updateAccount({
+            accountId: account.accountId,
+            hooksToCreate: [allowanceHook(hookContractId, 1)],
+            additionalSigners: [account.key],
+        });
+        expect(created.status).toBe("SUCCESS");
+
+        // Fails with HOOK_NOT_FOUND unless the hook was created.
+        const deleted = await accountService.updateAccount({
+            accountId: account.accountId,
+            hooksToDelete: [1],
+            additionalSigners: [account.key],
+        });
+        expect(deleted.status).toBe("SUCCESS");
     });
 });

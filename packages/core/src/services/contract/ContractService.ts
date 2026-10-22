@@ -181,6 +181,7 @@ export class ContractService {
      * @param options.stakedNodeId - Node this contract stakes to (mutex with `stakedAccountId`)
      * @param options.declineStakingReward - Decline staking reward distribution
      * @param options.maxAutomaticTokenAssociations - Allow auto-associating up to N tokens (HIP-23 / HIP-904)
+     * @param options.hooks - Hooks to create with the contract (HIP-1195)
      * @returns The contract ID of the deployed contract (e.g., `"0.0.12345"`)
      *
      * @example
@@ -362,6 +363,8 @@ export class ContractService {
      * @param options.stakedNodeId - Switch staking target (mutex with `stakedAccountId`)
      * @param options.declineStakingReward - Toggle staking-reward decline
      * @param options.maxAutomaticTokenAssociations - Update the auto-association limit (HIP-23 / HIP-904)
+     * @param options.hooksToCreate - Hooks to add to the contract (HIP-1195)
+     * @param options.hooksToDelete - IDs of the contract's hooks to delete (HIP-1195)
      *
      * @example
      * ```typescript

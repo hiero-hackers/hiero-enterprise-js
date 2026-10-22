@@ -1,4 +1,8 @@
 import { validationError } from "../../../errors/index.js";
+import {
+    validateHookCreations,
+    validateHookIds,
+} from "../../contract/validation/hooks.js";
 import type { UpdateAccountOptions } from "../operations/index.js";
 
 /**
@@ -25,6 +29,16 @@ export class UpdateAccountValidator {
         this.validateStakingOptions(options);
         this.validateMemo(options);
         this.validateHighVolume(options);
+        validateHookCreations(
+            "UpdateAccountValidator",
+            "hooksToCreate",
+            options.hooksToCreate,
+        );
+        validateHookIds(
+            "UpdateAccountValidator",
+            "hooksToDelete",
+            options.hooksToDelete,
+        );
     }
 
     private validateAccountId(options: UpdateAccountOptions): void {

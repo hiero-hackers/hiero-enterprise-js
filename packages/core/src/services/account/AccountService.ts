@@ -134,6 +134,7 @@ export class AccountService {
      * @param options.stakedAccountId - Account ID to stake to (mutually exclusive with stakedNodeId)
      * @param options.stakedNodeId - Node ID to stake to (mutually exclusive with stakedAccountId)
      * @param options.declineStakingReward - Whether to decline staking rewards
+     * @param options.hooks - Hooks to create with the account (HIP-1195)
      * @returns The created account (ID, public key, and optional EVM address)
      */
     async createAccount(options: CreateAccountOptions): Promise<Account> {
@@ -155,6 +156,7 @@ export class AccountService {
      * @param options.stakedAccountId - Account ID to stake to (mutually exclusive with stakedNodeId)
      * @param options.stakedNodeId - Node ID to stake to (mutually exclusive with stakedAccountId)
      * @param options.declineStakingReward - Whether to decline staking rewards
+     * @param options.hooks - Hooks to create with the account (HIP-1195)
      * @param scheduleOptions - Payer, admin key, and schedule memo
      * @returns The schedule entity ID and the transaction ID of the `ScheduleCreateTransaction`
      */
@@ -242,6 +244,8 @@ export class AccountService {
      * @param options.stakedNodeId - Node ID to stake to (mutually exclusive with stakedAccountId)
      * @param options.declineStakingReward - Whether to decline staking rewards
      * @param options.autoRenewPeriod - Auto-renew period in seconds (network bounds apply, by default 30 days to 8,000,001 s)
+     * @param options.hooksToCreate - Hooks to add to the account (HIP-1195)
+     * @param options.hooksToDelete - IDs of the account's hooks to delete (HIP-1195)
      */
     async updateAccount(options: UpdateAccountOptions) {
         return await this.updateOperation.execute(options);
@@ -259,6 +263,8 @@ export class AccountService {
      * @param options.stakedNodeId - Node ID to stake to (mutually exclusive with stakedAccountId)
      * @param options.declineStakingReward - Whether to decline staking rewards
      * @param options.autoRenewPeriod - Auto-renew period in seconds (network bounds apply, by default 30 days to 8,000,001 s)
+     * @param options.hooksToCreate - Hooks to add to the account (HIP-1195)
+     * @param options.hooksToDelete - IDs of the account's hooks to delete (HIP-1195)
      * @param scheduleOptions - Payer, admin key, and schedule memo
      * @returns The schedule entity ID and the transaction ID of the `ScheduleCreateTransaction`
      */

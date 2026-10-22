@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { PrivateKey } from "@hiero-ledger/sdk";
+import {
+    ContractId,
+    EvmHook,
+    HookCreationDetails,
+    HookExtensionPoint,
+    PrivateKey,
+} from "@hiero-ledger/sdk";
 import { UpdateAccountValidator } from "../../../../../src/services/account/validation/index.js";
 import type { UpdateAccountOptions } from "../../../../../src/services/account/operations/index.js";
 
@@ -117,6 +123,47 @@ describe("UpdateAccountValidator", () => {
             expect(validate({ autoRenewPeriod: 2_591_999 })).not.toThrow();
             expect(validate({ autoRenewPeriod: 8_000_001 })).not.toThrow();
             expect(validate({ autoRenewPeriod: 9_000_000 })).not.toThrow();
+        });
+    });
+
+    describe("hooksToCreate / hooksToDelete", () => {
+        const hook = (hookId: number) =>
+            new HookCreationDetails({
+                extensionPoint: HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK,
+                hookId,
+                evmHook: new EvmHook({
+                    contractId: ContractId.fromString("0.0.1234"),
+                }),
+            });
+
+        it("passes with hooks to create and hook IDs to delete", () => {
+            expect(
+                validate({ hooksToCreate: [hook(2)], hooksToDelete: [1] }),
+            ).not.toThrow();
+        });
+
+        it("throws on an invalid hook to create", () => {
+            expect(validate({ hooksToCreate: [hook(-1)] })).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    context: "UpdateAccountValidator",
+                    message: expect.stringContaining(
+                        "hooksToCreate[0].hookId must be a non-negative integer",
+                    ),
+                }),
+            );
+        });
+
+        it("throws on a negative hook ID to delete", () => {
+            expect(validate({ hooksToDelete: [-1] })).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    context: "UpdateAccountValidator",
+                    message: expect.stringContaining(
+                        "hooksToDelete[0] must be a non-negative integer",
+                    ),
+                }),
+            );
         });
     });
 });

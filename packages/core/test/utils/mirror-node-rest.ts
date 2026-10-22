@@ -244,3 +244,23 @@ export async function queryTopicInfo(
         `${getMirrorUrl()}/api/v1/topics/${topicId}`,
     );
 }
+
+export interface MirrorHook {
+    hook_id: number;
+    contract_id: string | null;
+    extension_point: string;
+    deleted: boolean;
+}
+
+/**
+ * Fetch the hooks of an account or contract (HIP-1195).
+ */
+export async function queryAccountHooks(
+    ownerId: string | AccountId | ContractId,
+): Promise<MirrorHook[]> {
+    const data = await getJson<{ hooks?: MirrorHook[] }>(
+        `${getMirrorUrl()}/api/v1/accounts/${ownerId}/hooks`,
+    );
+
+    return data.hooks ?? [];
+}
