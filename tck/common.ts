@@ -24,6 +24,7 @@ export function transactionOptions(
     if (params.transactionId) {
         notSupported("a custom transactionId");
     }
+
     return {
         maxTransactionFee: params.maxTransactionFee
             ? Hbar.fromTinybars(params.maxTransactionFee)

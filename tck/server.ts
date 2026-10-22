@@ -44,15 +44,19 @@ server.applyMiddleware(
             const message =
                 error instanceof Error ? error.message : String(error);
             const method = JSON.stringify(request.method);
+
             if (error instanceof NotSupportedError) {
                 console.warn(`Skipped ${method}: ${message}`);
+
                 return createJSONRPCSuccessResponse(request.id ?? null, {
                     error: "NOT_IMPLEMENTED",
                     message,
                 });
             }
+
             if (error instanceof HieroError && error.sdkStatus) {
                 console.error(`Hedera error in ${method}: ${message}`);
+
                 return createJSONRPCErrorResponse(
                     request.id ?? null,
                     HEDERA_ERROR,
@@ -69,6 +73,7 @@ server.applyMiddleware(
                 `Internal error in ${method}: ${message}`,
                 error instanceof Error ? `\n${error.stack}` : "",
             );
+
             return createJSONRPCErrorResponse(
                 request.id ?? null,
                 code,
@@ -85,6 +90,7 @@ const app = express();
 app.use(express.json({ limit: "10mb" }));
 app.post("/", async (req, res) => {
     const response = await server.receive(req.body);
+
     if (response) res.json(response);
     else res.sendStatus(204);
 });

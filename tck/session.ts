@@ -26,6 +26,7 @@ function createContext(
     operatorPrivateKey: string,
 ): HieroContext {
     const local = network.nodeIp && network.nodeAccountId;
+
     return new HieroContext({
         network: local ? "local" : "testnet",
         operatorId: operatorAccountId,
@@ -49,11 +50,13 @@ export function openSession(
     operatorPrivateKey: string,
 ): boolean {
     const id = sessionId ?? DEFAULT;
+
     if (sessions.has(id)) return false;
     sessions.set(id, {
         network,
         context: createContext(network, operatorAccountId, operatorPrivateKey),
     });
+
     return true;
 }
 
@@ -80,11 +83,13 @@ export function closeSession(sessionId: string | undefined): void {
 
 export function getSession(sessionId: string | undefined): Session {
     const session = sessions.get(sessionId ?? DEFAULT);
+
     if (!session) {
         throw new Error(
             `No client for session ${sessionId ?? DEFAULT}; call setup first.`,
         );
     }
+
     return session;
 }
 

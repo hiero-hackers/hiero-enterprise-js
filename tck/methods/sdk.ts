@@ -25,6 +25,7 @@ const requireOperator = (params: SetupParams) => {
             "Operator credentials missing: operatorAccountId/operatorPrivateKey",
         );
     }
+
     return [params.operatorAccountId, params.operatorPrivateKey] as const;
 };
 
@@ -39,6 +40,7 @@ export const setup = (params: SetupParams) => {
         operatorId,
         operatorKey,
     );
+
     return {
         message: created
             ? "Successfully setup client"
@@ -50,10 +52,12 @@ export const setup = (params: SetupParams) => {
 export const setOperator = (params: SetupParams) => {
     const [operatorId, operatorKey] = requireOperator(params);
     replaceOperator(params.sessionId, operatorId, operatorKey);
+
     return { message: "Operator updated", status: "SUCCESS" };
 };
 
 export const reset = (params: { sessionId?: string }) => {
     closeSession(params.sessionId);
+
     return { status: "SUCCESS" };
 };

@@ -90,6 +90,7 @@ export const createTopic = async (params: TopicParams) => {
             ? customFees(params.customFees)
             : undefined,
     });
+
     return { topicId: result.topicId?.toString(), status: result.status };
 };
 
@@ -124,6 +125,7 @@ export const updateTopic = async (params: TopicParams) => {
                   ? null
                   : customFees(params.customFees),
     });
+
     return { status: result.status };
 };
 
@@ -132,6 +134,7 @@ export const deleteTopic = async (params: TopicParams) => {
         ...transactionOptions(params.commonTransactionParams),
         topicId: params.topicId!,
     });
+
     return { status: result.status };
 };
 
@@ -148,6 +151,7 @@ export const submitTopicMessage = async (params: TopicParams) => {
                 .setFees(limit.fixedFees.map(fixedFee)),
         ),
     });
+
     return { status: result.status };
 };
 
@@ -161,6 +165,7 @@ export const getTopicInfo = async (params: TopicParams) => {
             ? Hbar.fromTinybars(params.maxQueryPayment)
             : undefined,
     });
+
     return {
         topicId: info.topicId,
         topicMemo: info.topicMemo,

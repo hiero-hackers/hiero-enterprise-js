@@ -53,7 +53,9 @@ const timestamp = (value: string | undefined) =>
 
 const supplyType = (value: string | undefined) => {
     if (value == null) return undefined;
+
     if (value === "finite") return TokenSupplyType.Finite;
+
     if (value === "infinite") return TokenSupplyType.Infinite;
     throw new Error(`Invalid supply type: ${value}`);
 };
@@ -88,6 +90,7 @@ export const createToken = async (params: TokenParams) => {
     };
     const tokens = service(params.sessionId);
     let result;
+
     if (params.tokenType === "nft") {
         // Core's NFT options fix decimals and initial supply at 0.
         if (
@@ -112,6 +115,7 @@ export const createToken = async (params: TokenParams) => {
     } else {
         throw new Error(`Invalid token type: ${params.tokenType}`);
     }
+
     return { tokenId: result.tokenId?.toString(), status: result.status };
 };
 
@@ -139,6 +143,7 @@ export const updateToken = async (params: TokenParams) => {
                 ? Buffer.from(params.metadata, "utf8")
                 : undefined,
     });
+
     return { status: result.status };
 };
 
@@ -147,6 +152,7 @@ export const deleteToken = async (params: TokenParams) => {
         ...transactionOptions(params.commonTransactionParams),
         tokenId: params.tokenId!,
     });
+
     return { status: result.status };
 };
 
@@ -156,6 +162,7 @@ export const updateTokenFeeSchedule = async (params: TokenParams) => {
         tokenId: params.tokenId!,
         customFees: createCustomFees(params.customFees ?? []),
     });
+
     return { status: result.status };
 };
 
@@ -169,6 +176,7 @@ export const associateToken = async (params: TokenParams) => {
         accountId: params.accountId!,
         tokenId: (params.tokenIds ?? [])[0],
     });
+
     return { status: result.status };
 };
 
@@ -178,6 +186,7 @@ export const freezeToken = async (params: TokenParams) => {
         tokenId: params.tokenId!,
         accountId: params.accountId!,
     });
+
     return { status: result.status };
 };
 
@@ -186,6 +195,7 @@ export const pauseToken = async (params: TokenParams) => {
         ...transactionOptions(params.commonTransactionParams),
         tokenId: params.tokenId!,
     });
+
     return { status: result.status };
 };
 
@@ -198,6 +208,7 @@ export const mintToken = async (params: TokenParams) => {
             ? params.metadata.map((value) => Buffer.from(value, "hex"))
             : undefined,
     });
+
     return {
         status: result.status,
         newTotalSupply: result.totalSupply,

@@ -112,6 +112,7 @@ export const updateAccount = async (params: AccountParams) => {
         stakedNodeId: optionalNumber(params.stakedNodeId),
         declineStakingReward: params.declineStakingReward,
     });
+
     return { status: result.status };
 };
 
@@ -127,6 +128,7 @@ export const deleteAccount = async (params: AccountParams) => {
         accountKey: accountKey as PrivateKey,
         transferAccountId: params.transferAccountId,
     });
+
     return { status: result.status };
 };
 
@@ -140,12 +142,14 @@ export const transferCrypto = async (
         notSupported(
             "transferCrypto beyond one two-leg HBAR or token transfer or one NFT transfer, without approval",
         );
+
     if (transfers.some((t) => t.approved)) unsupported();
 
     if (transfers.length === 2 && transfers.every((t) => t.hbar?.accountId)) {
         const [from, to] = [...transfers].sort(
             (a, b) => Number(a.hbar!.amount) - Number(b.hbar!.amount),
         );
+
         if (Number(from.hbar!.amount) + Number(to.hbar!.amount) !== 0) {
             unsupported();
         }
@@ -155,6 +159,7 @@ export const transferCrypto = async (
             from.hbar!.accountId!,
             options,
         );
+
         return { status: result.status };
     }
 
@@ -166,6 +171,7 @@ export const transferCrypto = async (
         const [from, to] = [...transfers].sort(
             (a, b) => Number(a.token!.amount) - Number(b.token!.amount),
         );
+
         if (Number(from.token!.amount) + Number(to.token!.amount) !== 0) {
             unsupported();
         }
@@ -176,6 +182,7 @@ export const transferCrypto = async (
             from.token!.accountId,
             { ...options, expectedDecimals: to.token!.decimals },
         );
+
         return { status: result.status };
     }
 
@@ -188,6 +195,7 @@ export const transferCrypto = async (
             nft.senderAccountId,
             options,
         );
+
         return { status: result.status };
     }
 
@@ -214,8 +222,10 @@ export const approveAllowance = async (
                 amount: Hbar.fromTinybars(a.hbar!.amount),
             })),
         });
+
         return { status: result.status };
     }
+
     if (allowances.length > 0 && allowances.every((a) => a.token)) {
         const result = await accounts.approveTokenAllowance({
             ...options,
@@ -225,6 +235,7 @@ export const approveAllowance = async (
                 amount: BigInt(a.token!.amount),
             })),
         });
+
         return { status: result.status };
     }
     // `approvedForAll: false` without serials revokes an all-serials
@@ -243,8 +254,10 @@ export const approveAllowance = async (
             })),
             options,
         );
+
         return { status: result.status };
     }
+
     if (allowances.length > 0 && allowances.every((a) => a.nft)) {
         const result = await accounts.approveNftAllowance({
             ...options,
@@ -256,8 +269,10 @@ export const approveAllowance = async (
                 delegatingSpender: a.nft!.delegateSpenderAccountId,
             })),
         });
+
         return { status: result.status };
     }
+
     return notSupported(
         "approveAllowance mixing HBAR, token and NFT allowances",
     );
@@ -280,6 +295,7 @@ export const deleteAllowance = async (
         })),
         transactionOptions(params.commonTransactionParams),
     );
+
     return { status: result.status };
 };
 
@@ -289,5 +305,6 @@ export const getMirrorNodeAccountBalance = async (
     const balance = await service(params.sessionId).getAccountBalance(
         params.accountId!,
     );
+
     return { hbars: balance.tinybars };
 };
