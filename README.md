@@ -109,7 +109,7 @@ A Hiero network has two kinds of servers:
 | `FileService` | Files: create, append, update, delete, read |
 | `ContractService` | Smart contracts: deploy, execute, update, delete, read-only calls, gas estimates, hook storage |
 | `ScheduleService` | Scheduled transactions: sign, cancel, inspect |
-| `NetworkService` | Transaction receipts and records, network version |
+| `NetworkService` | Transaction receipts and records, network version, atomic batches |
 
 - Input is checked before sending. Bad input fails with `INPUT_INVALID` and costs no fee.
 - Many write methods have a `schedule…` version, so several keys can sign the same transaction.

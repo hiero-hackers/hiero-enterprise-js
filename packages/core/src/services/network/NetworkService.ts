@@ -20,8 +20,8 @@ import type { IHieroContext } from "../../context/index.js";
 import { normalizeError, validationError } from "../../errors/index.js";
 import type { QueryOptions } from "../transaction/index.js";
 import { QueryExecutor } from "../transaction/index.js";
-import { PrngOperation } from "./operations/index.js";
-import type { PrngOptions } from "./operations/index.js";
+import { BatchOperation, PrngOperation } from "./operations/index.js";
+import type { BatchOptions, PrngOptions } from "./operations/index.js";
 
 /** Options for fetching the network's node address book. */
 export interface GetAddressBookOptions {
@@ -168,7 +168,7 @@ function toFeeComponent(fee: FeeEstimate): FeeComponentEstimate {
 /**
  * Public facade for cross-cutting network calls: receipt / record
  * retrieval, network version info, pseudo-random numbers, the node address
- * book and fee estimates.
+ * book, fee estimates and atomic batches.
  *
  * Use this when you need to query the outcome of a transaction whose
  * `TransactionResponse` you do not have (e.g., submitted out-of-band, by
@@ -192,10 +192,12 @@ function toFeeComponent(fee: FeeEstimate): FeeComponentEstimate {
 export class NetworkService {
     private readonly queryExecutor: QueryExecutor;
     private readonly prngOperation: PrngOperation;
+    private readonly batchOperation: BatchOperation;
 
     constructor(private readonly context: IHieroContext) {
         this.queryExecutor = new QueryExecutor(context);
         this.prngOperation = new PrngOperation(context);
+        this.batchOperation = new BatchOperation(context);
     }
 
     /**
@@ -216,6 +218,39 @@ export class NetworkService {
      */
     async generateRandom(options?: PrngOptions) {
         return await this.prngOperation.execute(options);
+    }
+
+    /**
+     * Submit transactions as one atomic batch (`BatchTransaction`,
+     * HIP-551): all succeed or none do. Batches are not schedulable, so
+     * there is no scheduled variant.
+     *
+     * Each inner transaction is an SDK transaction you built, gave a batch
+     * key, froze and signed (e.g. with `batchify(client, batchKey)`). The
+     * `TransactionOptions` apply to the outer batch transaction.
+     *
+     * @param options.transactions - 1 to 25 inner transactions; none a
+     *   `BatchTransaction` or `FreezeTransaction`
+     * @param options.batchKeys - Private keys that sign the batch, one per
+     *   distinct inner batch key
+     * @returns The executor result plus `innerTransactionIds`, in batch order
+     * @throws HieroError with `innerTransactionIds` when the batch fails
+     *
+     * @example
+     * ```ts
+     * const transfer = await new TransferTransaction()
+     *     .addHbarTransfer(from, new Hbar(-1))
+     *     .addHbarTransfer(to, new Hbar(1))
+     *     .batchify(client, batchKey.publicKey);
+     *
+     * const { innerTransactionIds } = await networkService.submitBatch({
+     *     transactions: [transfer],
+     *     batchKeys: [batchKey],
+     * });
+     * ```
+     */
+    async submitBatch(options: BatchOptions) {
+        return await this.batchOperation.execute(options);
     }
 
     /**

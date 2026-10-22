@@ -52,7 +52,7 @@ Every service takes the same `HieroContext`. It holds the SDK client and the ope
 | `FileService` | Files: create, append, update, delete, read |
 | `ContractService` | Smart contracts: deploy, execute, update, delete, read-only calls, mirror node call simulation and gas estimates, relayed Ethereum transactions, hook storage |
 | `ScheduleService` | Scheduled transactions: sign, cancel, inspect |
-| `NetworkService` | Transaction receipts and records, network version, pseudo-random numbers, node address book, fee estimates |
+| `NetworkService` | Transaction receipts and records, network version, pseudo-random numbers, node address book, fee estimates, atomic batches |
 
 Many write methods have a `schedule…` version that returns a schedule ID instead of executing, so other keys can sign it later with `ScheduleService.sign`.
 
@@ -112,7 +112,7 @@ See [`custom-network.ts`](../../samples/examples/src/network/custom-network.ts).
 
 ## Errors
 
-Every error is a `HieroError` with a `code`: `INPUT_INVALID`, `CONFIG_INVALID`, `NOT_FOUND`, `TIMED_OUT`, `SDK_ERROR`, `RESULT_MAPPING_FAILED` or `UNKNOWN`. Errors from a transaction also carry its `transactionId`. See [Errors](../../README.md#errors) for an example.
+Every error is a `HieroError` with a `code`: `INPUT_INVALID`, `CONFIG_INVALID`, `NOT_FOUND`, `TIMED_OUT`, `SDK_ERROR`, `RESULT_MAPPING_FAILED` or `UNKNOWN`. Errors from a transaction also carry its `transactionId`; a failed `submitBatch` carries its `innerTransactionIds` too. See [Errors](../../README.md#errors) for an example.
 
 ## Examples
 

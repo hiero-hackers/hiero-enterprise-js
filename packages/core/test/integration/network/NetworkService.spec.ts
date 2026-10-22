@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { FeeEstimateMode, Hbar, TransferTransaction } from "@hiero-ledger/sdk";
 import {
+    Hbar,
+    PrivateKey,
+    TransferTransaction,
+    type Client,
+} from "@hiero-ledger/sdk";
+import {
     setupIntegrationTestEnv,
     IntegrationTracker,
 } from "../../utils/env.js";
@@ -11,15 +17,18 @@ import {
 } from "../../utils/integration-fixtures.js";
 import { resolveConfigFromEnv } from "../../../src/config/index.js";
 import { HieroContext } from "../../../src/context/index.js";
+import { HieroError } from "../../../src/errors/index.js";
 import { AccountService, NetworkService } from "../../../src/services/index.js";
 import { OperatorKeyType } from "../../../src/types/index.js";
 
 describe("NetworkService [Integration]", () => {
+    let client: Client;
     let accountService: AccountService;
     let networkService: NetworkService;
 
     beforeAll(() => {
         const ctx = setupIntegrationTestEnv();
+        client = ctx.client;
         accountService = new AccountService(ctx);
         networkService = new NetworkService(ctx);
     });
@@ -180,5 +189,86 @@ describe("NetworkService [Integration]", () => {
             expect(random.prngBytes?.length).toBe(48);
             expect(random.prngNumber).toBeNull();
         }, 60_000);
+    });
+
+    describe("submitBatch", () => {
+        const batchKey = PrivateKey.generateED25519();
+
+        /** An HBAR transfer from `from` to `to`, batchified and signed. */
+        async function batchedTransfer(
+            from: TestAccount,
+            to: TestAccount,
+            hbar: number,
+        ) {
+            const tx = await new TransferTransaction()
+                .addHbarTransfer(from.accountId, new Hbar(-hbar))
+                .addHbarTransfer(to.accountId, new Hbar(hbar))
+                .batchify(client, batchKey.publicKey);
+
+            return await tx.sign(from.key);
+        }
+
+        async function tinybars(account: TestAccount) {
+            return (await accountService.getAccountBalance(account.accountId))
+                .tinybars;
+        }
+
+        it("lands every inner transfer", async () => {
+            const alice = await createTestAccount(accountService, 10);
+            const bob = await createTestAccount(accountService, 10);
+
+            const result = await networkService.submitBatch({
+                transactions: [
+                    await batchedTransfer(alice, bob, 2),
+                    await batchedTransfer(bob, alice, 1),
+                ],
+                batchKeys: [batchKey],
+            });
+
+            expect(result.status).toBe("SUCCESS");
+            expect(result.innerTransactionIds).toHaveLength(2);
+
+            for (const transactionId of result.innerTransactionIds) {
+                const receipt = await networkService.getTransactionReceipt({
+                    transactionId,
+                });
+                expect(receipt.status.toString()).toBe("SUCCESS");
+            }
+
+            await waitForMirrorNodeRecord();
+            expect(await tinybars(alice)).toBe(String(9 * 100_000_000));
+            expect(await tinybars(bob)).toBe(String(11 * 100_000_000));
+        }, 120_000);
+
+        it("lands nothing when an inner transfer fails", async () => {
+            const alice = await createTestAccount(accountService, 10);
+            const bob = await createTestAccount(accountService, 10);
+
+            const error = await networkService
+                .submitBatch({
+                    transactions: [
+                        await batchedTransfer(alice, bob, 2),
+                        // Bob holds 10 HBAR, so this one fails.
+                        await batchedTransfer(bob, alice, 100),
+                    ],
+                    batchKeys: [batchKey],
+                })
+                .catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(HieroError);
+            expect(error).toMatchObject({
+                sdkStatus: "INNER_TRANSACTION_FAILED",
+                transactionId: expect.any(String),
+            });
+            expect((error as HieroError).innerTransactionIds).toHaveLength(2);
+
+            // The failed batch still reaches consensus and the mirror node.
+            IntegrationTracker.lastTransactionId = (
+                error as HieroError
+            ).transactionId;
+            await waitForMirrorNodeRecord();
+            expect(await tinybars(alice)).toBe(String(10 * 100_000_000));
+            expect(await tinybars(bob)).toBe(String(10 * 100_000_000));
+        }, 120_000);
     });
 });

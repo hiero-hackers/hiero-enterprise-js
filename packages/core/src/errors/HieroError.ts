@@ -36,6 +36,8 @@ export class HieroError extends Error {
     public readonly transactionId?: string;
     /** File entity ID when the failure occurred mid-way through a multi-step file operation */
     public readonly fileId?: string;
+    /** Inner transaction IDs when an atomic batch failed */
+    public readonly innerTransactionIds?: string[];
 
     constructor(
         message: string,
@@ -46,6 +48,7 @@ export class HieroError extends Error {
             cause?: unknown;
             transactionId?: string;
             fileId?: string;
+            innerTransactionIds?: string[];
         } = {},
     ) {
         super(message);
@@ -56,6 +59,7 @@ export class HieroError extends Error {
         this.cause = options.cause;
         this.transactionId = options.transactionId;
         this.fileId = options.fileId;
+        this.innerTransactionIds = options.innerTransactionIds;
     }
 }
 
