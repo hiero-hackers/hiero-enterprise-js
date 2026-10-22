@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import {
+    Hbar,
     PrivateKey,
     FileInfoQuery,
     FileContentsQuery,
@@ -62,7 +63,12 @@ describe("FileUpdateOperation", () => {
         const size = 6 * 1024; // Well past the ~4 KiB single-tx limit.
         const large = Buffer.alloc(size, 0x63); // "cccc..."
 
-        await fileService.updateFile({ fileId, contents: large });
+        // A full 4 KiB FileUpdate costs more than the SDK's 2 ℏ default cap.
+        await fileService.updateFile({
+            fileId,
+            contents: large,
+            maxTransactionFee: new Hbar(5),
+        });
 
         const bytes = await new FileContentsQuery()
             .setFileId(fileId)
