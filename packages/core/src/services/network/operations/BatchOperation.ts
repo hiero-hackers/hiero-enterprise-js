@@ -15,8 +15,12 @@ export interface BatchOptions extends TransactionOptions {
      * its own required keys (e.g. built with `batchify(client, batchKey)`).
      */
     transactions: Transaction[];
-    /** Private keys that sign the batch, one per distinct inner batch key. */
-    batchKeys: PrivateKey[];
+    /**
+     * Private keys whose signatures satisfy the inner batch keys. The
+     * operator signs on its own, and `externalSigners` can sign for keys
+     * held elsewhere.
+     */
+    batchKeys?: PrivateKey[];
 }
 
 export class BatchOperation extends BaseOperation<BatchOptions> {

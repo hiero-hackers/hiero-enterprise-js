@@ -11,8 +11,7 @@ const MAX_INNER_TRANSACTIONS = 25;
 export class BatchValidator {
     /**
      * @throws {HieroError} If `transactions` is not 1 to 25 frozen,
-     *   batch-keyed transactions (none a batch or freeze), or `batchKeys`
-     *   is empty
+     *   batch-keyed transactions (none a batch or freeze)
      */
     validate(options: BatchOptions): void {
         if (
@@ -51,12 +50,5 @@ export class BatchValidator {
                 );
             }
         });
-
-        if (!Array.isArray(options.batchKeys) || options.batchKeys.length < 1) {
-            throw validationError(
-                "BatchValidator",
-                "batchKeys must hold at least one key.",
-            );
-        }
     }
 }

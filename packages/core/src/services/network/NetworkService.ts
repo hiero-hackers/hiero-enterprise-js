@@ -231,8 +231,8 @@ export class NetworkService {
      *
      * @param options.transactions - 1 to 25 inner transactions; none a
      *   `BatchTransaction` or `FreezeTransaction`
-     * @param options.batchKeys - Private keys that sign the batch, one per
-     *   distinct inner batch key
+     * @param options.batchKeys - Private keys whose signatures satisfy the
+     *   inner batch keys; the operator signs on its own
      * @returns The executor result plus `innerTransactionIds`, in batch order
      * @throws HieroError with `innerTransactionIds` when the batch fails
      *

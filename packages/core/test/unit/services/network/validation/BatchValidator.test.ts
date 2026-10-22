@@ -84,12 +84,9 @@ describe("BatchValidator", () => {
         ).toThrow(/transactions\[0\] is a batch or freeze transaction/);
     });
 
-    it.each([[[]], [undefined]])("rejects batchKeys %j", (batchKeys) => {
+    it("accepts no batchKeys, as when the operator is the batch key", () => {
         expect(() =>
-            validator.validate({
-                transactions: [innerTransfer()],
-                batchKeys: batchKeys as never,
-            }),
-        ).toThrow(/batchKeys must hold at least one key/);
+            validator.validate({ transactions: [innerTransfer()] }),
+        ).not.toThrow();
     });
 });

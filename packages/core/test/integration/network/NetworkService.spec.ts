@@ -240,6 +240,22 @@ describe("NetworkService [Integration]", () => {
             expect(await tinybars(bob)).toBe(String(11 * 100_000_000));
         }, 120_000);
 
+        it("needs no batchKeys when the operator is the batch key", async () => {
+            const alice = await createTestAccount(accountService, 10);
+            const bob = await createTestAccount(accountService, 10);
+            const tx = await new TransferTransaction()
+                .addHbarTransfer(alice.accountId, new Hbar(-1))
+                .addHbarTransfer(bob.accountId, new Hbar(1))
+                .batchify(client, client.operatorPublicKey!);
+            await tx.sign(alice.key);
+
+            const result = await networkService.submitBatch({
+                transactions: [tx],
+            });
+
+            expect(result.status).toBe("SUCCESS");
+        }, 120_000);
+
         it("lands nothing when an inner transfer fails", async () => {
             const alice = await createTestAccount(accountService, 10);
             const bob = await createTestAccount(accountService, 10);
