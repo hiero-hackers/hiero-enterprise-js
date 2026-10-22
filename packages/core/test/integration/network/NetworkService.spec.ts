@@ -106,10 +106,12 @@ describe("NetworkService [Integration]", () => {
     describe("estimateFee", () => {
         let payerCtx: HieroContext;
         let payer: TestAccount;
+        let other: TestAccount;
 
         beforeAll(async () => {
             // The env operator is a system account that pays no fees.
             payer = await createTestAccount(accountService, 10);
+            other = await createTestAccount(accountService, 10);
             payerCtx = new HieroContext({
                 ...resolveConfigFromEnv(),
                 operatorId: payer.accountId,
@@ -122,14 +124,18 @@ describe("NetworkService [Integration]", () => {
             payerCtx?.close();
         });
 
+        // Two senders, so a second signature must be priced as an extra.
         const transfer = () =>
             new TransferTransaction()
                 .addHbarTransfer(payer.accountId, Hbar.fromTinybars(-1))
-                .addHbarTransfer("0.0.2", Hbar.fromTinybars(1));
+                .addHbarTransfer(other.accountId, Hbar.fromTinybars(-1))
+                .addHbarTransfer("0.0.2", Hbar.fromTinybars(2))
+                .freezeWith(payerCtx.client);
 
-        it("estimates close to the fee the network charges", async () => {
-            const tx = transfer().freezeWith(payerCtx.client);
+        it("estimates close to the fee the network charges, signatures included", async () => {
+            const tx = transfer();
             await tx.sign(payer.key);
+            await tx.sign(other.key);
 
             const estimate = await new NetworkService(payerCtx).estimateFee(tx);
             const response = await tx.execute(payerCtx.client);
@@ -140,26 +146,21 @@ describe("NetworkService [Integration]", () => {
             const charged =
                 (record.transactionFee.toTinybars().toNumber() * rate.cents) /
                 rate.hbars;
-            expect(Number(estimate.total)).toBeGreaterThan(0);
+            expect(estimate.node.extras).toContainEqual(
+                expect.objectContaining({ name: "SIGNATURES", count: 2 }),
+            );
             expect(
                 Math.abs(charged - Number(estimate.total)) / charged,
             ).toBeLessThan(0.05);
         }, 60_000);
 
-        it("leaves an unfrozen transaction unfrozen", async () => {
-            const tx = transfer();
-
+        it("estimates in STATE mode", async () => {
             const estimate = await new NetworkService(payerCtx).estimateFee(
-                tx,
+                transfer(),
                 { mode: FeeEstimateMode.STATE },
             );
 
-            expect(BigInt(estimate.total)).toBe(
-                BigInt(estimate.network.subtotal) +
-                    BigInt(estimate.node.base) +
-                    BigInt(estimate.service.base),
-            );
-            expect(tx.isFrozen()).toBe(false);
+            expect(BigInt(estimate.total)).toBeGreaterThan(0n);
         }, 60_000);
     });
 

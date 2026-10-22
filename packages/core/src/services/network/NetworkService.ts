@@ -10,8 +10,8 @@ import {
     FeeEstimateMode,
     FeeEstimateQuery,
     FileId,
-    Transaction,
     NetworkVersionInfoQuery,
+    Transaction,
     TransactionId,
     TransactionReceiptQuery,
     TransactionRecordQuery,
@@ -367,13 +367,13 @@ export class NetworkService {
      * Estimate a transaction's fee from the mirror node
      * (`POST /api/v1/network/fees`, HIP-1261) without submitting it.
      *
-     * A copy is estimated, so the transaction is not frozen in place; an
-     * unfrozen copy is frozen with the client's operator as payer. An
-     * unsigned transaction under-counts signature costs: sign it first, or
-     * expect the charged fee to be higher. A mirror-node REST call, so it
-     * skips `QueryExecutor` and listeners are not notified.
+     * The transaction must be frozen; it is priced as frozen, with its payer
+     * and signatures, so sign it first to count signature costs. Like
+     * `toBytes()`, this keeps the SDK from regenerating its transaction ID
+     * on expiry. A mirror-node REST call, so it skips `QueryExecutor` and
+     * listeners are not notified.
      *
-     * @param transaction - Any SDK transaction, frozen or not
+     * @param transaction - A frozen SDK transaction
      * @param options.mode - `FeeEstimateMode.INTRINSIC` (default) or `STATE`
      * @param options.highVolumeThrottle - Basis points, 0 to 10000
      * @returns The fee components and total, in tinycents
@@ -382,7 +382,8 @@ export class NetworkService {
      * ```ts
      * const tx = new TransferTransaction()
      *     .addHbarTransfer("0.0.1234", new Hbar(-1))
-     *     .addHbarTransfer("0.0.5678", new Hbar(1));
+     *     .addHbarTransfer("0.0.5678", new Hbar(1))
+     *     .freezeWith(client);
      * const { total } = await networkService.estimateFee(tx);
      * ```
      */
@@ -393,6 +394,13 @@ export class NetworkService {
         const context = "NetworkService.estimateFee";
         if (transaction == null) {
             throw validationError(context, "transaction is required.");
+        }
+
+        if (!transaction.isFrozen()) {
+            throw validationError(
+                context,
+                "transaction must be frozen, e.g. with freezeWith(client).",
+            );
         }
 
         const modes: number[] = Object.values(FeeEstimateMode);
@@ -415,8 +423,11 @@ export class NetworkService {
         }
 
         try {
-            // execute() freezes the transaction it is given, so estimate a copy.
+            // The query freezes the transaction again, which rebuilds its
+            // signed bodies; lock a copy's so the payer and signatures stay.
             const copy = Transaction.fromBytes(transaction.toBytes());
+            copy._signedTransactions.setLocked();
+
             const query = new FeeEstimateQuery().setTransaction(copy);
             if (options.mode != null) {
                 query.setMode(options.mode);

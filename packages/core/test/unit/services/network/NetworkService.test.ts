@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
     AccountId,
     AddressBookQuery,
+    Client,
     FeeEstimateMode,
     FeeEstimateQuery,
     FeeEstimateResponse,
@@ -24,6 +25,7 @@ import {
     NetworkService,
     type EstimateFeeOptions,
 } from "../../../../src/services/network/index.js";
+import { HieroErrorCodes } from "../../../../src/errors/index.js";
 import { createMockContext } from "../../../utils/mock-context.js";
 import type { IHieroContext } from "../../../../src/context/index.js";
 
@@ -399,7 +401,10 @@ describe("NetworkService [facade contract]", () => {
         const transfer = () =>
             new TransferTransaction()
                 .addHbarTransfer("0.0.2", Hbar.fromTinybars(-1))
-                .addHbarTransfer("0.0.3", Hbar.fromTinybars(1));
+                .addHbarTransfer("0.0.3", Hbar.fromTinybars(1))
+                .setNodeAccountIds([AccountId.fromString("0.0.3")])
+                .setTransactionId(TransactionId.generate("0.0.1234"))
+                .freeze();
 
         beforeEach(() => {
             // A mirror-node REST call: FeeEstimateQuery is not a gRPC Query.
@@ -450,26 +455,35 @@ describe("NetworkService [facade contract]", () => {
             expect(sentFeeQuery().getHighVolumeThrottle()).toBe(10000);
         });
 
-        it("estimates a copy and leaves an unfrozen transaction unfrozen", async () => {
-            const tx = transfer();
+        it("rejects an unfrozen transaction with INPUT_INVALID", async () => {
+            const tx = new TransferTransaction()
+                .addHbarTransfer("0.0.2", Hbar.fromTinybars(-1))
+                .addHbarTransfer("0.0.3", Hbar.fromTinybars(1));
 
-            await service.estimateFee(tx);
+            await expect(service.estimateFee(tx)).rejects.toMatchObject({
+                code: HieroErrorCodes.InputInvalid,
+                message: expect.stringMatching(/must be frozen/),
+            });
 
-            expect(sentFeeQuery().transaction).not.toBe(tx);
+            expect(estimate).not.toHaveBeenCalled();
             expect(tx.isFrozen()).toBe(false);
         });
 
-        it("keeps a frozen transaction's signatures on the copy", async () => {
+        it("keeps the payer and signatures when the query freezes the copy", async () => {
             const key = PrivateKey.generateED25519();
-            const tx = transfer()
-                .setNodeAccountIds([AccountId.fromString("0.0.3")])
-                .setTransactionId(TransactionId.generate("0.0.2"))
-                .freeze();
+            const tx = transfer();
             await tx.sign(key);
 
             await service.estimateFee(tx);
 
+            // FeeEstimateQuery freezes its transaction again before sending.
             const copy = sentFeeQuery().transaction!;
+            const client = Client.forNetwork({
+                "127.0.0.1:50211": "0.0.3",
+            }).setOperator("0.0.2", PrivateKey.generateED25519());
+            copy.freezeWith(client);
+            client.close();
+
             expect(copy).not.toBe(tx);
             expect(Buffer.from(copy.toBytes())).toEqual(
                 Buffer.from(tx.toBytes()),
