@@ -12,6 +12,17 @@ describe("UpdateAccountValidator", () => {
         expect(validate({})).not.toThrow();
     });
 
+    it.each([
+        [undefined, "accountId is required."],
+        [null, "accountId is required."],
+        ["", "accountId cannot be an empty string."],
+        ["   ", "accountId cannot be an empty string."],
+    ])("rejects accountId %j with INPUT_INVALID", (accountId, message) => {
+        expect(validate({ accountId: accountId as unknown as string })).toThrow(
+            expect.objectContaining({ code: "INPUT_INVALID", message }),
+        );
+    });
+
     describe("key rotation", () => {
         const newKey = PrivateKey.generateED25519();
 

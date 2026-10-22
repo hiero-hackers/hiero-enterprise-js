@@ -140,6 +140,11 @@ describe("UpdateAccountOperation (via AccountService)", () => {
                 /mutually exclusive/,
             ],
             [
+                "a missing accountId",
+                { accountId: undefined as unknown as string },
+                /accountId is required/,
+            ],
+            [
                 "a memo over 100 bytes",
                 { memo: "x".repeat(101) },
                 /memo exceeds 100 bytes/,
