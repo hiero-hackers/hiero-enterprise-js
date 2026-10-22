@@ -29,6 +29,7 @@ class ASN1Decoder {
 
     private readLength(): number {
         let length = this.data[this.pos++];
+
         if (length & 0x80) {
             const numBytes = length & 0x7f;
             length = 0;
@@ -36,6 +37,7 @@ class ASN1Decoder {
                 length = (length << 8) | this.data[this.pos++];
             }
         }
+
         return length;
     }
 
@@ -49,6 +51,7 @@ class ASN1Decoder {
         for (let i = 0; i < length; i++) {
             value = (value << 8) | this.data[this.pos++];
         }
+
         return { integer: value };
     }
 
@@ -56,6 +59,7 @@ class ASN1Decoder {
         const length = this.readLength();
         const value = this.data.slice(this.pos, this.pos + length);
         this.pos += length;
+
         return { pkey: value };
     }
 
@@ -65,6 +69,7 @@ class ASN1Decoder {
         const value = this.data.slice(this.pos, this.pos + length - 1);
         this.pos += length - 1;
         this.isPublicKey = true;
+
         return { unusedBits, pubkey: value };
     }
 
@@ -82,6 +87,7 @@ class ASN1Decoder {
         while (this.pos < endPos) {
             const byte = this.data[this.pos++];
             value = (value << 7) | (byte & 0x7f);
+
             if (!(byte & 0x80)) {
                 oid.push(value);
                 value = 0;
@@ -90,6 +96,7 @@ class ASN1Decoder {
 
         const oidStr = oid.join(".");
         this.oids.push(oidStr);
+
         return { oid: oidStr }; // Return OID as a string
     }
 
@@ -108,6 +115,7 @@ class ASN1Decoder {
         while (this.pos < endPos) {
             items.push(this.read());
         }
+
         return items;
     }
 

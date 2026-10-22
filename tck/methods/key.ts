@@ -100,7 +100,9 @@ const handleED25519PrivateKey = (
     isList?: boolean,
 ) => {
     const ed25519PrivateKey = PrivateKey.generateED25519();
+
     if (isList) response.privateKeys.push(ed25519PrivateKey.toStringDer());
+
     return {
         key: ed25519PrivateKey.toStringDer(),
         privateKeys: response.privateKeys,
@@ -113,7 +115,9 @@ const handleECDSA_SECP256K1PrivateKey = (
     isList?: boolean,
 ) => {
     const ecdsaPrivateKey = PrivateKey.generateECDSA();
+
     if (isList) response.privateKeys.push(ecdsaPrivateKey.toStringDer());
+
     return {
         key: ecdsaPrivateKey.toStringDer(),
         privateKeys: response.privateKeys,
@@ -146,10 +150,12 @@ const handleKeyList = (
     for (const keyParam of params.keys!) {
         const { key: keyStr } = processKeyRecursively(keyParam, response, true);
         const key = getKeyFromString(keyStr);
+
         if (key) {
             keyList.push(key);
         }
     }
+
     if (params.type === AccountKey.THRESHOLD_KEY) {
         keyList.setThreshold(params.threshold!);
     }
@@ -171,6 +177,7 @@ const handleEvmAddress = (
 
     // Generate new EVM address if fromKey is not provided
     const privateKey = PrivateKey.generateECDSA();
+
     return {
         key: privateKey.publicKey.toEvmAddress(),
         privateKeys: [privateKey.toStringDer()],

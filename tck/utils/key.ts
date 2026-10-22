@@ -27,9 +27,11 @@ const getKeyFromString = (
         if (decodedKey.isPublicKey) {
             return getPublicKeyFromString(decodedKey, keyString);
         }
+
         return getPrivateKeyFromString(decodedKey, keyString);
     } catch (error) {
         console.error("Error parsing key: ", error);
+
         return null;
     }
 };
@@ -43,6 +45,7 @@ const getPublicKeyFromString = (
     } else if (decodedKey.keyTypes.includes("ed25519")) {
         return PublicKey.fromStringED25519(keyString);
     }
+
     return null;
 };
 
@@ -55,6 +58,7 @@ const getPrivateKeyFromString = (
     } else if (decodedKey.keyTypes.includes("ed25519")) {
         return PrivateKey.fromStringED25519(keyString);
     }
+
     return null;
 };
 
@@ -117,6 +121,7 @@ const getEvmAddressFromKey = (
     response: KeyGenerationResponse,
 ): KeyGenerationResponse => {
     const key = getKeyFromString(fromKey);
+
     if (key instanceof PublicKey) {
         return {
             key: key.toEvmAddress(),
@@ -143,12 +148,14 @@ const getKeyPairFromParams = (
             params.type === AccountKey.ED25519_PUBLIC_KEY
                 ? PrivateKey.fromStringED25519(params.fromKey)
                 : PrivateKey.fromStringECDSA(params.fromKey);
+
         return { privateKey: pk, publicKey: pk.publicKey };
     } else {
         const pk =
             params.type === AccountKey.ED25519_PUBLIC_KEY
                 ? PrivateKey.generateED25519()
                 : PrivateKey.generateECDSA();
+
         return { privateKey: pk, publicKey: pk.publicKey };
     }
 };

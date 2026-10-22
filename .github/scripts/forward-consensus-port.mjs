@@ -101,6 +101,7 @@ async function waitFor(check, timeoutMs, intervalMs = 250) {
         }
         await new Promise((resolve) => setTimeout(resolve, intervalMs));
     }
+
     return false;
 }
 
@@ -111,6 +112,7 @@ function kindNodeAddress() {
         "-o",
         'jsonpath={.items[0].status.addresses[?(@.type=="InternalIP")].address}',
     ]);
+
     return output.split(/\s+/)[0] || null;
 }
 
@@ -120,11 +122,13 @@ function nodePortOf(service) {
         ["get", "svc", "-n", NAMESPACE, service, "-o", "json"],
         { allowFailure: true },
     );
+
     if (raw == null) {
         return null;
     }
     const svc = JSON.parse(raw);
     const port = (svc.spec?.ports || []).find((p) => p.port === NODE_GRPC_PORT);
+
     return port?.nodePort ?? null;
 }
 
@@ -140,6 +144,7 @@ function serviceExists(service) {
 function stopHaproxyForward(localPort, haproxyService) {
     const pattern = `kubectl port-forward svc/${haproxyService} -n ${NAMESPACE} ${localPort}:${NODE_GRPC_PORT}`;
     sh("pkill", ["-f", pattern], { allowFailure: true });
+
     return pattern;
 }
 
@@ -150,6 +155,7 @@ function startDetached(logFile, file, args) {
         stdio: ["ignore", fd, fd],
     });
     child.unref();
+
     return child.pid;
 }
 
@@ -173,10 +179,12 @@ async function setupPort(localPort, logDir) {
         async () => !(await canConnect("127.0.0.1", localPort, 500)),
         SETTLE_TIMEOUT_MS,
     );
+
     if (!freed) {
         log(
             `${localPort}: still listening after stopping "${haproxyPattern}", leaving it alone`,
         );
+
         return "haproxy";
     }
 
@@ -189,6 +197,7 @@ async function setupPort(localPort, logDir) {
             address,
             String(nodePort),
         ]);
+
         if (
             await waitFor(
                 () => canConnect("127.0.0.1", localPort),
@@ -198,6 +207,7 @@ async function setupPort(localPort, logDir) {
             log(
                 `${localPort}: direct relay (pid ${pid}) to ${address}:${nodePort}, log ${logFile}`,
             );
+
             return "direct";
         }
         log(
@@ -217,6 +227,7 @@ async function setupPort(localPort, logDir) {
         `${localPort}:${NODE_GRPC_PORT}`,
     ];
     const pid = startDetached(logFile, process.execPath, forwardArgs(service));
+
     if (
         await waitFor(
             () => canConnect("127.0.0.1", localPort),
@@ -226,6 +237,7 @@ async function setupPort(localPort, logDir) {
         log(
             `${localPort}: supervised kubectl port-forward (pid ${pid}) to svc/${service}, log ${logFile}`,
         );
+
         return "forward";
     }
     log(
@@ -234,6 +246,7 @@ async function setupPort(localPort, logDir) {
     sh("kill", [String(pid)], { allowFailure: true });
     startDetached(logFile, process.execPath, forwardArgs(haproxy));
     await waitFor(() => canConnect("127.0.0.1", localPort), SETTLE_TIMEOUT_MS);
+
     return "haproxy";
 }
 
@@ -250,8 +263,10 @@ async function main() {
         .split(",")
         .map((p) => Number(p.trim()))
         .filter((p) => NODES[p] != null);
+
     if (ports.length === 0) {
         ports.push(50211);
+
         if (serviceExists(NODES[36211].service)) {
             ports.push(36211);
         }
@@ -264,6 +279,7 @@ async function main() {
     const summary = Object.entries(modes)
         .map(([port, mode]) => `${port}: ${mode}`)
         .join(", ");
+
     if (Object.values(modes).every((mode) => mode === "haproxy")) {
         console.log(
             `::warning::consensus node ports still go through the haproxy forward (${summary})`,
