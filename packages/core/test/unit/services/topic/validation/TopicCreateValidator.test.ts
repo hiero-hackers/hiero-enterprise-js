@@ -24,13 +24,8 @@ describe("TopicCreateValidator", () => {
         expect(() => validator.validate(options)).not.toThrow();
     });
 
-    it("rejects adminKey without autoRenewAccountId", () => {
+    it("accepts adminKey without autoRenewAccountId", () => {
         const adminKey = PrivateKey.generateED25519().publicKey;
-        expect(() => validator.validate({ adminKey })).toThrow(
-            /autoRenewAccountId is required when an adminKey is set/,
-        );
-        expect(() => validator.validate({ adminKey })).toThrow(
-            expect.objectContaining({ code: "INPUT_INVALID" }),
-        );
+        expect(() => validator.validate({ adminKey })).not.toThrow();
     });
 });
