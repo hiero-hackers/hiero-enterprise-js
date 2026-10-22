@@ -16,6 +16,9 @@ import type {
 } from "../listeners/index.js";
 import type { IHieroContext } from "./HieroContext.interface.js";
 
+/** Mirror hosts the SDK serves on per-API local ports (REST 5551, rest-java 8084, web3 8545). */
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
 /**
  * Parse a private key string based on the specified key type.
  */
@@ -224,8 +227,8 @@ export class HieroContext implements IHieroContext {
     /**
      * Send mirror REST calls to `origin`. The SDK derives the REST URL from
      * the mirror network and has no setting for it, so rewrite each request.
-     * Requests for a different origin, such as a local mirror's rest-java
-     * (8084) and web3 (8545) ports, are left as the SDK built them.
+     * A local mirror's rest-java (8084) and web3 (8545) requests are left
+     * as the SDK built them.
      */
     private useMirrorNodeOrigin(origin: string): void {
         const httpConfig = this.client.getMirrorNodeHttpConfig();
@@ -239,9 +242,11 @@ export class HieroContext implements IHieroContext {
             transport: {
                 roundTrip: (request, signal) => {
                     const url = new URL(request.url);
-                    const rest = new URL(this.client.mirrorRestApiBaseUrl);
 
-                    if (url.origin !== rest.origin) {
+                    if (
+                        LOOPBACK_HOSTS.has(url.hostname) &&
+                        url.port !== "5551"
+                    ) {
                         return transport.roundTrip(request, signal);
                     }
 
