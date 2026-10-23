@@ -180,6 +180,38 @@ jobs:
                     exit 1
                   fi
 
+            # rest-java loads the fee schedule at startup and then only every
+            # 10 minutes, so if it started before the schedule was imported,
+            # every fee estimate fails ("Unknown transaction type") until then.
+            # Restart it once a minute until estimates work.
+            - name: Wait for Mirror Node fee estimates
+              run: |
+                  # A frozen 1-tinybar transfer from 0.0.2, as one protobuf Transaction.
+                  echo "KjMKLwoMCgYIgOLPqgYSAhgCEgIYAxiAwtcvIgIIeHISChAKBgoCGAIQAQoGCgIYAxACEgA=" | base64 -d > "$RUNNER_TEMP/fee.bin"
+                  for i in $(seq 1 48); do
+                    if curl -s -X POST -H "Content-Type: application/protobuf" \
+                         --data-binary @"$RUNNER_TEMP/fee.bin" \
+                         http://localhost:8084/api/v1/network/fees | grep -q '"total"'; then
+                      echo "Mirror Node fee estimates are ready."
+                      exit 0
+                    fi
+
+                    if [ $((i % 12)) -eq 0 ]; then
+                      echo "Restarting rest-java so it reloads the fee schedule..."
+                      kubectl rollout restart deployment/mirror-1-restjava -n solo
+                      kubectl rollout status deployment/mirror-1-restjava -n solo --timeout=180s
+                      # The old port-forward was bound to the replaced pod.
+                      pkill -f "port-forward svc/mirror-1-restjava" || true
+                      nohup kubectl port-forward svc/mirror-1-restjava -n solo 8084:80 \
+                        > "$RUNNER_TEMP/port-forward-8084.log" 2>&1 &
+                    fi
+
+                    echo "Attempt $i/48 — waiting 5s..."
+                    sleep 5
+                  done
+                  echo "::error::Mirror Node fee estimates on http://localhost:8084 never became ready" >&2
+                  exit 1
+
             - name: Run integration tests
               env:
                   HIERO_NETWORK: hiero-solo-action
