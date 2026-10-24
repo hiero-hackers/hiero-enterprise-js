@@ -24,11 +24,8 @@
  * Run: pnpm tsx src/contract/create-contract-flow.ts
  */
 
-import {
-    ContractService,
-    HieroContext,
-    PrivateKey,
-} from "@hiero-hackers/enterprise-core";
+import { PrivateKey } from "@hiero-ledger/sdk";
+import { ContractService, HieroContext } from "@hiero-hackers/enterprise-core";
 import { getED25519Config } from "../env.js";
 
 /**

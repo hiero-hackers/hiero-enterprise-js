@@ -13,10 +13,10 @@ TypeScript libraries for building Node.js services on [Hiero](https://hiero.org)
 
 This repository publishes two packages. Both need Node.js 18 or later.
 
-**Core**, to send transactions:
+**Core**, to send transactions. It uses the app's own [Hiero SDK](https://github.com/hiero-ledger/hiero-sdk-js) (a peer dependency), so install both:
 
 ```sh
-npm install @hiero-hackers/enterprise-core
+npm install @hiero-hackers/enterprise-core @hiero-ledger/sdk
 ```
 
 **Mirror**, to read from the mirror node:
