@@ -11,13 +11,12 @@
  * Run: pnpm tsx src/schedule/schedule-lifecycle.ts
  */
 
+import { PrivateKey, Hbar } from "@hiero-ledger/sdk";
 import {
     AccountService,
     AccountType,
     ScheduleService,
     HieroContext,
-    PrivateKey,
-    Hbar,
 } from "@hiero-hackers/enterprise-core";
 import { getED25519Config } from "../env.js";
 import type { ScheduleOptions } from "@hiero-hackers/enterprise-core";

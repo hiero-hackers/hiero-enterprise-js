@@ -7,17 +7,19 @@ Each service wraps a part of the [Hiero SDK](https://github.com/hiero-ledger/hie
 ## Install
 
 ```sh
-npm install @hiero-hackers/enterprise-core
+npm install @hiero-hackers/enterprise-core @hiero-ledger/sdk
 ```
+
+`@hiero-ledger/sdk` is a peer dependency: your app installs it, and core uses the same copy. Import SDK classes such as `PrivateKey`, `AccountId` or `TransferTransaction` from `@hiero-ledger/sdk`.
 
 ## Usage
 
 ```ts
+import { PrivateKey } from "@hiero-ledger/sdk";
 import {
   AccountService,
   AccountType,
   HieroContext,
-  PrivateKey,
 } from "@hiero-hackers/enterprise-core";
 
 const context = new HieroContext({

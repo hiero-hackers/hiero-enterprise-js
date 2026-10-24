@@ -27,12 +27,11 @@
  * Run: pnpm tsx src/token/airdrop-nft.ts
  */
 
-import type { AccountId, TokenId } from "@hiero-hackers/enterprise-core";
+import { type AccountId, type TokenId, PrivateKey } from "@hiero-ledger/sdk";
 import {
     AccountService,
     AccountType,
     HieroContext,
-    PrivateKey,
     TokenService,
 } from "@hiero-hackers/enterprise-core";
 import { getED25519Config, waitForMirror } from "../env.js";

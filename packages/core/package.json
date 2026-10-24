@@ -49,8 +49,13 @@
         "test:watch": "vitest -c test/vitest.config.ts"
     },
     "dependencies": {
-        "@hiero-ledger/sdk": "^2.90.1",
         "bignumber.js": "11.1.2"
+    },
+    "peerDependencies": {
+        "@hiero-ledger/sdk": "^2.90.1"
+    },
+    "devDependencies": {
+        "@hiero-ledger/sdk": "^2.90.1"
     },
     "publishConfig": {
         "registry": "https://npm.pkg.github.com",
