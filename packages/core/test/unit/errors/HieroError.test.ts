@@ -49,6 +49,13 @@ describe("HieroError", () => {
         expect(error.transactionId).toBe("0.0.2@1234567890.000");
         expect(error.sdkStatus).toBe("ACCOUNT_DELETED");
     });
+
+    it("stores innerTransactionIds when provided", () => {
+        const error = new HieroError("batch failed", {
+            innerTransactionIds: ["0.0.2@1234567890.000"],
+        });
+        expect(error.innerTransactionIds).toEqual(["0.0.2@1234567890.000"]);
+    });
 });
 
 describe("normalizeError", () => {

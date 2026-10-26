@@ -1,5 +1,6 @@
 import { AccountType } from "../../../types/index.js";
 import { validationError } from "../../../errors/index.js";
+import { validateHookCreations } from "../../contract/validation/index.js";
 import type { CreateAccountOptions } from "../operations/index.js";
 
 /**
@@ -27,6 +28,7 @@ export class CreateAccountValidator {
         this.validateStakingOptions(options);
         this.validateMemo(options);
         this.validateHighVolume(options);
+        validateHookCreations("CreateAccountValidator", "hooks", options.hooks);
     }
 
     private validateKeyOptions(options: CreateAccountOptions): void {

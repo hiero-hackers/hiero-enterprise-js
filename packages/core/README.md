@@ -7,17 +7,19 @@ Each service wraps a part of the [Hiero SDK](https://github.com/hiero-ledger/hie
 ## Install
 
 ```sh
-npm install @hiero-hackers/enterprise-core
+npm install @hiero-hackers/enterprise-core @hiero-ledger/sdk
 ```
+
+`@hiero-ledger/sdk` is a peer dependency: your app installs it, and core uses the same copy. Import SDK classes such as `PrivateKey`, `AccountId` or `TransferTransaction` from `@hiero-ledger/sdk`.
 
 ## Usage
 
 ```ts
+import { PrivateKey } from "@hiero-ledger/sdk";
 import {
   AccountService,
   AccountType,
   HieroContext,
-  PrivateKey,
 } from "@hiero-hackers/enterprise-core";
 
 const context = new HieroContext({
@@ -50,9 +52,9 @@ Every service takes the same `HieroContext`. It holds the SDK client and the ope
 | `TokenService` | Fungible tokens and NFTs: create, mint, burn, freeze, pause, KYC, fees, airdrops |
 | `TopicService` | Topics: create, update, delete, submit messages, subscribe |
 | `FileService` | Files: create, append, update, delete, read |
-| `ContractService` | Smart contracts: deploy, execute, update, delete, read-only calls, relayed Ethereum transactions |
+| `ContractService` | Smart contracts: deploy, execute, update, delete, read-only calls, mirror node call simulation and gas estimates, relayed Ethereum transactions, hook storage |
 | `ScheduleService` | Scheduled transactions: sign, cancel, inspect |
-| `NetworkService` | Transaction receipts and records, network version, pseudo-random numbers, node address book |
+| `NetworkService` | Transaction receipts and records, network version, pseudo-random numbers, node address book, fee estimates, atomic batches |
 
 Many write methods have a `schedule…` version that returns a schedule ID instead of executing, so other keys can sign it later with `ScheduleService.sign`.
 
@@ -106,13 +108,13 @@ const context = new HieroContext({
 
 - `networkNodes`: the consensus nodes, as `"host:port": "accountId"`. In the environment: `HIERO_NETWORK_NODES="127.0.0.1:50211=0.0.3"`.
 - `mirrorNetwork`: the mirror node's gRPC address, used for topic subscriptions and balances. In the environment: `HIERO_MIRROR_NETWORK="localhost:5600"`.
-- `mirrorNodeUrl`: the mirror node's REST URL, which balances are read from. Without it the SDK uses port 5551 for a local mirror node; Solo serves REST on 38081.
+- `mirrorNodeUrl`: the mirror node's REST URL, which balances are read from. Without it the SDK uses port 5551 for a local mirror node; Solo serves REST on 38081. On a local mirror node, rest-java (8084) and web3 (8545) requests keep their own ports.
 
 See [`custom-network.ts`](../../samples/examples/src/network/custom-network.ts).
 
 ## Errors
 
-Every error is a `HieroError` with a `code`: `INPUT_INVALID`, `CONFIG_INVALID`, `NOT_FOUND`, `TIMED_OUT`, `SDK_ERROR`, `RESULT_MAPPING_FAILED` or `UNKNOWN`. Errors from a transaction also carry its `transactionId`. See [Errors](../../README.md#errors) for an example.
+Every error is a `HieroError` with a `code`: `INPUT_INVALID`, `CONFIG_INVALID`, `NOT_FOUND`, `TIMED_OUT`, `SDK_ERROR`, `RESULT_MAPPING_FAILED` or `UNKNOWN`. Errors from a transaction also carry its `transactionId`; a failed `submitBatch` carries its `innerTransactionIds` too. See [Errors](../../README.md#errors) for an example.
 
 ## Examples
 

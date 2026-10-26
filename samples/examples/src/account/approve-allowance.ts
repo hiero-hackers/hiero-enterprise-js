@@ -13,12 +13,11 @@
  * Run: pnpm tsx src/account/approve-allowance.ts
  */
 
+import { PrivateKey, Hbar } from "@hiero-ledger/sdk";
 import {
     AccountService,
     AccountType,
     HieroContext,
-    PrivateKey,
-    Hbar,
     TokenService,
 } from "@hiero-hackers/enterprise-core";
 import { getED25519Config } from "../env.js";

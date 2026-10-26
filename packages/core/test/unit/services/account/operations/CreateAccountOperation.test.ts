@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
     AccountCreateTransaction,
     AccountId,
+    ContractId,
+    EvmHook,
+    HookCreationDetails,
+    HookExtensionPoint,
     PrivateKey,
     ScheduleId,
 } from "@hiero-ledger/sdk";
@@ -18,6 +22,13 @@ const receipt = {
     status: "SUCCESS",
     transactionId: "0.0.2@1700000000.000000000",
 };
+
+const hook = (hookId: number) =>
+    new HookCreationDetails({
+        extensionPoint: HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK,
+        hookId,
+        evmHook: new EvmHook({ contractId: ContractId.fromString("0.0.1234") }),
+    });
 
 describe("CreateAccountOperation (via AccountService)", () => {
     let service: AccountService;
@@ -148,6 +159,16 @@ describe("CreateAccountOperation (via AccountService)", () => {
             });
 
             expect(sentTx().stakedAccountId?.toString()).toBe("0.0.800");
+        });
+
+        it("sets the hooks to create when provided", async () => {
+            const hooks = [hook(1), hook(2)];
+            await service.createAccount({
+                publicKey: PrivateKey.generateED25519().publicKey.toString(),
+                hooks,
+            });
+
+            expect(sentTx().hooks).toEqual(hooks);
         });
 
         it("forwards base TransactionOptions to the executor", async () => {

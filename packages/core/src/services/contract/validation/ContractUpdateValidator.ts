@@ -1,4 +1,5 @@
 import { validationError } from "../../../errors/index.js";
+import { validateHookCreations, validateHookIds } from "./hooks.js";
 import type { ContractUpdateOperationOptions } from "../operations/ContractUpdateOperation.js";
 
 const MAX_CONTRACT_MEMO_BYTES = 100;
@@ -21,6 +22,16 @@ export class ContractUpdateValidator {
         this.validateMemo(options);
         this.validateStakingMutex(options);
         this.validateMaxAutomaticTokenAssociations(options);
+        validateHookCreations(
+            "ContractUpdateValidator",
+            "hooksToCreate",
+            options.hooksToCreate,
+        );
+        validateHookIds(
+            "ContractUpdateValidator",
+            "hooksToDelete",
+            options.hooksToDelete,
+        );
     }
 
     private validateContractId(options: ContractUpdateOperationOptions): void {

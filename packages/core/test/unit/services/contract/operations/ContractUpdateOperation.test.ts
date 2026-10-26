@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
+    ContractId,
     ContractUpdateTransaction,
+    EvmHook,
+    HookCreationDetails,
+    HookExtensionPoint,
+    Long,
     PrivateKey,
     ScheduleId,
 } from "@hiero-ledger/sdk";
@@ -16,6 +21,13 @@ const receipt = {
     status: "SUCCESS",
     transactionId: "0.0.2@1700000000.000000000",
 };
+
+const hook = (hookId: number) =>
+    new HookCreationDetails({
+        extensionPoint: HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK,
+        hookId,
+        evmHook: new EvmHook({ contractId: ContractId.fromString("0.0.1234") }),
+    });
 
 describe("ContractUpdateOperation (via ContractService)", () => {
     let service: ContractService;
@@ -120,6 +132,19 @@ describe("ContractUpdateOperation (via ContractService)", () => {
             const tx = sentTx();
             expect(tx.stakedAccountId?.toString()).toBe("0.0.321");
             expect(tx.stakedNodeId).toBeNull();
+        });
+
+        it("sets the hooks to create and delete when provided", async () => {
+            const hooksToCreate = [hook(3)];
+            await service.updateContract({
+                contractId: "0.0.12345",
+                hooksToCreate,
+                hooksToDelete: [1, Long.fromInt(2)],
+            });
+
+            const tx = sentTx();
+            expect(tx.hooksToCreate).toEqual(hooksToCreate);
+            expect(tx.hooksToDelete.map(String)).toEqual(["1", "2"]);
         });
 
         it("propagates validator errors before building a transaction", async () => {

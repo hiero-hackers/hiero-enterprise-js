@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { setupIntegrationTestEnv } from "../../../utils/env.js";
+import { waitForMirrorEntity } from "../../../utils/mirror-node.js";
+import { queryAccountHooks } from "../../../utils/mirror-node-rest.js";
+import {
+    allowanceHook,
+    deployHookContract,
+} from "../../../utils/hook-contract.js";
 import {
     ContractService,
     FileService,
@@ -62,5 +68,31 @@ describe("ContractCreateOperation", () => {
 
         expect(contractId).toBeDefined();
         expect(contractId.toString()).toMatch(/^0\.0\.\d+$/);
+    });
+
+    // Skipped: Solo rejects hooks with HOOKS_NOT_ENABLED. Run on a network with HIP-1195 enabled.
+    it.skip("deploys a contract with an allowance hook (HIP-1195)", async () => {
+        const hookContractId = await deployHookContract(contractService);
+
+        const { contractId } = await contractService.createContract({
+            bytecode: Buffer.from(MINIMAL_BYTECODE_HEX, "hex"),
+            gas: 150_000,
+            hooks: [allowanceHook(hookContractId, 1)],
+        });
+
+        const hooks = await waitForMirrorEntity(
+            () => queryAccountHooks(contractId),
+            {
+                predicate: (found) => found.length > 0,
+                description: "contract hooks",
+            },
+        );
+        expect(hooks).toEqual([
+            expect.objectContaining({
+                hook_id: 1,
+                contract_id: hookContractId.toString(),
+                deleted: false,
+            }),
+        ]);
     });
 });

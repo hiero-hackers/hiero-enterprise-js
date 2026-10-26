@@ -1,4 +1,5 @@
 import type {
+    FeeEstimate,
     NetworkVersionInfo,
     NodeAddressBook,
     TransactionReceipt,
@@ -6,8 +7,11 @@ import type {
 } from "@hiero-ledger/sdk";
 import {
     AddressBookQuery,
+    FeeEstimateMode,
+    FeeEstimateQuery,
     FileId,
     NetworkVersionInfoQuery,
+    Transaction,
     TransactionId,
     TransactionReceiptQuery,
     TransactionRecordQuery,
@@ -16,8 +20,8 @@ import type { IHieroContext } from "../../context/index.js";
 import { normalizeError, validationError } from "../../errors/index.js";
 import type { QueryOptions } from "../transaction/index.js";
 import { QueryExecutor } from "../transaction/index.js";
-import { PrngOperation } from "./operations/index.js";
-import type { PrngOptions } from "./operations/index.js";
+import { BatchOperation, PrngOperation } from "./operations/index.js";
+import type { BatchOptions, PrngOptions } from "./operations/index.js";
 
 /** Options for fetching the network's node address book. */
 export interface GetAddressBookOptions {
@@ -25,6 +29,62 @@ export interface GetAddressBookOptions {
     fileId?: string | FileId;
     /** Return at most this many nodes. */
     limit?: number;
+}
+
+/** Options for estimating a transaction's fee. */
+export interface EstimateFeeOptions {
+    /**
+     * `FeeEstimateMode.INTRINSIC` (default) prices the payload alone;
+     * `FeeEstimateMode.STATE` also uses the mirror node's latest state.
+     */
+    mode?: (typeof FeeEstimateMode)[keyof typeof FeeEstimateMode];
+    /** High-volume throttle utilization in basis points, 0 to 10000 (default 0). */
+    highVolumeThrottle?: number;
+}
+
+/** One extra charge within a fee component. Amounts are in tinycents. */
+export interface FeeExtraEstimate {
+    /** Name of the extra, e.g. `"SIGNATURES"` */
+    name: string;
+    /** Units included in the base fee */
+    included: number;
+    /** Units the transaction uses */
+    count: number;
+    /** Units charged beyond the included ones */
+    charged: number;
+    /** Fee per charged unit in tinycents — decimal string */
+    feePerUnit: string;
+    /** Fee for the charged units in tinycents — decimal string */
+    subtotal: string;
+}
+
+/** A node or service fee component. Amounts are in tinycents. */
+export interface FeeComponentEstimate {
+    /** Base fee in tinycents — decimal string */
+    base: string;
+    /** Extra charges on top of the base fee */
+    extras: FeeExtraEstimate[];
+}
+
+/**
+ * A transaction's estimated fee (HIP-1261). Amounts are in **tinycents**
+ * (1/100,000,000 of a US cent), not tinybars; convert with the exchange rate.
+ */
+export interface FeeEstimateResult {
+    /** Network fee: the node fee times `multiplier` */
+    network: {
+        multiplier: number;
+        /** Network fee in tinycents — decimal string */
+        subtotal: string;
+    };
+    /** Fee paid to the submitting node */
+    node: FeeComponentEstimate;
+    /** Fee for executing the transaction */
+    service: FeeComponentEstimate;
+    /** High-volume pricing multiplier (HIP-1313); 1 when none applies */
+    highVolumeMultiplier: number;
+    /** Sum of the network, node and service fees in tinycents — decimal string */
+    total: string;
 }
 
 /**
@@ -90,9 +150,25 @@ function parseTransactionId(
     }
 }
 
+/** Convert an SDK fee component to plain data. */
+function toFeeComponent(fee: FeeEstimate): FeeComponentEstimate {
+    return {
+        base: fee.base.toString(),
+        extras: fee.extras.map((extra) => ({
+            name: extra.name,
+            included: extra.included,
+            count: extra.count,
+            charged: extra.charged,
+            feePerUnit: extra.feePerUnit.toString(),
+            subtotal: extra.subtotal.toString(),
+        })),
+    };
+}
+
 /**
- * Public facade for cross-cutting consensus-node calls: receipt / record
- * retrieval, network version info, and pseudo-random numbers.
+ * Public facade for cross-cutting network calls: receipt / record
+ * retrieval, network version info, pseudo-random numbers, the node address
+ * book, fee estimates and atomic batches.
  *
  * Use this when you need to query the outcome of a transaction whose
  * `TransactionResponse` you do not have (e.g., submitted out-of-band, by
@@ -116,10 +192,12 @@ function parseTransactionId(
 export class NetworkService {
     private readonly queryExecutor: QueryExecutor;
     private readonly prngOperation: PrngOperation;
+    private readonly batchOperation: BatchOperation;
 
     constructor(private readonly context: IHieroContext) {
         this.queryExecutor = new QueryExecutor(context);
         this.prngOperation = new PrngOperation(context);
+        this.batchOperation = new BatchOperation(context);
     }
 
     /**
@@ -140,6 +218,39 @@ export class NetworkService {
      */
     async generateRandom(options?: PrngOptions) {
         return await this.prngOperation.execute(options);
+    }
+
+    /**
+     * Submit transactions as one atomic batch (`BatchTransaction`,
+     * HIP-551): all succeed or none do. Batches are not schedulable, so
+     * there is no scheduled variant.
+     *
+     * Each inner transaction is an SDK transaction you built, gave a batch
+     * key, froze and signed (e.g. with `batchify(client, batchKey)`). The
+     * `TransactionOptions` apply to the outer batch transaction.
+     *
+     * @param options.transactions - 1 to 25 inner transactions; none a
+     *   `BatchTransaction` or `FreezeTransaction`
+     * @param options.batchKeys - Private keys whose signatures satisfy the
+     *   inner batch keys; the operator signs on its own
+     * @returns The executor result plus `innerTransactionIds`, in batch order
+     * @throws HieroError with `innerTransactionIds` when the batch fails
+     *
+     * @example
+     * ```ts
+     * const transfer = await new TransferTransaction()
+     *     .addHbarTransfer(from, new Hbar(-1))
+     *     .addHbarTransfer(to, new Hbar(1))
+     *     .batchify(client, batchKey.publicKey);
+     *
+     * const { innerTransactionIds } = await networkService.submitBatch({
+     *     transactions: [transfer],
+     *     batchKeys: [batchKey],
+     * });
+     * ```
+     */
+    async submitBatch(options: BatchOptions) {
+        return await this.batchOperation.execute(options);
     }
 
     /**
@@ -282,6 +393,97 @@ export class NetworkService {
         }
         try {
             return await query.execute(this.context.client);
+        } catch (error) {
+            throw normalizeError(error, context);
+        }
+    }
+
+    /**
+     * Estimate a transaction's fee from the mirror node
+     * (`POST /api/v1/network/fees`, HIP-1261) without submitting it.
+     *
+     * The transaction must be frozen; it is priced as frozen, with its payer
+     * and signatures, so sign it first to count signature costs. Like
+     * `toBytes()`, this keeps the SDK from regenerating its transaction ID
+     * on expiry. A mirror-node REST call, so it skips `QueryExecutor` and
+     * listeners are not notified.
+     *
+     * @param transaction - A frozen SDK transaction
+     * @param options.mode - `FeeEstimateMode.INTRINSIC` (default) or `STATE`
+     * @param options.highVolumeThrottle - Basis points, 0 to 10000
+     * @returns The fee components and total, in tinycents
+     *
+     * @example
+     * ```ts
+     * const tx = new TransferTransaction()
+     *     .addHbarTransfer("0.0.1234", new Hbar(-1))
+     *     .addHbarTransfer("0.0.5678", new Hbar(1))
+     *     .freezeWith(client);
+     * const { total } = await networkService.estimateFee(tx);
+     * ```
+     */
+    async estimateFee(
+        transaction: Transaction,
+        options: EstimateFeeOptions = {},
+    ): Promise<FeeEstimateResult> {
+        const context = "NetworkService.estimateFee";
+        if (transaction == null) {
+            throw validationError(context, "transaction is required.");
+        }
+
+        if (!transaction.isFrozen()) {
+            throw validationError(
+                context,
+                "transaction must be frozen, e.g. with freezeWith(client).",
+            );
+        }
+
+        const modes: number[] = Object.values(FeeEstimateMode);
+        if (options.mode != null && !modes.includes(options.mode)) {
+            throw validationError(
+                context,
+                `mode must be FeeEstimateMode.STATE (0) or FeeEstimateMode.INTRINSIC (1), got ${options.mode}.`,
+            );
+        }
+
+        const throttle = options.highVolumeThrottle;
+        if (
+            throttle != null &&
+            (!Number.isInteger(throttle) || throttle < 0 || throttle > 10000)
+        ) {
+            throw validationError(
+                context,
+                `highVolumeThrottle must be an integer from 0 to 10000, got ${throttle}.`,
+            );
+        }
+
+        try {
+            // The query freezes the transaction again, which rebuilds its
+            // signed bodies; lock a copy's so the payer and signatures stay.
+            const copy = Transaction.fromBytes(transaction.toBytes());
+            copy._signedTransactions.setLocked();
+
+            const query = new FeeEstimateQuery().setTransaction(copy);
+            if (options.mode != null) {
+                query.setMode(options.mode);
+            }
+
+            if (throttle != null) {
+                query.setHighVolumeThrottle(throttle);
+            }
+
+            const fee = await query.execute(this.context.client);
+
+            return {
+                network: {
+                    multiplier: fee.networkFee.multiplier,
+                    subtotal: fee.networkFee.subtotal.toString(),
+                },
+                node: toFeeComponent(fee.nodeFee),
+                service: toFeeComponent(fee.serviceFee),
+                highVolumeMultiplier: fee.highVolumeMultiplier.toNumber(),
+                total: fee.total.toString(),
+            };
         } catch (error) {
             throw normalizeError(error, context);
         }

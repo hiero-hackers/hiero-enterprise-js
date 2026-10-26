@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
     ContractCreateTransaction,
     ContractId,
+    EvmHook,
     FileId,
+    HookCreationDetails,
+    HookExtensionPoint,
     Hbar,
     PrivateKey,
     ScheduleId,
@@ -19,6 +22,13 @@ const receipt = {
     status: "SUCCESS",
     transactionId: "0.0.2@1700000000.000000000",
 };
+
+const hook = (hookId: number) =>
+    new HookCreationDetails({
+        extensionPoint: HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK,
+        hookId,
+        evmHook: new EvmHook({ contractId: ContractId.fromString("0.0.1234") }),
+    });
 
 describe("ContractCreateOperation (via ContractService)", () => {
     let service: ContractService;
@@ -162,6 +172,17 @@ describe("ContractCreateOperation (via ContractService)", () => {
             expect(tx.maxAutomaticTokenAssociations).toEqual(
                 defaults.maxAutomaticTokenAssociations,
             );
+        });
+
+        it("sets the hooks to create when provided", async () => {
+            const hooks = [hook(1), hook(2)];
+            await service.createContract({
+                bytecodeFileId: "0.0.555",
+                gas: 100_000,
+                hooks,
+            });
+
+            expect(sentTx().hooks).toEqual(hooks);
         });
 
         it("propagates validator errors before building a transaction", async () => {

@@ -2,8 +2,12 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { inspect } from "node:util";
 import {
     Client,
+    ContractFunctionParameters,
+    ContractId,
     DefaultHttpTransport,
+    FeeEstimateQuery,
     MirrorNodeAccountBalanceQuery,
+    MirrorNodeContractCallQuery,
     PrivateKey,
     TransactionId,
     TransferTransaction,
@@ -459,6 +463,86 @@ describe("HieroContext", () => {
 
             expect(roundTrip.mock.calls[0][0].url).toMatch(
                 /^http:\/\/localhost:38081\/api\/v1\//,
+            );
+        });
+
+        it.each([
+            [
+                "rest-java",
+                () =>
+                    new FeeEstimateQuery().setTransaction(
+                        new TransferTransaction(),
+                    ),
+                /^http:\/\/localhost:8084\/api\/v1\/network\/fees/,
+            ],
+            [
+                "web3",
+                () =>
+                    new MirrorNodeContractCallQuery()
+                        .setContractId(ContractId.fromString("0.0.1001"))
+                        .setFunction("get", new ContractFunctionParameters()),
+                /^http:\/\/localhost:8545\/api\/v1\/contracts\/call/,
+            ],
+        ])(
+            "leaves a local mirror's %s port alone when mirrorNodeUrl is set",
+            async (_name, query, expected) => {
+                const ctx = create({
+                    ...localConfig,
+                    mirrorNetwork: ["localhost:5600"],
+                    mirrorNodeUrl: "http://localhost:38081",
+                });
+                const roundTrip = vi
+                    .spyOn(DefaultHttpTransport.prototype, "roundTrip")
+                    .mockRejectedValue(new Error("stop"));
+
+                await query()
+                    .execute(ctx.client)
+                    .catch(() => undefined);
+
+                expect(roundTrip.mock.calls[0][0].url).toMatch(expected);
+            },
+        );
+
+        it("sends every REST call to mirrorNodeUrl with several mirror nodes", async () => {
+            const ctx = create({
+                ...localConfig,
+                mirrorNetwork: ["localhost:5600", "127.0.0.1:5600"],
+                mirrorNodeUrl: "http://localhost:38081",
+            });
+            const roundTrip = vi
+                .spyOn(DefaultHttpTransport.prototype, "roundTrip")
+                .mockRejectedValue(new Error("stop"));
+
+            for (let i = 0; i < 2; i++) {
+                await new MirrorNodeAccountBalanceQuery()
+                    .setAccountId("0.0.2")
+                    .execute(ctx.client)
+                    .catch(() => undefined);
+            }
+
+            const urls = roundTrip.mock.calls.map(([request]) => request.url);
+            expect(new Set(urls.map((url) => new URL(url).origin))).toEqual(
+                new Set(["http://localhost:38081"]),
+            );
+        });
+
+        it("sends a hosted mirror's fee estimate to mirrorNodeUrl", async () => {
+            const ctx = create({
+                ...localConfig,
+                mirrorNetwork: ["mirror.example.com:443"],
+                mirrorNodeUrl: "http://localhost:38081",
+            });
+            const roundTrip = vi
+                .spyOn(DefaultHttpTransport.prototype, "roundTrip")
+                .mockRejectedValue(new Error("stop"));
+
+            await new FeeEstimateQuery()
+                .setTransaction(new TransferTransaction())
+                .execute(ctx.client)
+                .catch(() => undefined);
+
+            expect(roundTrip.mock.calls[0][0].url).toMatch(
+                /^http:\/\/localhost:38081\/api\/v1\/network\/fees/,
             );
         });
 

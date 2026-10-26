@@ -1,5 +1,6 @@
 import { Long } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
+import { validateHookCreations } from "./hooks.js";
 import type { ContractCreateOperationOptions } from "../operations/ContractCreateOperation.js";
 
 const MAX_CONTRACT_MEMO_BYTES = 100;
@@ -23,6 +24,11 @@ export class ContractCreateValidator {
         this.validateInitialBalance(options);
         this.validateMemo(options);
         this.validateStakingMutex(options);
+        validateHookCreations(
+            "ContractCreateValidator",
+            "hooks",
+            options.hooks,
+        );
     }
 
     private validateBytecodeSource(

@@ -1,16 +1,29 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { PrivateKey } from "@hiero-ledger/sdk";
 import { setupIntegrationTestEnv } from "../../../utils/env.js";
-import { waitForMirrorNodeRecord } from "../../../utils/mirror-node.js";
-import { AccountService } from "../../../../src/services/index.js";
+import {
+    waitForMirrorEntity,
+    waitForMirrorNodeRecord,
+} from "../../../utils/mirror-node.js";
+import { queryAccountHooks } from "../../../utils/mirror-node-rest.js";
+import {
+    allowanceHook,
+    deployHookContract,
+} from "../../../utils/hook-contract.js";
+import {
+    AccountService,
+    ContractService,
+} from "../../../../src/services/index.js";
 import { AccountType } from "../../../../src/types/index.js";
 
 describe("AccountService.createAccount [Integration]", () => {
     let client: AccountService;
+    let contractService: ContractService;
 
     beforeAll(() => {
         const ctx = setupIntegrationTestEnv();
         client = new AccountService(ctx);
+        contractService = new ContractService(ctx);
     });
 
     it("creates an ED25519 account with a user-provided public key", async () => {
@@ -48,5 +61,33 @@ describe("AccountService.createAccount [Integration]", () => {
         await waitForMirrorNodeRecord();
         const balance = await client.getAccountBalance(account.accountId);
         expect(balance.tinybars).toBe(String(5 * 100_000_000));
+    });
+
+    // Skipped: Solo rejects hooks with HOOKS_NOT_ENABLED. Run on a network with HIP-1195 enabled.
+    it.skip("creates an account with an allowance hook (HIP-1195)", async () => {
+        const hookContractId = await deployHookContract(contractService);
+        const newKey = PrivateKey.generateED25519();
+
+        const account = await client.createAccount({
+            publicKey: newKey.publicKey.toString(),
+            keyType: AccountType.ED25519,
+            hooks: [allowanceHook(hookContractId, 1)],
+            additionalSigners: [newKey],
+        });
+
+        const hooks = await waitForMirrorEntity(
+            () => queryAccountHooks(account.accountId),
+            {
+                predicate: (found) => found.length > 0,
+                description: "account hooks",
+            },
+        );
+        expect(hooks).toEqual([
+            expect.objectContaining({
+                hook_id: 1,
+                contract_id: hookContractId.toString(),
+                deleted: false,
+            }),
+        ]);
     });
 });

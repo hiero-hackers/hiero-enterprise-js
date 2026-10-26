@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { Long } from "@hiero-ledger/sdk";
+import {
+    ContractId,
+    EvmHook,
+    HookCreationDetails,
+    HookExtensionPoint,
+    Long,
+} from "@hiero-ledger/sdk";
 import { ContractCreateValidator } from "../../../../../src/services/contract/validation/index.js";
 import type { ContractCreateOperationOptions } from "../../../../../src/services/contract/operations/index.js";
 
@@ -191,6 +197,32 @@ describe("ContractCreateValidator", () => {
                     stakedNodeId: 0,
                 }),
             ).not.toThrow();
+        });
+    });
+
+    describe("hooks", () => {
+        const hook = (hookId: number) =>
+            new HookCreationDetails({
+                extensionPoint: HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK,
+                hookId,
+                evmHook: new EvmHook({
+                    contractId: ContractId.fromString("0.0.1234"),
+                }),
+            });
+
+        it("accepts valid hooks", () => {
+            expect(() =>
+                validator.validate({ ...baseOptions, hooks: [hook(0)] }),
+            ).not.toThrow();
+        });
+
+        it("throws on a hook without an EVM hook contract", () => {
+            expect(() =>
+                validator.validate({
+                    ...baseOptions,
+                    hooks: [hook(0).setEvmHook(new EvmHook())],
+                }),
+            ).toThrow(/hooks\[0\]\.evmHook\.contractId is required/);
         });
     });
 });

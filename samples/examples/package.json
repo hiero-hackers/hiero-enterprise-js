@@ -12,6 +12,7 @@
     "dependencies": {
         "@hiero-hackers/enterprise-core": "workspace:*",
         "@hiero-hackers/enterprise-mirror": "workspace:*",
+        "@hiero-ledger/sdk": "^2.90.1",
         "dotenv": "^18.0.8"
     },
     "devDependencies": {

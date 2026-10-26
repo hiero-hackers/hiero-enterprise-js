@@ -1,4 +1,8 @@
-import type { TransactionReceipt, Key } from "@hiero-ledger/sdk";
+import type {
+    TransactionReceipt,
+    Key,
+    HookCreationDetails,
+} from "@hiero-ledger/sdk";
 import { AccountCreateTransaction, PublicKey, Hbar } from "@hiero-ledger/sdk";
 import { AccountType } from "../../../types/index.js";
 import type { Account } from "../../../types/index.js";
@@ -94,6 +98,13 @@ export interface CreateAccountOptions extends TransactionOptions {
      * Controls how long the account survives without being explicitly renewed.
      */
     autoRenewPeriod?: number;
+
+    /**
+     * Hooks to create with the account (HIP-1195). Each needs an extension point
+     * (`HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK`), a hook ID unique within the
+     * list, and an `EvmHook` with the hook contract.
+     */
+    hooks?: HookCreationDetails[];
 }
 
 export class CreateAccountOperation extends BaseOperation<CreateAccountOptions> {
@@ -191,6 +202,10 @@ export class CreateAccountOperation extends BaseOperation<CreateAccountOptions> 
 
         if (options.declineStakingReward != null) {
             tx.setDeclineStakingReward(options.declineStakingReward);
+        }
+
+        if (options.hooks != null) {
+            tx.setHooks(options.hooks);
         }
 
         return tx;

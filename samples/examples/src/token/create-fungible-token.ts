@@ -17,11 +17,11 @@
  * Run: pnpm tsx src/token/create-fungible-token.ts
  */
 
+import { PrivateKey } from "@hiero-ledger/sdk";
 import {
     AccountService,
     AccountType,
     HieroContext,
-    PrivateKey,
     TokenService,
 } from "@hiero-hackers/enterprise-core";
 import { getED25519Config } from "../env.js";

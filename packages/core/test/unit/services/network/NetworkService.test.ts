@@ -1,18 +1,31 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
+    AccountId,
     AddressBookQuery,
+    Client,
+    FeeEstimateMode,
+    FeeEstimateQuery,
+    FeeEstimateResponse,
+    Hbar,
     NetworkVersionInfoQuery,
+    PrivateKey,
     Query,
     Status,
     TransactionId,
     TransactionReceiptQuery,
     TransactionRecordQuery,
+    TransferTransaction,
     type NetworkVersionInfo,
     type NodeAddressBook,
+    type Transaction,
     type TransactionReceipt,
     type TransactionRecord,
 } from "@hiero-ledger/sdk";
-import { NetworkService } from "../../../../src/services/network/index.js";
+import {
+    NetworkService,
+    type EstimateFeeOptions,
+} from "../../../../src/services/network/index.js";
+import { HieroErrorCodes } from "../../../../src/errors/index.js";
 import { createMockContext } from "../../../utils/mock-context.js";
 import type { IHieroContext } from "../../../../src/context/index.js";
 
@@ -356,6 +369,178 @@ describe("NetworkService [facade contract]", () => {
                 name: "HieroError",
                 context: "NetworkService.getAddressBook",
             });
+        });
+    });
+
+    describe("estimateFee", () => {
+        const response = FeeEstimateResponse._fromJSON({
+            high_volume_multiplier: 1,
+            network: { multiplier: 9, subtotal: 900000 },
+            node: {
+                base: 100000,
+                extras: [
+                    {
+                        name: "SIGNATURES",
+                        included: 1,
+                        count: 2,
+                        charged: 1,
+                        fee_per_unit: 50000,
+                        subtotal: 50000,
+                    },
+                ],
+            },
+            service: { base: 0, extras: [] },
+            total: 1050000,
+        });
+        let estimate: ReturnType<typeof vi.spyOn>;
+
+        /** The fee estimate query sent to the mirror node. */
+        const sentFeeQuery = () =>
+            estimate.mock.contexts[0] as FeeEstimateQuery;
+
+        const transfer = () =>
+            new TransferTransaction()
+                .addHbarTransfer("0.0.2", Hbar.fromTinybars(-1))
+                .addHbarTransfer("0.0.3", Hbar.fromTinybars(1))
+                .setNodeAccountIds([AccountId.fromString("0.0.3")])
+                .setTransactionId(TransactionId.generate("0.0.1234"))
+                .freeze();
+
+        beforeEach(() => {
+            // A mirror-node REST call: FeeEstimateQuery is not a gRPC Query.
+            estimate = vi
+                .spyOn(FeeEstimateQuery.prototype, "execute")
+                .mockResolvedValue(response);
+        });
+
+        it("returns the fee components and total as plain data", async () => {
+            const result = await service.estimateFee(transfer());
+
+            expect(estimate).toHaveBeenCalledWith(context.client);
+            expect(result).toEqual({
+                network: { multiplier: 9, subtotal: "900000" },
+                node: {
+                    base: "100000",
+                    extras: [
+                        {
+                            name: "SIGNATURES",
+                            included: 1,
+                            count: 2,
+                            charged: 1,
+                            feePerUnit: "50000",
+                            subtotal: "50000",
+                        },
+                    ],
+                },
+                service: { base: "0", extras: [] },
+                highVolumeMultiplier: 1,
+                total: "1050000",
+            });
+        });
+
+        it("uses the SDK defaults when no options are given", async () => {
+            await service.estimateFee(transfer());
+
+            expect(sentFeeQuery().getMode()).toBe(FeeEstimateMode.INTRINSIC);
+            expect(sentFeeQuery().getHighVolumeThrottle()).toBe(0);
+        });
+
+        it("passes the mode and high-volume throttle", async () => {
+            await service.estimateFee(transfer(), {
+                mode: FeeEstimateMode.STATE,
+                highVolumeThrottle: 10000,
+            });
+
+            expect(sentFeeQuery().getMode()).toBe(FeeEstimateMode.STATE);
+            expect(sentFeeQuery().getHighVolumeThrottle()).toBe(10000);
+        });
+
+        it("rejects an unfrozen transaction with INPUT_INVALID", async () => {
+            const tx = new TransferTransaction()
+                .addHbarTransfer("0.0.2", Hbar.fromTinybars(-1))
+                .addHbarTransfer("0.0.3", Hbar.fromTinybars(1));
+
+            await expect(service.estimateFee(tx)).rejects.toMatchObject({
+                code: HieroErrorCodes.InputInvalid,
+                message: expect.stringMatching(/must be frozen/),
+            });
+
+            expect(estimate).not.toHaveBeenCalled();
+            expect(tx.isFrozen()).toBe(false);
+        });
+
+        it("keeps the payer and signatures when the query freezes the copy", async () => {
+            const key = PrivateKey.generateED25519();
+            const tx = transfer();
+            await tx.sign(key);
+
+            await service.estimateFee(tx);
+
+            // FeeEstimateQuery freezes its transaction again before sending.
+            const copy = sentFeeQuery().transaction!;
+            const client = Client.forNetwork({
+                "127.0.0.1:50211": "0.0.3",
+            }).setOperator("0.0.2", PrivateKey.generateED25519());
+            copy.freezeWith(client);
+            client.close();
+
+            expect(copy).not.toBe(tx);
+            expect(Buffer.from(copy.toBytes())).toEqual(
+                Buffer.from(tx.toBytes()),
+            );
+        });
+
+        it("does not notify listeners", async () => {
+            await service.estimateFee(transfer());
+
+            expect(context.emitBeforeTransaction).not.toHaveBeenCalled();
+            expect(context.emitAfterTransaction).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            [{ mode: 2 }, "mode must be FeeEstimateMode.STATE (0)"],
+            [{ highVolumeThrottle: -1 }, "got -1."],
+            [{ highVolumeThrottle: 1.5 }, "got 1.5."],
+            [{ highVolumeThrottle: 10001 }, "got 10001."],
+        ])(
+            "rejects %j with INPUT_INVALID before estimating",
+            async (options, message) => {
+                await expect(
+                    service.estimateFee(
+                        transfer(),
+                        options as EstimateFeeOptions,
+                    ),
+                ).rejects.toMatchObject({
+                    code: "INPUT_INVALID",
+                    context: "NetworkService.estimateFee",
+                    message: expect.stringContaining(message),
+                });
+                expect(estimate).not.toHaveBeenCalled();
+            },
+        );
+
+        it("rejects a missing transaction with INPUT_INVALID", async () => {
+            await expect(
+                service.estimateFee(undefined as unknown as Transaction),
+            ).rejects.toMatchObject({
+                code: "INPUT_INVALID",
+                context: "NetworkService.estimateFee",
+            });
+            expect(estimate).not.toHaveBeenCalled();
+        });
+
+        it("normalizes a mirror node failure", async () => {
+            estimate.mockRejectedValueOnce(
+                new Error("Failed to estimate fees: HTTP 400: Bad Request"),
+            );
+
+            await expect(service.estimateFee(transfer())).rejects.toMatchObject(
+                {
+                    name: "HieroError",
+                    code: "SDK_ERROR",
+                    context: "NetworkService.estimateFee",
+                },
+            );
         });
     });
 });

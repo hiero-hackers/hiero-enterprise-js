@@ -6,6 +6,7 @@ import type {
     FileId,
     AccountId,
     ContractFunctionParameters,
+    HookCreationDetails,
 } from "@hiero-ledger/sdk";
 import { ContractCreateTransaction } from "@hiero-ledger/sdk";
 import { HieroError } from "../../../errors/HieroError.js";
@@ -70,6 +71,12 @@ export interface ContractCreateOperationOptions extends TransactionOptions {
      * `-1` for unlimited (HIP-904).
      */
     maxAutomaticTokenAssociations?: number;
+    /**
+     * Hooks to create with the contract (HIP-1195). Each needs an extension point
+     * (`HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK`), a hook ID unique within the
+     * list, and an `EvmHook` with the hook contract.
+     */
+    hooks?: HookCreationDetails[];
 }
 
 export class ContractCreateOperation extends BaseOperation<ContractCreateOperationOptions> {
@@ -167,6 +174,10 @@ export class ContractCreateOperation extends BaseOperation<ContractCreateOperati
             tx.setMaxAutomaticTokenAssociations(
                 options.maxAutomaticTokenAssociations,
             );
+        }
+
+        if (options.hooks != null) {
+            tx.setHooks(options.hooks);
         }
 
         return tx;

@@ -3,6 +3,10 @@ import { PrivateKey } from "@hiero-ledger/sdk";
 import { setupIntegrationTestEnv } from "../../../utils/env.js";
 import { waitForMirrorNodeRecord } from "../../../utils/mirror-node.js";
 import { queryContractInfo } from "../../../utils/mirror-node-rest.js";
+import {
+    allowanceHook,
+    deployHookContract,
+} from "../../../utils/hook-contract.js";
 import { ContractService } from "../../../../src/services/index.js";
 
 /**
@@ -103,5 +107,27 @@ describe("ContractUpdateOperation", () => {
         );
 
         expect(scheduled.scheduleId.toString()).toMatch(/^0\.0\.\d+$/);
+    });
+
+    // Skipped: Solo rejects hooks with HOOKS_NOT_ENABLED. Run on a network with HIP-1195 enabled.
+    it.skip("adds an allowance hook and deletes it again (HIP-1195)", async () => {
+        const hookContractId = await deployHookContract(contractService);
+        const adminKey = PrivateKey.generateED25519();
+        const contractId = await deployMutableContract(adminKey);
+
+        const created = await contractService.updateContract({
+            contractId,
+            hooksToCreate: [allowanceHook(hookContractId, 1)],
+            additionalSigners: [adminKey],
+        });
+        expect(created.status).toBe("SUCCESS");
+
+        // Fails with HOOK_NOT_FOUND unless the hook was created.
+        const deleted = await contractService.updateContract({
+            contractId,
+            hooksToDelete: [1],
+            additionalSigners: [adminKey],
+        });
+        expect(deleted.status).toBe("SUCCESS");
     });
 });

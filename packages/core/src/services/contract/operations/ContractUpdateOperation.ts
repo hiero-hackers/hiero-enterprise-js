@@ -2,11 +2,11 @@ import type {
     AccountId,
     ContractId,
     FileId,
+    HookCreationDetails,
     Key,
-    Long,
     Timestamp,
 } from "@hiero-ledger/sdk";
-import { ContractUpdateTransaction } from "@hiero-ledger/sdk";
+import { ContractUpdateTransaction, Long } from "@hiero-ledger/sdk";
 import { BaseOperation } from "../../transaction/index.js";
 import type {
     TransactionOptions,
@@ -56,6 +56,14 @@ export interface ContractUpdateOperationOptions extends TransactionOptions {
      * Update the auto-association limit (HIP-23). `-1` is unlimited (HIP-904).
      */
     maxAutomaticTokenAssociations?: number;
+    /**
+     * Hooks to add to the contract (HIP-1195). Each needs an extension point
+     * (`HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK`), a hook ID unique within the
+     * list, and an `EvmHook` with the hook contract.
+     */
+    hooksToCreate?: HookCreationDetails[];
+    /** Hook IDs (non-negative integers) of the contract's hooks to delete (HIP-1195). */
+    hooksToDelete?: (number | Long)[];
 }
 
 export class ContractUpdateOperation extends BaseOperation<ContractUpdateOperationOptions> {
@@ -132,6 +140,16 @@ export class ContractUpdateOperation extends BaseOperation<ContractUpdateOperati
         if (options.maxAutomaticTokenAssociations != null) {
             tx.setMaxAutomaticTokenAssociations(
                 options.maxAutomaticTokenAssociations,
+            );
+        }
+
+        if (options.hooksToCreate != null) {
+            tx.setHooksToCreate(options.hooksToCreate);
+        }
+
+        if (options.hooksToDelete != null) {
+            tx.setHooksToDelete(
+                options.hooksToDelete.map((hookId) => Long.fromValue(hookId)),
             );
         }
 

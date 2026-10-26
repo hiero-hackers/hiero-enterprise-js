@@ -1,5 +1,5 @@
-import { AccountUpdateTransaction } from "@hiero-ledger/sdk";
-import type { Key } from "@hiero-ledger/sdk";
+import { AccountUpdateTransaction, Long } from "@hiero-ledger/sdk";
+import type { Key, HookCreationDetails } from "@hiero-ledger/sdk";
 import { BaseOperation } from "../../transaction/index.js";
 import type {
     TransactionOptions,
@@ -61,6 +61,16 @@ export interface UpdateAccountOptions extends TransactionOptions {
      * Controls how long the account survives without being explicitly renewed.
      */
     autoRenewPeriod?: number;
+
+    /**
+     * Hooks to add to the account (HIP-1195). Each needs an extension point
+     * (`HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK`), a hook ID unique within the
+     * list, and an `EvmHook` with the hook contract.
+     */
+    hooksToCreate?: HookCreationDetails[];
+
+    /** Hook IDs (non-negative integers) of the account's hooks to delete (HIP-1195). */
+    hooksToDelete?: (number | Long)[];
 }
 
 export class UpdateAccountOperation extends BaseOperation<UpdateAccountOptions> {
@@ -127,6 +137,16 @@ export class UpdateAccountOperation extends BaseOperation<UpdateAccountOptions> 
 
         if (options.declineStakingReward != null) {
             tx.setDeclineStakingReward(options.declineStakingReward);
+        }
+
+        if (options.hooksToCreate != null) {
+            tx.setHooksToCreate(options.hooksToCreate);
+        }
+
+        if (options.hooksToDelete != null) {
+            tx.setHooksToDelete(
+                options.hooksToDelete.map((hookId) => Long.fromValue(hookId)),
+            );
         }
 
         return tx;

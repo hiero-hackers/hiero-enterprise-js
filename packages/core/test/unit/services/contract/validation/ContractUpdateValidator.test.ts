@@ -1,4 +1,10 @@
 import { describe, it, expect } from "vitest";
+import {
+    ContractId,
+    EvmHook,
+    HookCreationDetails,
+    HookExtensionPoint,
+} from "@hiero-ledger/sdk";
 import { ContractUpdateValidator } from "../../../../../src/services/contract/validation/index.js";
 import type { ContractUpdateOperationOptions } from "../../../../../src/services/contract/operations/index.js";
 
@@ -150,6 +156,42 @@ describe("ContractUpdateValidator", () => {
                     maxAutomaticTokenAssociations: -2,
                 }),
             ).toThrow(/-1 \(unlimited\) or a non-negative integer/);
+        });
+    });
+
+    describe("hooksToCreate / hooksToDelete", () => {
+        const hook = (hookId: number) =>
+            new HookCreationDetails({
+                extensionPoint: HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK,
+                hookId,
+                evmHook: new EvmHook({
+                    contractId: ContractId.fromString("0.0.1234"),
+                }),
+            });
+
+        it("accepts hooks to create and hook IDs to delete", () => {
+            expect(() =>
+                validator.validate({
+                    ...baseOptions,
+                    hooksToCreate: [hook(2)],
+                    hooksToDelete: [1],
+                }),
+            ).not.toThrow();
+        });
+
+        it("throws on a duplicate hook ID to create", () => {
+            expect(() =>
+                validator.validate({
+                    ...baseOptions,
+                    hooksToCreate: [hook(2), hook(2)],
+                }),
+            ).toThrow(/hooksToCreate uses hookId 2 more than once/);
+        });
+
+        it("throws on a fractional hook ID to delete", () => {
+            expect(() =>
+                validator.validate({ ...baseOptions, hooksToDelete: [1.5] }),
+            ).toThrow(/hooksToDelete\[0\] must be a non-negative integer/);
         });
     });
 });

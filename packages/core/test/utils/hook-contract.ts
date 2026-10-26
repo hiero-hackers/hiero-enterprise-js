@@ -1,0 +1,71 @@
+/**
+ * Allowance-hook contract fixture for HIP-1195 integration tests.
+ */
+
+import type { ContractId, EvmHookStorageUpdate } from "@hiero-ledger/sdk";
+import {
+    EvmHook,
+    HookCreationDetails,
+    HookExtensionPoint,
+} from "@hiero-ledger/sdk";
+import type { ContractService } from "../../src/services/index.js";
+
+/**
+ * Compiled account allowance hook, taken from the hiero-sdk-js
+ * `HookStoreIntegrationTest`. Small enough to embed in the transaction.
+ */
+const HOOK_CONTRACT_BYTECODE_HEX =
+    "6080604052348015600e575f5ffd5b506103da8061001c5f395ff3fe6080604052600436" +
+    "1061001d575f3560e01c80630b6c5c0414610021575b5f5ffd5b61003b60048036038101" +
+    "90610036919061021c565b610051565b60405161004891906102ed565b60405180910390" +
+    "f35b5f61016d73ffffffffffffffffffffffffffffffffffffffff163073ffffffffffff" +
+    "ffffffffffffffffffffffffffff16146100c2576040517f08c379a00000000000000000" +
+    "000000000000000000000000000000000000000081526004016100b990610386565b6040" +
+    "5180910390fd5b60019050979650505050505050565b5f5ffd5b5f5ffd5b5f73ffffffff" +
+    "ffffffffffffffffffffffffffffffff82169050919050565b5f610102826100d9565b90" +
+    "50919050565b610112816100f8565b811461011c575f5ffd5b50565b5f8135905061012d" +
+    "81610109565b92915050565b5f819050919050565b61014581610133565b811461014f57" +
+    "5f5ffd5b50565b5f813590506101608161013c565b92915050565b5f5ffd5b5f5ffd5b5f" +
+    "5ffd5b5f5f83601f84011261018757610186610166565b5b8235905067ffffffffffffff" +
+    "ff8111156101a4576101a361016a565b5b6020830191508360018202830111156101c057" +
+    "6101bf61016e565b5b9250929050565b5f5f83601f8401126101dc576101db610166565b" +
+    "5b8235905067ffffffffffffffff8111156101f9576101f861016a565b5b602083019150" +
+    "8360018202830111156102155761021461016e565b5b9250929050565b5f5f5f5f5f5f5f" +
+    "60a0888a031215610237576102366100d1565b5b5f6102448a828b0161011f565b975050" +
+    "60206102558a828b01610152565b96505060406102668a828b01610152565b9550506060" +
+    "88013567ffffffffffffffff811115610287576102866100d5565b5b6102938a828b0161" +
+    "0172565b9450945050608088013567ffffffffffffffff8111156102b6576102b56100d5" +
+    "565b5b6102c28a828b016101c7565b925092505092959891949750929550565b5f811515" +
+    "9050919050565b6102e7816102d3565b82525050565b5f6020820190506103005f830184" +
+    "6102de565b92915050565b5f82825260208201905092915050565b7f436f6e7472616374" +
+    "2063616e206f6e6c792062652063616c6c656420617320615f8201527f20686f6f6b0000" +
+    "00000000000000000000000000000000000000000000000000602082015250565b5f6103" +
+    "70602583610306565b915061037b82610316565b604082019050919050565b5f60208201" +
+    "90508181035f83015261039d81610364565b905091905056fea2646970667358221220a8" +
+    "c76458204f8bb9a86f59ec2f0ccb7cbe8ae4dcb65700c4b6ee91a39404083a64736f6c63" +
+    "4300081e0033";
+
+/** Deploy the allowance-hook contract and return its ID. */
+export async function deployHookContract(
+    contractService: ContractService,
+): Promise<ContractId> {
+    const { contractId } = await contractService.createContract({
+        bytecode: Buffer.from(HOOK_CONTRACT_BYTECODE_HEX, "hex"),
+        gas: 300_000,
+    });
+
+    return contractId;
+}
+
+/** An account allowance hook running `contractId`. */
+export function allowanceHook(
+    contractId: ContractId,
+    hookId: number,
+    storageUpdates: EvmHookStorageUpdate[] = [],
+): HookCreationDetails {
+    return new HookCreationDetails({
+        extensionPoint: HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK,
+        hookId,
+        evmHook: new EvmHook({ contractId, storageUpdates }),
+    });
+}

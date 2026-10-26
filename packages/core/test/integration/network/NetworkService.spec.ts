@@ -1,18 +1,34 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import {
+    FeeEstimateMode,
+    Hbar,
+    PrivateKey,
+    TransferTransaction,
+    type Client,
+} from "@hiero-ledger/sdk";
 import {
     setupIntegrationTestEnv,
     IntegrationTracker,
 } from "../../utils/env.js";
 import { waitForMirrorNodeRecord } from "../../utils/mirror-node.js";
-import { createTestAccount } from "../../utils/integration-fixtures.js";
+import {
+    createTestAccount,
+    type TestAccount,
+} from "../../utils/integration-fixtures.js";
+import { resolveConfigFromEnv } from "../../../src/config/index.js";
+import { HieroContext } from "../../../src/context/index.js";
+import { HieroError } from "../../../src/errors/index.js";
 import { AccountService, NetworkService } from "../../../src/services/index.js";
+import { OperatorKeyType } from "../../../src/types/index.js";
 
 describe("NetworkService [Integration]", () => {
+    let client: Client;
     let accountService: AccountService;
     let networkService: NetworkService;
 
     beforeAll(() => {
         const ctx = setupIntegrationTestEnv();
+        client = ctx.client;
         accountService = new AccountService(ctx);
         networkService = new NetworkService(ctx);
     });
@@ -96,6 +112,67 @@ describe("NetworkService [Integration]", () => {
         }, 60_000);
     });
 
+    describe("estimateFee", () => {
+        let payerCtx: HieroContext;
+        let payer: TestAccount;
+        let other: TestAccount;
+
+        beforeAll(async () => {
+            // The env operator is a system account that pays no fees.
+            payer = await createTestAccount(accountService, 10);
+            other = await createTestAccount(accountService, 10);
+            payerCtx = new HieroContext({
+                ...resolveConfigFromEnv(),
+                operatorId: payer.accountId,
+                operatorKey: payer.key.toStringDer(),
+                operatorKeyType: OperatorKeyType.DER,
+            });
+        });
+
+        afterAll(() => {
+            payerCtx?.close();
+        });
+
+        // Two senders, so a second signature must be priced as an extra.
+        const transfer = () =>
+            new TransferTransaction()
+                .addHbarTransfer(payer.accountId, Hbar.fromTinybars(-1))
+                .addHbarTransfer(other.accountId, Hbar.fromTinybars(-1))
+                .addHbarTransfer("0.0.2", Hbar.fromTinybars(2))
+                .freezeWith(payerCtx.client);
+
+        it("estimates close to the fee the network charges, signatures included", async () => {
+            const tx = transfer();
+            await tx.sign(payer.key);
+            await tx.sign(other.key);
+
+            const estimate = await new NetworkService(payerCtx).estimateFee(tx);
+            const response = await tx.execute(payerCtx.client);
+            const record = await response.getRecord(payerCtx.client);
+
+            // Tinybars to tinycents with the rate the network applied.
+            const rate = record.receipt.exchangeRate!;
+            const charged =
+                (record.transactionFee.toTinybars().toNumber() * rate.cents) /
+                rate.hbars;
+            expect(estimate.node.extras).toContainEqual(
+                expect.objectContaining({ name: "SIGNATURES", count: 2 }),
+            );
+            expect(
+                Math.abs(charged - Number(estimate.total)) / charged,
+            ).toBeLessThan(0.05);
+        }, 60_000);
+
+        it("estimates in STATE mode", async () => {
+            const estimate = await new NetworkService(payerCtx).estimateFee(
+                transfer(),
+                { mode: FeeEstimateMode.STATE },
+            );
+
+            expect(BigInt(estimate.total)).toBeGreaterThan(0n);
+        }, 60_000);
+    });
+
     describe("generateRandom", () => {
         it("returns an integer below the range", async () => {
             const random = await networkService.generateRandom({ range: 10 });
@@ -112,5 +189,102 @@ describe("NetworkService [Integration]", () => {
             expect(random.prngBytes?.length).toBe(48);
             expect(random.prngNumber).toBeNull();
         }, 60_000);
+    });
+
+    describe("submitBatch", () => {
+        const batchKey = PrivateKey.generateED25519();
+
+        /** An HBAR transfer from `from` to `to`, batchified and signed. */
+        async function batchedTransfer(
+            from: TestAccount,
+            to: TestAccount,
+            hbar: number,
+        ) {
+            const tx = await new TransferTransaction()
+                .addHbarTransfer(from.accountId, new Hbar(-hbar))
+                .addHbarTransfer(to.accountId, new Hbar(hbar))
+                .batchify(client, batchKey.publicKey);
+
+            return await tx.sign(from.key);
+        }
+
+        async function tinybars(account: TestAccount) {
+            return (await accountService.getAccountBalance(account.accountId))
+                .tinybars;
+        }
+
+        it("lands every inner transfer", async () => {
+            const alice = await createTestAccount(accountService, 10);
+            const bob = await createTestAccount(accountService, 10);
+
+            const result = await networkService.submitBatch({
+                transactions: [
+                    await batchedTransfer(alice, bob, 2),
+                    await batchedTransfer(bob, alice, 1),
+                ],
+                batchKeys: [batchKey],
+            });
+
+            expect(result.status).toBe("SUCCESS");
+            expect(result.innerTransactionIds).toHaveLength(2);
+
+            for (const transactionId of result.innerTransactionIds) {
+                const receipt = await networkService.getTransactionReceipt({
+                    transactionId,
+                });
+                expect(receipt.status.toString()).toBe("SUCCESS");
+            }
+
+            await waitForMirrorNodeRecord();
+            expect(await tinybars(alice)).toBe(String(9 * 100_000_000));
+            expect(await tinybars(bob)).toBe(String(11 * 100_000_000));
+        }, 120_000);
+
+        it("needs no batchKeys when the operator is the batch key", async () => {
+            const alice = await createTestAccount(accountService, 10);
+            const bob = await createTestAccount(accountService, 10);
+            const tx = await new TransferTransaction()
+                .addHbarTransfer(alice.accountId, new Hbar(-1))
+                .addHbarTransfer(bob.accountId, new Hbar(1))
+                .batchify(client, client.operatorPublicKey!);
+            await tx.sign(alice.key);
+
+            const result = await networkService.submitBatch({
+                transactions: [tx],
+            });
+
+            expect(result.status).toBe("SUCCESS");
+        }, 120_000);
+
+        it("lands nothing when an inner transfer fails", async () => {
+            const alice = await createTestAccount(accountService, 10);
+            const bob = await createTestAccount(accountService, 10);
+
+            const error = await networkService
+                .submitBatch({
+                    transactions: [
+                        await batchedTransfer(alice, bob, 2),
+                        // Bob holds 10 HBAR, so this one fails.
+                        await batchedTransfer(bob, alice, 100),
+                    ],
+                    batchKeys: [batchKey],
+                })
+                .catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(HieroError);
+            expect(error).toMatchObject({
+                sdkStatus: "INNER_TRANSACTION_FAILED",
+                transactionId: expect.any(String),
+            });
+            expect((error as HieroError).innerTransactionIds).toHaveLength(2);
+
+            // The failed batch still reaches consensus and the mirror node.
+            IntegrationTracker.lastTransactionId = (
+                error as HieroError
+            ).transactionId;
+            await waitForMirrorNodeRecord();
+            expect(await tinybars(alice)).toBe(String(10 * 100_000_000));
+            expect(await tinybars(bob)).toBe(String(10 * 100_000_000));
+        }, 120_000);
     });
 });

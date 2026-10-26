@@ -7,6 +7,7 @@ import {
     EthereumOperation,
     ContractUpdateOperation,
     ContractDeleteOperation,
+    HookStoreOperation,
 } from "./operations/index.js";
 import type {
     ContractCreateOperationOptions,
@@ -15,13 +16,18 @@ import type {
     EthereumOperationOptions,
     ContractUpdateOperationOptions,
     ContractDeleteOperationOptions,
+    HookStoreOperationOptions,
 } from "./operations/index.js";
 import {
     ContractCallQuery,
     ContractInfoQuery,
     ContractBytecodeQuery,
+    MirrorNodeContractQuery,
 } from "./queries/index.js";
-import type { ContractCallQueryOptions } from "./queries/index.js";
+import type {
+    ContractCallQueryOptions,
+    MirrorNodeContractQueryOptions,
+} from "./queries/index.js";
 import type {
     ContractId,
     ContractInfo,
@@ -108,15 +114,31 @@ export type DeleteContractOptions = ContractDeleteOperationOptions;
 export type CallContractOptions = ContractCallQueryOptions;
 
 /**
+ * Options for `ContractService.simulateContractCall` and
+ * `ContractService.estimateContractGas`: a contract call simulated on the
+ * mirror node instead of a consensus node.
+ */
+export type MirrorContractCallOptions = MirrorNodeContractQueryOptions;
+
+/**
+ * Options for updating an EVM hook's storage via `HookStoreTransaction`
+ * (HIP-1195). The hook's owner is an account or a contract.
+ */
+export type UpdateHookStorageOptions = HookStoreOperationOptions;
+
+/**
  * Service for managing smart contracts on the Hiero network (HSCS — the
  * Smart Contract Service).
  *
  * Wraps the underlying `ContractCreateTransaction` /
  * `ContractExecuteTransaction` / `ContractCallQuery` / `ContractUpdateTransaction`
  * / `ContractDeleteTransaction` / `ContractInfoQuery` / `ContractBytecodeQuery`
- * SDK surface with validated, observability-aware operations. Listeners
+ * / `MirrorNodeContractCallQuery` / `MirrorNodeContractEstimateQuery` /
+ * `HookStoreTransaction` SDK surface with validated, observability-aware
+ * operations. Listeners
  * registered on the surrounding `HieroContext` see `before` / `after` events
- * for every contract transaction submitted here.
+ * for every contract transaction and consensus-node query submitted here;
+ * the mirror node simulations emit none.
  *
  * Operations are organised internally into per-transaction classes under
  * `services/contract/operations/` (write) and `services/contract/queries/`
@@ -131,9 +153,11 @@ export class ContractService {
     private readonly ethereumOperation: EthereumOperation;
     private readonly updateOperation: ContractUpdateOperation;
     private readonly deleteOperation: ContractDeleteOperation;
+    private readonly hookStoreOperation: HookStoreOperation;
     private readonly callQuery: ContractCallQuery;
     private readonly infoQuery: ContractInfoQuery;
     private readonly bytecodeQuery: ContractBytecodeQuery;
+    private readonly mirrorQuery: MirrorNodeContractQuery;
 
     constructor(private readonly context: IHieroContext) {
         this.createOperation = new ContractCreateOperation(context);
@@ -142,9 +166,11 @@ export class ContractService {
         this.ethereumOperation = new EthereumOperation(context);
         this.updateOperation = new ContractUpdateOperation(context);
         this.deleteOperation = new ContractDeleteOperation(context);
+        this.hookStoreOperation = new HookStoreOperation(context);
         this.callQuery = new ContractCallQuery(context);
         this.infoQuery = new ContractInfoQuery(context);
         this.bytecodeQuery = new ContractBytecodeQuery(context);
+        this.mirrorQuery = new MirrorNodeContractQuery(context);
     }
 
     /**
@@ -166,6 +192,7 @@ export class ContractService {
      * @param options.stakedNodeId - Node this contract stakes to (mutex with `stakedAccountId`)
      * @param options.declineStakingReward - Decline staking reward distribution
      * @param options.maxAutomaticTokenAssociations - Allow auto-associating up to N tokens (HIP-23 / HIP-904)
+     * @param options.hooks - Hooks to create with the contract (HIP-1195)
      * @returns The contract ID of the deployed contract (e.g., `"0.0.12345"`)
      *
      * @example
@@ -347,6 +374,8 @@ export class ContractService {
      * @param options.stakedNodeId - Switch staking target (mutex with `stakedAccountId`)
      * @param options.declineStakingReward - Toggle staking-reward decline
      * @param options.maxAutomaticTokenAssociations - Update the auto-association limit (HIP-23 / HIP-904)
+     * @param options.hooksToCreate - Hooks to add to the contract (HIP-1195)
+     * @param options.hooksToDelete - IDs of the contract's hooks to delete (HIP-1195)
      *
      * @example
      * ```typescript
@@ -434,6 +463,37 @@ export class ContractService {
     }
 
     /**
+     * Update the storage of an EVM hook (HIP-1195) owned by an account or a
+     * contract.
+     *
+     * Either the owner's key or the hook's admin key must sign; pass it via
+     * `additionalSigners`. Not schedulable.
+     *
+     * @param options.accountId - Account that owns the hook (mutex with `contractId`)
+     * @param options.contractId - Contract that owns the hook (mutex with `accountId`)
+     * @param options.hookId - The owner's hook ID
+     * @param options.storageUpdates - `EvmHookStorageSlot` / `EvmHookMappingEntries` updates, at least one
+     *
+     * @example
+     * ```typescript
+     * await contractService.updateHookStorage({
+     *     accountId: "0.0.1234",
+     *     hookId: 1,
+     *     storageUpdates: [
+     *         new EvmHookStorageSlot({
+     *             key: new Uint8Array([0x01]),
+     *             value: new Uint8Array([0x2a]),
+     *         }),
+     *     ],
+     *     additionalSigners: [ownerKey],
+     * });
+     * ```
+     */
+    async updateHookStorage(options: UpdateHookStorageOptions) {
+        return await this.hookStoreOperation.execute(options);
+    }
+
+    /**
      * Invoke a view / pure contract function locally via
      * `ContractCallQuery`. The call executes on the queried node only —
      * no consensus round-trip and no gas is charged on success, so this
@@ -471,6 +531,70 @@ export class ContractService {
         options: CallContractOptions,
     ): Promise<ContractFunctionResult> {
         return await this.callQuery.execute(options);
+    }
+
+    /**
+     * Simulate a contract call on the mirror node
+     * (`MirrorNodeContractCallQuery`). Free and needs no gas limit, but
+     * reads the mirror node's state, a few seconds behind consensus. Use
+     * `callContract` to read from a consensus node.
+     *
+     * Listeners do not see this call: it never reaches a consensus node.
+     *
+     * @param options.contractId - Contract to call
+     * @param options.functionName - Function name to call; SDK encodes parameters
+     * @param options.functionParameters - ABI-typed parameters (paired with `functionName`)
+     * @param options.rawFunctionParameters - Pre-encoded call data (mutex with `functionName`)
+     * @param options.sender - Account used as `msg.sender`: its alias if the ID carries one, else its long-zero address
+     * @param options.senderEvmAddress - EVM address used as `msg.sender`, e.g. an ECDSA alias (mutex with `sender`)
+     * @param options.value - Tinybars sent with the call
+     * @param options.gasLimit - Gas limit for the simulation
+     * @param options.gasPrice - Gas price in tinybars
+     * @returns The call's return data as a `0x…` hex string
+     * @throws {HieroError} `INPUT_INVALID` for a bad call target, both
+     *   `sender` and `senderEvmAddress`, a malformed `senderEvmAddress`, a
+     *   negative or fractional amount, or call data over 131072 bytes;
+     *   `SDK_ERROR` when the mirror node rejects the call, e.g. on a revert
+     *
+     * @example
+     * ```typescript
+     * const result = await contractService.simulateContractCall({
+     *     contractId: "0.0.12345",
+     *     functionName: "get",
+     * });
+     * const value = BigInt(result);
+     * ```
+     */
+    async simulateContractCall(
+        options: MirrorContractCallOptions,
+    ): Promise<string> {
+        return await this.mirrorQuery.call(options);
+    }
+
+    /**
+     * Estimate the gas a contract call needs, on the mirror node
+     * (`MirrorNodeContractEstimateQuery`), e.g. to pick the `gas` for
+     * `executeContract`.
+     *
+     * Listeners do not see this call: it never reaches a consensus node.
+     *
+     * @param options - Same fields as `simulateContractCall`
+     * @returns The estimated gas
+     * @throws {HieroError} As `simulateContractCall`
+     *
+     * @example
+     * ```typescript
+     * const gas = await contractService.estimateContractGas({
+     *     contractId: "0.0.12345",
+     *     functionName: "set",
+     *     functionParameters: new ContractFunctionParameters().addUint256(42),
+     * });
+     * ```
+     */
+    async estimateContractGas(
+        options: MirrorContractCallOptions,
+    ): Promise<number> {
+        return await this.mirrorQuery.estimate(options);
     }
 
     /**

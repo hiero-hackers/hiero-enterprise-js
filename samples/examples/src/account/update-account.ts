@@ -9,13 +9,8 @@
  * Run: pnpm tsx src/account/update-account.ts
  */
 
-import {
-    AccountService,
-    HieroContext,
-    PrivateKey,
-    Hbar,
-    KeyList,
-} from "@hiero-hackers/enterprise-core";
+import { PrivateKey, Hbar, KeyList } from "@hiero-ledger/sdk";
+import { AccountService, HieroContext } from "@hiero-hackers/enterprise-core";
 import { getED25519Config } from "../env.js";
 
 async function main() {
