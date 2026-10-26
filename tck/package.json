@@ -1,0 +1,22 @@
+{
+    "name": "@hiero-hackers/tck-adapter",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "description": "JSON-RPC server that lets the Hiero SDK TCK drive @hiero-hackers/enterprise-core",
+    "scripts": {
+        "start": "tsx server.ts",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@hiero-hackers/enterprise-core": "workspace:*",
+        "@hiero-ledger/proto": "^2.32.0",
+        "@hiero-ledger/sdk": "^2.90.1",
+        "express": "5.2.1",
+        "json-rpc-2.0": "1.7.0"
+    },
+    "devDependencies": {
+        "@types/express": "^5.0.6",
+        "@types/node": "^26.6.5"
+    }
+}

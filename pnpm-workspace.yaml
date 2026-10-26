@@ -1,6 +1,7 @@
 packages:
     - "packages/*"
     - "samples/*"
+    - "tck"
 
 # Build scripts (pnpm 11 blocks these by default).
 # esbuild: install script links the platform-specific binary — required.
