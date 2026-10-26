@@ -4,6 +4,7 @@ import { closeSession, openSession, replaceOperator } from "../session.js";
 
 const require = createRequire(import.meta.url);
 const CORE_VERSION = JSON.parse(
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- core's own package.json, from require.resolve
     readFileSync(
         require.resolve("@hiero-hackers/enterprise-core/package.json"),
         "utf8",

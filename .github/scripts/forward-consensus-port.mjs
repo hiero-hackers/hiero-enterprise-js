@@ -47,10 +47,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const NAMESPACE = process.env.SOLO_NAMESPACE || "solo";
 const NODE_GRPC_PORT = 50211;
 /** Local port -> the Solo services behind it. The action hardcodes 36211 for node 2. */
-const NODES = {
-    50211: { service: "network-node1-svc", haproxy: "haproxy-node1-svc" },
-    36211: { service: "network-node2-svc", haproxy: "haproxy-node2-svc" },
-};
+const NODES = new Map([
+    [50211, { service: "network-node1-svc", haproxy: "haproxy-node1-svc" }],
+    [36211, { service: "network-node2-svc", haproxy: "haproxy-node2-svc" }],
+]);
 const CONNECT_TIMEOUT_MS = 3000;
 const SETTLE_TIMEOUT_MS = 10000;
 
@@ -149,6 +149,7 @@ function stopHaproxyForward(localPort, haproxyService) {
 }
 
 function startDetached(logFile, file, args) {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- log file under the runner's temp dir
     const fd = openSync(logFile, "a");
     const child = spawn(file, args, {
         detached: true,
@@ -160,7 +161,7 @@ function startDetached(logFile, file, args) {
 }
 
 async function setupPort(localPort, logDir) {
-    const { service, haproxy } = NODES[localPort];
+    const { service, haproxy } = NODES.get(localPort);
     const logFile = path.join(logDir, `${localPort}.log`);
     const nodePort = nodePortOf(service);
     const address = kindNodeAddress();
@@ -257,30 +258,31 @@ async function main() {
             process.env.RUNNER_TEMP || os.tmpdir(),
             "consensus-port-forward",
         );
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- the runner's temp dir, or FORWARD_LOG_DIR
     mkdirSync(logDir, { recursive: true });
 
     const ports = (process.env.CONSENSUS_PORTS || "")
         .split(",")
         .map((p) => Number(p.trim()))
-        .filter((p) => NODES[p] != null);
+        .filter((p) => NODES.has(p));
 
     if (ports.length === 0) {
         ports.push(50211);
 
-        if (serviceExists(NODES[36211].service)) {
+        if (serviceExists(NODES.get(36211).service)) {
             ports.push(36211);
         }
     }
 
-    const modes = {};
+    const modes = new Map();
     for (const port of ports) {
-        modes[port] = await setupPort(port, logDir);
+        modes.set(port, await setupPort(port, logDir));
     }
-    const summary = Object.entries(modes)
+    const summary = [...modes]
         .map(([port, mode]) => `${port}: ${mode}`)
         .join(", ");
 
-    if (Object.values(modes).every((mode) => mode === "haproxy")) {
+    if ([...modes.values()].every((mode) => mode === "haproxy")) {
         console.log(
             `::warning::consensus node ports still go through the haproxy forward (${summary})`,
         );

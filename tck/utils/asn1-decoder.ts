@@ -11,18 +11,18 @@ class ASN1Decoder {
     private data: Uint8Array;
     private pos: number;
     private oids: string[];
-    private oidMap: { [key: string]: string };
+    private oidMap: Map<string, string>;
     private isPublicKey: boolean;
 
     constructor(data: Uint8Array | ArrayBuffer) {
         this.data = new Uint8Array(data);
         this.pos = 0;
         this.oids = [];
-        this.oidMap = {
-            "1.3.132.0.10": "ecdsa",
-            "1.3.101.112": "ed25519",
-            "1.2.840.10045.2.1": "pubkey",
-        };
+        this.oidMap = new Map([
+            ["1.3.132.0.10", "ecdsa"],
+            ["1.3.101.112", "ed25519"],
+            ["1.2.840.10045.2.1", "pubkey"],
+        ]);
 
         this.isPublicKey = false;
     }
@@ -105,7 +105,7 @@ class ASN1Decoder {
     }
 
     public getOidKeyTypes(): string[] {
-        return this.oids.map((oid) => this.oidMap[oid] || "unknown");
+        return this.oids.map((oid) => this.oidMap.get(oid) || "unknown");
     }
 
     private readSequence(): string[] {
