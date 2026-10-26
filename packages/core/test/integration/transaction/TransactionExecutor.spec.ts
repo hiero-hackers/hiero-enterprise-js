@@ -4,12 +4,12 @@ import {
     TopicCreateTransaction,
     TransferTransaction,
 } from "@hiero-ledger/sdk";
-import { setupIntegrationTestEnv } from "../../utils/env.js";
+import { setupIntegrationTestEnv } from "../../utils/Env.js";
 import { AccountService } from "../../../src/services/index.js";
 import {
     createTestAccount,
     type TestAccount,
-} from "../../utils/integration-fixtures.js";
+} from "../../utils/IntegrationFixtures.js";
 import { TransactionExecutor } from "../../../src/services/transaction/index.js";
 import type { HieroContext } from "../../../src/context/index.js";
 

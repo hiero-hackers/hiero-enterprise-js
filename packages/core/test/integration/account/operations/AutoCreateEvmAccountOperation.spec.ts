@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { randomBytes } from "node:crypto";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
 import { AccountService } from "../../../../src/services/index.js";
 
 describe("AccountService.autoCreateEvmAccount [Integration]", () => {

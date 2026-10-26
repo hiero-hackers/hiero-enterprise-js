@@ -5,7 +5,7 @@ import {
     type TransactionRecord,
 } from "@hiero-ledger/sdk";
 import { AccountService } from "../../../../../src/services/account/index.js";
-import { createMockContext } from "../../../../utils/mock-context.js";
+import { createMockContext } from "../../../../utils/MockContext.js";
 import type { IHieroContext } from "../../../../../src/context/index.js";
 
 // Builds real SDK queries; only Query.execute, the network call, is stubbed.

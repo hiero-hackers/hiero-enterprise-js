@@ -6,7 +6,7 @@ import {
 } from "@hiero-ledger/sdk";
 import { AccountService } from "../../../../../src/services/account/index.js";
 import { HieroError } from "../../../../../src/errors/index.js";
-import { createMockContext } from "../../../../utils/mock-context.js";
+import { createMockContext } from "../../../../utils/MockContext.js";
 
 // Real SDK queries; only execute (the mirror node REST call) is stubbed.
 

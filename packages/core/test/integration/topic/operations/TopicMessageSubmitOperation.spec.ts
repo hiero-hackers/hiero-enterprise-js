@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { PrivateKey } from "@hiero-ledger/sdk";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
 import { TopicService } from "../../../../src/services/index.js";
 
 describe("TopicMessageSubmitOperation", () => {

@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import type { AccountId, TokenId } from "@hiero-ledger/sdk";
 import { NftId } from "@hiero-ledger/sdk";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
 import {
     waitForMirrorNodeRecord,
     waitForAccountTokensAbsent,
-} from "../../../utils/mirror-node.js";
-import { queryAccountTokens } from "../../../utils/mirror-node-rest.js";
+} from "../../../utils/MirrorNode.js";
+import { queryAccountTokens } from "../../../utils/MirrorNodeRest.js";
 import {
     createTestAccount,
     type TestAccount,
-} from "../../../utils/integration-fixtures.js";
+} from "../../../utils/IntegrationFixtures.js";
 import {
     AccountService,
     TokenService,

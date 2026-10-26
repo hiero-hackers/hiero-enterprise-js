@@ -4,11 +4,11 @@ import {
     Hbar,
     NetworkVersionInfoQuery,
 } from "@hiero-ledger/sdk";
-import { setupIntegrationTestEnv } from "../../utils/env.js";
+import { setupIntegrationTestEnv } from "../../utils/Env.js";
 import {
     createTestAccount,
     type TestAccount,
-} from "../../utils/integration-fixtures.js";
+} from "../../utils/IntegrationFixtures.js";
 import { QueryExecutor } from "../../../src/services/transaction/index.js";
 import { AccountService } from "../../../src/services/index.js";
 import { HieroError } from "../../../src/errors/index.js";

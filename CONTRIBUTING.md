@@ -127,7 +127,7 @@ Integration tests live under [`packages/core/test/integration/`](packages/core/t
     cp packages/core/test/.env.example packages/core/test/.env
     ```
 
-    The defaults point at the Solo genesis treasury (`0.0.2`) and the standard Solo node + mirror ports, so no edits are needed for the common case. The test runner auto-loads `packages/core/test/.env` via [`test/utils/setup-env.ts`](packages/core/test/utils/setup-env.ts).
+    The defaults point at the Solo genesis treasury (`0.0.2`) and the standard Solo node + mirror ports, so no edits are needed for the common case. The test runner auto-loads `packages/core/test/.env` via [`test/utils/SetupEnv.ts`](packages/core/test/utils/SetupEnv.ts).
 
 3. **Run the integration suite:**
 

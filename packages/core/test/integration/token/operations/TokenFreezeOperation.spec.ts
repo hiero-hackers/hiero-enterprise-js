@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
-import { waitForMirrorNodeRecord } from "../../../utils/mirror-node.js";
-import { queryAccountTokens } from "../../../utils/mirror-node-rest.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
+import { waitForMirrorNodeRecord } from "../../../utils/MirrorNode.js";
+import { queryAccountTokens } from "../../../utils/MirrorNodeRest.js";
 import {
     createTestAccount,
     type TestAccount,
-} from "../../../utils/integration-fixtures.js";
+} from "../../../utils/IntegrationFixtures.js";
 import {
     AccountService,
     TokenService,

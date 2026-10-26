@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { FileAppendTransaction } from "@hiero-ledger/sdk";
 import { FileService } from "../../../../../src/services/file/index.js";
 import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
-import { createMockContext } from "../../../../utils/mock-context.js";
+import { createMockContext } from "../../../../utils/MockContext.js";
 
 // Builds real SDK transactions; only the executor, which sends them, is
 // stubbed.

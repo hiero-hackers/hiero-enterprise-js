@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { FileService } from "../../../../src/services/file/index.js";
 import { HieroError, HieroErrorCodes } from "../../../../src/errors/index.js";
-import { createMockContext } from "../../../utils/mock-context.js";
+import { createMockContext } from "../../../utils/MockContext.js";
 import type { IHieroContext } from "../../../../src/context/index.js";
 
 describe("FileService", () => {

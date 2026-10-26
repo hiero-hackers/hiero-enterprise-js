@@ -6,7 +6,7 @@ export default defineConfig({
         testTimeout: 60000,
         hookTimeout: 60000,
         environment: "node",
-        setupFiles: ["test/utils/setup-env.ts"],
+        setupFiles: ["test/utils/SetupEnv.ts"],
         coverage: {
             provider: "v8",
             // `json-summary` is required by the vitest-coverage-report

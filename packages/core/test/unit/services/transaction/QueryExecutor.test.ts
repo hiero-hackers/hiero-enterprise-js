@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { AccountId, Hbar, TransactionId } from "@hiero-ledger/sdk";
 import { QueryExecutor } from "../../../../src/services/transaction/index.js";
-import { createMockContext } from "../../../utils/mock-context.js";
+import { createMockContext } from "../../../utils/MockContext.js";
 import { HieroError } from "../../../../src/errors/index.js";
 import {
     HieroContext,

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { setupIntegrationTestEnv, wait } from "../../../utils/env.js";
+import { setupIntegrationTestEnv, wait } from "../../../utils/Env.js";
 import { TopicService } from "../../../../src/services/index.js";
 import type { SubscribedMessage } from "../../../../src/services/topic/index.js";
 

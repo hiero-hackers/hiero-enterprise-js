@@ -1,6 +1,6 @@
 import type { AccountId, TokenId } from "@hiero-ledger/sdk";
-import { IntegrationTracker } from "./env.js";
-import { queryAccountTokens } from "./mirror-node-rest.js";
+import { IntegrationTracker } from "./Env.js";
+import { queryAccountTokens } from "./MirrorNodeRest.js";
 
 const LOCAL_MIRROR_URL = process.env.HIERO_MIRROR_NODE_URL;
 

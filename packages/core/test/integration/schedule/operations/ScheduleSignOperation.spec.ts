@@ -5,8 +5,8 @@ import {
     PrivateKey,
     type Client,
 } from "@hiero-ledger/sdk";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
-import { createTestAccount } from "../../../utils/integration-fixtures.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
+import { createTestAccount } from "../../../utils/IntegrationFixtures.js";
 import {
     AccountService,
     ScheduleService,

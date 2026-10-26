@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { AccountInfoQuery, PrivateKey, type Client } from "@hiero-ledger/sdk";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
-import { createTestAccount } from "../../../utils/integration-fixtures.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
+import { createTestAccount } from "../../../utils/IntegrationFixtures.js";
 import {
     allowanceHook,
     deployHookContract,
-} from "../../../utils/hook-contract.js";
+} from "../../../utils/HookContract.js";
 import {
     AccountService,
     ContractService,

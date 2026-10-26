@@ -11,7 +11,7 @@ import {
     type TopicInfo,
 } from "@hiero-ledger/sdk";
 import { TopicService } from "../../../../../src/services/topic/index.js";
-import { createMockContext } from "../../../../utils/mock-context.js";
+import { createMockContext } from "../../../../utils/MockContext.js";
 
 // Builds real SDK queries; only Query.execute, the network call, is stubbed.
 // Its response is plain data built from real SDK values, because TopicInfo

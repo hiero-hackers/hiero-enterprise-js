@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
-import { createOwnerSpenderPair } from "../../../utils/integration-fixtures.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
+import { createOwnerSpenderPair } from "../../../utils/IntegrationFixtures.js";
 import {
     AccountService,
     TokenService,

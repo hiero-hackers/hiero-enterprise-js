@@ -6,8 +6,8 @@ import {
     ContractFunctionParameters,
     Hbar,
 } from "@hiero-ledger/sdk";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
-import { waitForMirrorNodeRecord } from "../../../utils/mirror-node.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
+import { waitForMirrorNodeRecord } from "../../../utils/MirrorNode.js";
 import { ContractService } from "../../../../src/services/index.js";
 
 /**

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { EthereumTransactionDataEip1559, PrivateKey } from "@hiero-ledger/sdk";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
 import {
     AccountService,
     ContractService,

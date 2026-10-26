@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { ContractFunctionParameters } from "@hiero-ledger/sdk";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
 import { ContractService } from "../../../../src/services/index.js";
 
 /**

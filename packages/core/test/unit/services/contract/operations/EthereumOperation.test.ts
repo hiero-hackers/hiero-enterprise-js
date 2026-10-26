@@ -13,7 +13,7 @@ import {
 import { ContractService } from "../../../../../src/services/contract/index.js";
 import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { HieroErrorCodes } from "../../../../../src/errors/index.js";
-import { createMockContext } from "../../../../utils/mock-context.js";
+import { createMockContext } from "../../../../utils/MockContext.js";
 
 // Builds real SDK transactions; the executor and the record lookup, the
 // network steps, are stubbed.

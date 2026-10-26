@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
-import { waitForMirrorNodeRecord } from "../../../utils/mirror-node.js";
-import { createTestAccount } from "../../../utils/integration-fixtures.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
+import { waitForMirrorNodeRecord } from "../../../utils/MirrorNode.js";
+import { createTestAccount } from "../../../utils/IntegrationFixtures.js";
 import { AccountService } from "../../../../src/services/index.js";
 
 describe("TransferHbarOperation [Integration]", () => {

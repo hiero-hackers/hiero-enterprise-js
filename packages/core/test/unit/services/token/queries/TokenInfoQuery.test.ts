@@ -13,7 +13,7 @@ import {
     type TokenInfo,
 } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
-import { createMockContext } from "../../../../utils/mock-context.js";
+import { createMockContext } from "../../../../utils/MockContext.js";
 
 // Builds real SDK queries; only Query.execute, the network call, is stubbed.
 // Its response is plain data built from real SDK values, because TokenInfo

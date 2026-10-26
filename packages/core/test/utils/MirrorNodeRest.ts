@@ -7,7 +7,7 @@
  * every integration test can assert against the Mirror Node uniformly.
  *
  * Reads `HIERO_MIRROR_NODE_URL` from the environment (loaded by
- * `test/utils/setup-env.ts`). The lookup is deferred until first call so it
+ * `test/utils/SetupEnv.ts`). The lookup is deferred until first call so it
  * happens after the vitest setup file has populated `process.env`.
  */
 

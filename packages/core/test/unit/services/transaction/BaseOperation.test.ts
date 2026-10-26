@@ -8,7 +8,7 @@ import type {
     ScheduleOptions,
     TransactionOptions,
 } from "../../../../src/services/transaction/index.js";
-import { createMockContext } from "../../../utils/mock-context.js";
+import { createMockContext } from "../../../utils/MockContext.js";
 
 // A minimal subclass building a real SDK transaction; only the executor,
 // which sends it, is stubbed.

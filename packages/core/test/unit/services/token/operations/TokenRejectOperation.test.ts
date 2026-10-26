@@ -8,7 +8,7 @@ import {
     TransactionId,
 } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../../src/services/token/index.js";
-import { createMockContext } from "../../../../utils/mock-context.js";
+import { createMockContext } from "../../../../utils/MockContext.js";
 import type { IHieroContext } from "../../../../../src/context/index.js";
 
 // Builds a real SDK TokenRejectFlow; only its execute(), which sends the

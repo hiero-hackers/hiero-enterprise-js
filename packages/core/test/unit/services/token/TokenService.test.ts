@@ -8,7 +8,7 @@ import {
 } from "@hiero-ledger/sdk";
 import { TokenService } from "../../../../src/services/token/index.js";
 import { TransactionExecutor } from "../../../../src/services/transaction/index.js";
-import { createMockContext } from "../../../utils/mock-context.js";
+import { createMockContext } from "../../../utils/MockContext.js";
 
 // The facade tests verify the contract the service guarantees on top of the
 // operation: tokenType/decimals/initialSupply auto-injection and

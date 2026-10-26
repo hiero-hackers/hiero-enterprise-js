@@ -12,7 +12,7 @@ import {
     HieroError,
     HieroErrorCodes,
 } from "../../../../../src/errors/index.js";
-import { createMockContext } from "../../../../utils/mock-context.js";
+import { createMockContext } from "../../../../utils/MockContext.js";
 
 // Builds real SDK transactions; the executor, the network step, is stubbed.
 

@@ -10,7 +10,7 @@ import {
 } from "@hiero-ledger/sdk";
 import { TopicService } from "../../../../../src/services/topic/index.js";
 import { TopicMessageQuery } from "../../../../../src/services/topic/queries/index.js";
-import { createMockContext } from "../../../../utils/mock-context.js";
+import { createMockContext } from "../../../../utils/MockContext.js";
 import type { IHieroContext } from "../../../../../src/context/index.js";
 
 // Builds real SDK queries; only TopicMessageQuery.subscribe, which opens the

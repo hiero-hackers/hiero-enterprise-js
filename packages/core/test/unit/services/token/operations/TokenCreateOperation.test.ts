@@ -12,7 +12,7 @@ import { TokenService } from "../../../../../src/services/token/index.js";
 import { TokenCreateOperation } from "../../../../../src/services/token/operations/index.js";
 import { TransactionExecutor } from "../../../../../src/services/transaction/index.js";
 import { HieroError } from "../../../../../src/errors/index.js";
-import { createMockContext } from "../../../../utils/mock-context.js";
+import { createMockContext } from "../../../../utils/MockContext.js";
 
 // Builds real SDK transactions; only the executor, which sends them, is
 // stubbed.

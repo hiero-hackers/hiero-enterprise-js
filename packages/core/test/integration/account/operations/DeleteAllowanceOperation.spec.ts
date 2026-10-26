@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
-import { waitForMirrorNodeRecord } from "../../../utils/mirror-node.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
+import { waitForMirrorNodeRecord } from "../../../utils/MirrorNode.js";
 import {
     queryHbarAllowances,
     queryTokenAllowances,
     queryNftRecord,
-} from "../../../utils/mirror-node-rest.js";
-import { createOwnerSpenderPair } from "../../../utils/integration-fixtures.js";
+} from "../../../utils/MirrorNodeRest.js";
+import { createOwnerSpenderPair } from "../../../utils/IntegrationFixtures.js";
 import {
     AccountService,
     TokenService,

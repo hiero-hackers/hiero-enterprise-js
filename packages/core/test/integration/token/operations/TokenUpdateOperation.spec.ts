@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { PrivateKey } from "@hiero-ledger/sdk";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
-import { waitForMirrorNodeRecord } from "../../../utils/mirror-node.js";
-import { queryTokenInfo } from "../../../utils/mirror-node-rest.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
+import { waitForMirrorNodeRecord } from "../../../utils/MirrorNode.js";
+import { queryTokenInfo } from "../../../utils/MirrorNodeRest.js";
 import {
     createTestAccount,
     type TestAccount,
-} from "../../../utils/integration-fixtures.js";
+} from "../../../utils/IntegrationFixtures.js";
 import {
     AccountService,
     TokenService,

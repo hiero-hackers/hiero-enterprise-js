@@ -8,7 +8,7 @@ import {
     TransactionId,
 } from "@hiero-ledger/sdk";
 import { ContractService } from "../../../../../src/services/contract/index.js";
-import { createMockContext } from "../../../../utils/mock-context.js";
+import { createMockContext } from "../../../../utils/MockContext.js";
 import type { IHieroContext } from "../../../../../src/context/index.js";
 
 // Flows don't go through TransactionExecutor, so ContractCreateFlow.execute,

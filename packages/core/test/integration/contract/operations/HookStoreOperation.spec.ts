@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { EvmHookStorageSlot, PrivateKey } from "@hiero-ledger/sdk";
 import type { ContractId } from "@hiero-ledger/sdk";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
-import { waitForMirrorEntity } from "../../../utils/mirror-node.js";
-import { queryHookStorage } from "../../../utils/mirror-node-rest.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
+import { waitForMirrorEntity } from "../../../utils/MirrorNode.js";
+import { queryHookStorage } from "../../../utils/MirrorNodeRest.js";
 import {
     allowanceHook,
     deployHookContract,
-} from "../../../utils/hook-contract.js";
+} from "../../../utils/HookContract.js";
 import {
     AccountService,
     ContractService,

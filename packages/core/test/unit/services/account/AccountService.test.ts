@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AccountService } from "../../../../src/services/account/index.js";
-import { createMockContext } from "../../../utils/mock-context.js";
+import { createMockContext } from "../../../utils/MockContext.js";
 import type { IHieroContext } from "../../../../src/context/index.js";
 
 // The facade only exercises its own pre-delegation validation here. Operation

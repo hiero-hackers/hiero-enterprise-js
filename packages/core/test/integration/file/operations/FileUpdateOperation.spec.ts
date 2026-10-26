@@ -6,7 +6,7 @@ import {
     FileContentsQuery,
     type Client,
 } from "@hiero-ledger/sdk";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
 import { FileService } from "../../../../src/services/index.js";
 
 /**

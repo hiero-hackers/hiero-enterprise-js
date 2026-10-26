@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { Hbar, PrivateKey, TransferTransaction } from "@hiero-ledger/sdk";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
-import { createTestAccount } from "../../../utils/integration-fixtures.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
+import { createTestAccount } from "../../../utils/IntegrationFixtures.js";
 import type { HieroContext } from "../../../../src/context/HieroContext.js";
 import { AccountService } from "../../../../src/services/index.js";
 

@@ -15,7 +15,7 @@ import {
 } from "@hiero-ledger/sdk";
 import { ScheduleService } from "../../../../src/services/schedule/index.js";
 import { TransactionExecutor } from "../../../../src/services/transaction/index.js";
-import { createMockContext } from "../../../utils/mock-context.js";
+import { createMockContext } from "../../../utils/MockContext.js";
 
 // Builds real SDK transactions and queries; only the network step is
 // stubbed: TransactionExecutor.run for transactions and Query.execute for

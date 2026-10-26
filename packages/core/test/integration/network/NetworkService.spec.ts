@@ -9,12 +9,12 @@ import {
 import {
     setupIntegrationTestEnv,
     IntegrationTracker,
-} from "../../utils/env.js";
-import { waitForMirrorNodeRecord } from "../../utils/mirror-node.js";
+} from "../../utils/Env.js";
+import { waitForMirrorNodeRecord } from "../../utils/MirrorNode.js";
 import {
     createTestAccount,
     type TestAccount,
-} from "../../utils/integration-fixtures.js";
+} from "../../utils/IntegrationFixtures.js";
 import { resolveConfigFromEnv } from "../../../src/config/index.js";
 import { HieroContext } from "../../../src/context/index.js";
 import { HieroError } from "../../../src/errors/index.js";

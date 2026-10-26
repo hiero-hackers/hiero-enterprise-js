@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
 import { FileService } from "../../../../src/services/index.js";
 
 describe("FileContentsQuery", () => {

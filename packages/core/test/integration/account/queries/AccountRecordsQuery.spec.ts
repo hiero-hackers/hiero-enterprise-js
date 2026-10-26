@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { TransactionRecord } from "@hiero-ledger/sdk";
-import { setupIntegrationTestEnv } from "../../../utils/env.js";
+import { setupIntegrationTestEnv } from "../../../utils/Env.js";
 import { AccountService } from "../../../../src/services/index.js";
 import type { HieroContext } from "../../../../src/context/index.js";
 
