@@ -80,6 +80,15 @@ jobs:
                     echo "::endgroup::"
                   done
 
+            # Pack both packages once for the packed-consumer steps at the
+            # end, and bundle enterprise-mirror (alone) for the browser. The
+            # bundle size lands in the job summary so a jump is visible.
+            - name: Pack packages and bundle enterprise-mirror for the browser
+              if: ${{ matrix.node-version == 24 }}
+              env:
+                  PACKED_WORK_DIR: ${{ runner.temp }}/packed
+              run: node test/packed/run.mjs pack bundle
+
             - name: Run unit tests
               run: pnpm --filter @hiero-hackers/enterprise-core run test:unit:coverage
 
@@ -265,3 +274,46 @@ jobs:
                   HIERO_MIRROR_NETWORK: localhost:5600
                   HIERO_MIRROR_NODE_URL: http://localhost:38081
               run: pnpm --filter @hiero-hackers/enterprise-mirror run test:integration
+
+            # Install the tarballs packed above into throwaway ESM and CJS
+            # projects and run them against Solo, as a user would. Last in
+            # the job because the Node 18 run switches the job's Node.
+            - name: Packed packages on Node 24
+              if: ${{ matrix.node-version == 24 }}
+              env:
+                  PACKED_WORK_DIR: ${{ runner.temp }}/packed
+                  PACKED_REQUIRE_NETWORK: "1"
+                  HIERO_NETWORK: hiero-solo-action
+                  HIERO_OPERATOR_ID: ${{ steps.solo.outputs.accountId }}
+                  HIERO_OPERATOR_KEY: ${{ steps.solo.outputs.privateKey }}
+                  HIERO_OPERATOR_KEY_TYPE: DER
+                  HIERO_NETWORK_NODES: "127.0.0.1:35211=0.0.3"
+                  HIERO_MIRROR_NETWORK: localhost:5600
+                  HIERO_MIRROR_NODE_URL: http://localhost:38081
+              run: node test/packed/run.mjs consumers
+
+            # Node 18 is the minimum in both packages' "engines".
+            - name: Setup Node 18
+              if: ${{ matrix.node-version == 24 }}
+              uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+              with:
+                  node-version: 18
+
+            # Non-blocking for now: the SDK's own dependencies
+            # (@hiero-ledger/cryptography, @noble/hashes) need Node >= 20.19,
+            # and PrivateKey.generate* fails on Node 18 without a global
+            # Web Crypto. Make this blocking once "engines" is settled.
+            - name: Packed packages on Node 18
+              if: ${{ matrix.node-version == 24 }}
+              continue-on-error: true
+              env:
+                  PACKED_WORK_DIR: ${{ runner.temp }}/packed
+                  PACKED_REQUIRE_NETWORK: "1"
+                  HIERO_NETWORK: hiero-solo-action
+                  HIERO_OPERATOR_ID: ${{ steps.solo.outputs.accountId }}
+                  HIERO_OPERATOR_KEY: ${{ steps.solo.outputs.privateKey }}
+                  HIERO_OPERATOR_KEY_TYPE: DER
+                  HIERO_NETWORK_NODES: "127.0.0.1:35211=0.0.3"
+                  HIERO_MIRROR_NETWORK: localhost:5600
+                  HIERO_MIRROR_NODE_URL: http://localhost:38081
+              run: node test/packed/run.mjs consumers

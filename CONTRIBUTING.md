@@ -110,6 +110,7 @@ for the tag, so the Releases tab always mirrors what is on the registry.
 | Live behavior of every mirror query        | `pnpm --filter @hiero-hackers/examples examples mirror` (also weekly via [`mainnet-smoke`](.github/workflows/mainnet-smoke.yml)) | public mainnet (read-only, keyless)         |
 | Upstream OpenAPI spec drift                | weekly [`spec-drift`](.github/workflows/spec-drift.yml) workflow, or `gh workflow run spec-drift.yml`                               | GitHub                                      |
 | Response-field completeness                | `node spec/diff-response-fields.mjs` from `packages/mirror` (also a CI step)                                                        | none                                        |
+| Packed tarballs work in Node ESM, CJS and a browser bundle | `node test/packed/run.mjs` (packs, so it builds first; also in CI on Node 24, plus a non-blocking Node 18 run, against Solo) | public mainnet mirror; local Solo to also submit a topic message (`HIERO_*` variables set) |
 
 CI runs the first five automatically (Solo is provisioned in the workflow);
 the examples run there against Solo too, with the mainnet-dependent mirror
