@@ -1,17 +1,30 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { PrivateKey, TopicInfoQuery, type Client } from "@hiero-ledger/sdk";
+import {
+    AccountId,
+    PrivateKey,
+    Timestamp,
+    TopicInfoQuery,
+    TransactionId,
+    type Client,
+} from "@hiero-ledger/sdk";
 import { setupIntegrationTestEnv } from "../../../utils/env.js";
-import { TopicService } from "../../../../src/services/index.js";
+import { createTestAccount } from "../../../utils/integration-fixtures.js";
+import {
+    AccountService,
+    TopicService,
+} from "../../../../src/services/index.js";
 
 describe("TopicCreateOperation", () => {
     let client: Client;
     let topicService: TopicService;
+    let accountService: AccountService;
     let operatorId: string;
 
     beforeAll(() => {
         const ctx = setupIntegrationTestEnv();
         client = ctx.client;
         topicService = new TopicService(ctx);
+        accountService = new AccountService(ctx);
         operatorId = ctx.operatorAccountId.toString();
     });
 
@@ -58,5 +71,32 @@ describe("TopicCreateOperation", () => {
         expect(info.adminKey).not.toBeNull();
         expect(info.submitKey).not.toBeNull();
         expect(info.autoRenewAccountId?.toString()).toBe(operatorId);
+    });
+
+    it("creates a topic under a full transaction ID paid by another account", async () => {
+        const payer = await createTestAccount(accountService, 5);
+        const adminKey = PrivateKey.generateED25519();
+        // A fixed valid start, as a transaction signed offline would carry.
+        const transactionId = TransactionId.withValidStart(
+            AccountId.fromString(payer.accountId),
+            Timestamp.fromDate(new Date(Date.now() - 5_000)),
+        );
+
+        const result = await topicService.createTopic({
+            topicMemo: "integration: payer topic",
+            adminKey: adminKey.publicKey,
+            transactionId: transactionId.toString(),
+            additionalSigners: [adminKey, payer.key],
+        });
+
+        expect(result.transactionId).toBe(transactionId.toString());
+
+        const info = await new TopicInfoQuery()
+            .setTopicId(result.topicId)
+            .execute(client);
+
+        // Without an autoRenewAccountId, the SDK makes the payer the
+        // topic's auto-renew account.
+        expect(info.autoRenewAccountId?.toString()).toBe(payer.accountId);
     });
 });

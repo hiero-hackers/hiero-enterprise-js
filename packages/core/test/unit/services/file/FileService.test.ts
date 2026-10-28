@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { TransactionId } from "@hiero-ledger/sdk";
 import { FileService } from "../../../../src/services/file/index.js";
 import { HieroError, HieroErrorCodes } from "../../../../src/errors/index.js";
 import { createMockContext } from "../../../utils/mock-context.js";
@@ -207,6 +208,80 @@ describe("FileService", () => {
             expect(head.byteLength).toBe(4096);
             expect(tail.byteLength).toBe(2);
             expect(Buffer.concat([head, tail]).toString("utf8")).toBe(contents);
+        });
+    });
+
+    describe("payer and transactionId with large contents", () => {
+        const fileId = { toString: () => "0.0.12347" };
+        const transactionId = "0.0.5@1700000000.000000123";
+
+        it("submits the create under the ID and the append as the same payer only", async () => {
+            const create = vi
+                .spyOn(service["createOperation"], "execute")
+                .mockResolvedValueOnce({ fileId } as never);
+            const append = vi
+                .spyOn(service["appendOperation"], "execute")
+                .mockResolvedValueOnce({} as never);
+
+            await service.createFile({
+                contents: Buffer.alloc(4097),
+                transactionId,
+            });
+
+            expect(create.mock.calls[0][0].transactionId).toBe(transactionId);
+            // The create's own ID again would be a duplicate transaction.
+            expect(append.mock.calls[0][0].transactionId).toBeUndefined();
+            expect(append.mock.calls[0][0].payer).toBe("0.0.5");
+        });
+
+        it("keeps the payer for the append after an update", async () => {
+            vi.spyOn(
+                service["updateOperation"],
+                "execute",
+            ).mockResolvedValueOnce({} as never);
+            const append = vi
+                .spyOn(service["appendOperation"], "execute")
+                .mockResolvedValueOnce({} as never);
+
+            await service.updateFile({
+                fileId: "0.0.12347",
+                contents: Buffer.alloc(4097),
+                transactionId: TransactionId.fromString(transactionId),
+            });
+
+            expect(append.mock.calls[0][0].payer).toBe("0.0.5");
+        });
+
+        it("passes a payer through to the append", async () => {
+            vi.spyOn(
+                service["createOperation"],
+                "execute",
+            ).mockResolvedValueOnce({ fileId } as never);
+            const append = vi
+                .spyOn(service["appendOperation"], "execute")
+                .mockResolvedValueOnce({} as never);
+
+            await service.createFile({
+                contents: Buffer.alloc(4097),
+                payer: "0.0.5",
+            });
+
+            expect(append.mock.calls[0][0].payer).toBe("0.0.5");
+        });
+
+        it("leaves the append's payer unset without either", async () => {
+            vi.spyOn(
+                service["createOperation"],
+                "execute",
+            ).mockResolvedValueOnce({ fileId } as never);
+            const append = vi
+                .spyOn(service["appendOperation"], "execute")
+                .mockResolvedValueOnce({} as never);
+
+            await service.createFile({ contents: Buffer.alloc(4097) });
+
+            expect(append.mock.calls[0][0].transactionId).toBeUndefined();
+            expect(append.mock.calls[0][0].payer).toBeUndefined();
         });
     });
 

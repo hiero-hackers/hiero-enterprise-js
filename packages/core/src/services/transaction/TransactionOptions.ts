@@ -1,4 +1,10 @@
-import type { Hbar, PublicKey, PrivateKey } from "@hiero-ledger/sdk";
+import type {
+    AccountId,
+    Hbar,
+    PublicKey,
+    PrivateKey,
+    TransactionId,
+} from "@hiero-ledger/sdk";
 
 /**
  * An external signer delegates signing to a function — used for HSM, KMS,
@@ -65,10 +71,45 @@ export interface TransactionOptions {
     nodeAccountIds?: string[];
 
     /**
+     * Account that pays for this transaction instead of the operator.
+     *
+     * Core generates the transaction ID from it, with the valid start set
+     * to now. Unless it is the operator, its key must sign, via
+     * `additionalSigners` or `externalSigners`. A topic created without an
+     * `autoRenewAccountId` gets this payer as its auto-renew account (SDK
+     * behaviour). On a scheduled variant it pays for the
+     * `ScheduleCreateTransaction`; the scheduled transaction's payer is
+     * `ScheduleOptions.payerAccountId`.
+     *
+     * Must be a `shard.realm.num` account ID; an alias or EVM-address
+     * payer, or `payer` together with `transactionId`, is rejected with an
+     * `INPUT_INVALID` `HieroError` before anything is sent.
+     */
+    payer?: string | AccountId;
+
+    /**
+     * Exact transaction ID to submit this transaction under, e.g. one
+     * agreed with other signers in advance. Its account pays the fees. To
+     * only change who pays, use `payer` instead.
+     *
+     * A string must be `<shard>.<realm>.<num>@<seconds>.<nanos>`, with the
+     * nanos zero-padded to 9 digits as `TransactionId.toString()` prints
+     * them. The valid start must lie within the network's window (not in
+     * the future, not older than `transactionValidDuration`); otherwise the
+     * network rejects it. A malformed ID, one with a `scheduled` flag or a
+     * nonce, an alias or EVM-address payer, or `transactionId` together
+     * with `payer` is rejected with an `INPUT_INVALID` `HieroError` before
+     * anything is sent.
+     */
+    transactionId?: string | TransactionId;
+
+    /**
      * Whether to regenerate the transaction ID on `TRANSACTION_EXPIRED`.
      *
      * Defaults to the client-level setting. Set to `false` to disable
-     * automatic retry with a fresh transaction ID.
+     * automatic retry with a fresh transaction ID. Cannot be `true`
+     * together with `transactionId` or `payer`: the SDK never regenerates
+     * an ID that was set.
      */
     regenerateTransactionId?: boolean;
 

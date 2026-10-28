@@ -9,6 +9,7 @@ import type { TransactionEvent } from "../../listeners/index.js";
 import { HieroError, normalizeError } from "../../errors/index.js";
 import type { TransactionOptions } from "./TransactionOptions.js";
 import type { ScheduleOptions } from "./ScheduleOptions.js";
+import { resolveTransactionId } from "./resolveTransactionId.js";
 
 /**
  * Owns the full transaction lifecycle shared across all service operations:
@@ -144,11 +145,21 @@ export class TransactionExecutor {
     /**
      * Apply the base `TransactionOptions` fields to the SDK transaction before
      * it is frozen or executed.
+     *
+     * @throws {HieroError} `INPUT_INVALID` for an invalid `transactionId` or `payer`,
+     *   before the before-event is emitted
      */
     private applyBaseOptions(
         tx: Transaction,
         options: TransactionOptions,
     ): void {
+        // Resolve first, so an invalid ID throws before any setter runs.
+        const transactionId = resolveTransactionId(options);
+
+        if (transactionId != null) {
+            tx.setTransactionId(transactionId);
+        }
+
         if (options.maxTransactionFee != null) {
             tx.setMaxTransactionFee(options.maxTransactionFee);
         }
