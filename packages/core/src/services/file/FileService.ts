@@ -149,7 +149,7 @@ export class FileService {
      *
      * // File with initial contents
      * const fileId = await fileService.createFile({
-     *     contents: Buffer.from("hello", "utf8"),
+     *     contents: new TextEncoder().encode("hello"),
      *     fileMemo: "greeting",
      * });
      *
@@ -387,7 +387,7 @@ function splitContents(
     }
 
     if (typeof contents === "string") {
-        const encoded = Buffer.from(contents, "utf8");
+        const encoded = new TextEncoder().encode(contents);
         if (encoded.byteLength <= MAX_FILE_TX_BYTES) {
             return [contents, null];
         }

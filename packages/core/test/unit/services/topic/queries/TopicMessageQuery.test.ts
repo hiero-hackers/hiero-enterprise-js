@@ -212,6 +212,21 @@ describe("TopicMessageQuery (via TopicService)", () => {
         expect(emitWarning.mock.calls[0][0]).toContain("stream failed");
     });
 
+    it("warns through console.warn when process is undefined", () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        service.subscribeToMessages({ topicId: "0.0.1234" }, () => {});
+
+        vi.stubGlobal("process", undefined);
+        try {
+            sdkErrorHandler()(null, new Error("stream failed"));
+        } finally {
+            vi.unstubAllGlobals();
+        }
+
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining("0.0.1234"));
+        expect(warn.mock.calls[0][0]).toContain("stream failed");
+    });
+
     it("keeps the message of an error thrown by the listener", () => {
         // Run the real SDK subscribe; stub only the stream it opens.
         subscribe.mockRestore();

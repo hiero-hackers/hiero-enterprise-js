@@ -1,4 +1,5 @@
 import { validationError } from "../../../errors/index.js";
+import { utf8ByteLength } from "../../../utils/index.js";
 import { validateHookCreations, validateHookIds } from "./hooks.js";
 import type { ContractUpdateOperationOptions } from "../operations/ContractUpdateOperation.js";
 
@@ -56,7 +57,7 @@ export class ContractUpdateValidator {
     private validateMemo(options: ContractUpdateOperationOptions): void {
         if (options.contractMemo == null) return;
 
-        const byteLength = Buffer.byteLength(options.contractMemo, "utf8");
+        const byteLength = utf8ByteLength(options.contractMemo);
         if (byteLength > MAX_CONTRACT_MEMO_BYTES) {
             throw validationError(
                 "ContractUpdateValidator",
