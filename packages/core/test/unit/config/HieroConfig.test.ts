@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
     resolveConfigFromEnv,
     assertEnvConfigValid,
@@ -8,6 +8,22 @@ import { HieroErrorCodes } from "../../../src/errors/index.js";
 
 describe("resolveConfigFromEnv", () => {
     const env = process.env;
+
+    it("throws CONFIG_INVALID asking for a config object when process is undefined", () => {
+        vi.stubGlobal("process", undefined);
+        try {
+            expect(() => resolveConfigFromEnv()).toThrow(
+                expect.objectContaining({
+                    code: HieroErrorCodes.ConfigInvalid,
+                    message: expect.stringContaining(
+                        "Pass a HieroConfig object instead",
+                    ),
+                }),
+            );
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
 
     it("throws CONFIG_INVALID naming every missing env var", () => {
         process.env = {};

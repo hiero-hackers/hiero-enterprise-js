@@ -81,6 +81,22 @@ describe("mirrorConfigFromEnv", () => {
         process.env = env;
     });
 
+    it("throws CONFIG_INVALID asking for a config object when process is undefined", () => {
+        vi.stubGlobal("process", undefined);
+        try {
+            expect(() => mirrorConfigFromEnv()).toThrow(
+                expect.objectContaining({
+                    code: MirrorErrorCodes.ConfigInvalid,
+                    message: expect.stringContaining(
+                        "Pass a MirrorConfig object instead",
+                    ),
+                }),
+            );
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
     it("leaves unset vars undefined", () => {
         process.env = {};
         const config = mirrorConfigFromEnv();
