@@ -6,5 +6,5 @@ contact_links:
       about: Get help from the Hiero community on Discord
 
     - name: ":book: Contribution Guide"
-      url: https://github.com/hiero-hackers/hiero-enterprise-js/blob/main/README.md
-      about: Learn how to get started with contributing
+      url: https://github.com/hiero-hackers/hiero-enterprise-js/blob/main/CONTRIBUTING.md
+      about: Setup, the difficulty labels, DCO sign-off and the pull request checklist
