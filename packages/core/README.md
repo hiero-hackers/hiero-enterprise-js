@@ -2,7 +2,7 @@
 
 Typed services for sending transactions to a Hiero network.
 
-Each service wraps a part of the [Hiero SDK](https://github.com/hiero-ledger/hiero-sdk-js): accounts, tokens, topics, files, smart contracts, schedules and network queries. Calls are checked before they are sent, signed by your operator account, and return plain objects. For reads from the mirror node, use [`@hiero-hackers/enterprise-mirror`](../mirror).
+Each service wraps a part of the [Hiero SDK](https://github.com/hiero-ledger/hiero-sdk-js): accounts, tokens, topics, files, smart contracts, schedules and network queries. Calls are checked before they are sent, signed by your operator account, and return plain objects. For reads from the mirror node, use [`@hiero-hackers/enterprise-mirror`](https://github.com/hiero-hackers/hiero-enterprise-js/tree/main/packages/mirror).
 
 ## Install
 
@@ -118,7 +118,7 @@ Every error is a `HieroError` with a `code`: `INPUT_INVALID`, `CONFIG_INVALID`, 
 
 ## Examples
 
-[`samples/examples`](../../samples/examples) has a runnable script for every service.
+[`samples/examples`](https://github.com/hiero-hackers/hiero-enterprise-js/tree/main/samples/examples) has a runnable script for every service.
 
 ## License
 

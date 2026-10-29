@@ -26,5 +26,8 @@ yarn.lock
 # Test coverage
 coverage/
 
+# Generated API docs (pnpm run docs)
+docs/api/
+
 # Misc
 *.log

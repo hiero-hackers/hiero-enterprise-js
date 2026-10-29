@@ -136,6 +136,16 @@ export class AccountService {
      * @param options.declineStakingReward - Whether to decline staking rewards
      * @param options.hooks - Hooks to create with the account (HIP-1195)
      * @returns The created account (ID, public key, and optional EVM address)
+     *
+     * @example
+     * ```typescript
+     * const key = PrivateKey.generateED25519();
+     * const account = await accountService.createAccount({
+     *   publicKey: key.publicKey.toStringRaw(),
+     *   keyType: AccountType.ED25519,
+     *   initialBalance: 5,
+     * });
+     * ```
      */
     async createAccount(options: CreateAccountOptions): Promise<Account> {
         return await this.createOperation.execute(options);
@@ -217,8 +227,7 @@ export class AccountService {
      * The account owner's signature is collected later via `ScheduleSignTransaction`
      * — no `accountKey` is required at scheduling time.
      *
-     * @param options.accountId - Account to delete
-     * @param options.transferAccountId - Account to receive remaining balance (defaults to operator)
+     * @param options - Account to delete and the account to receive its remaining balance (defaults to operator)
      * @param scheduleOptions - Payer, admin key, and schedule memo
      * @returns The schedule entity ID and the transaction ID of the `ScheduleCreateTransaction`
      */

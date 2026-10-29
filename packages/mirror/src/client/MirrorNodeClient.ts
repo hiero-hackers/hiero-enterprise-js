@@ -323,7 +323,7 @@ export interface MirrorNodeClientOptions {
  *
  * Every endpoint is a method here, grouped into `// ───`-bannered sections
  * by domain. The file is long but not complex: each method is the same
- * three-line shape — build the path with {@link appendQuery} / a template,
+ * three-line shape — build the path with `appendQuery` / a template,
  * then `getPage` (lists) or `request` + assert + convert (single objects).
  *
  * It stays a single class on purpose. The methods share one transport

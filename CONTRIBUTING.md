@@ -60,6 +60,9 @@ pnpm lint
 
 # Check formatting (CI runs this); `pnpm format` rewrites files
 pnpm format:check
+
+# Build the API reference into docs/api (CI fails on any TypeDoc warning)
+pnpm docs
 ```
 
 Once building and testing pass, see the [samples](samples/README.md) for
