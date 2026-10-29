@@ -16,7 +16,8 @@
         "lint:fix": "eslint . --fix",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
-        "example": "pnpm --filter @hiero-hackers/examples examples"
+        "example": "pnpm --filter @hiero-hackers/examples examples",
+        "docs": "typedoc"
     },
     "devDependencies": {
         "@arethetypeswrong/cli": "0.18.5",
@@ -32,6 +33,7 @@
         "prettier": "^3.9.10",
         "tsup": "^9.0.0",
         "tsx": "^4.23.15",
+        "typedoc": "^0.28.20",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.72.0",
         "vitest": "^5.0.5",

@@ -239,24 +239,7 @@ export class TokenService {
     /**
      * Create a new fungible token.
      *
-     * @param options.tokenName - Token name (max 100 bytes)
-     * @param options.tokenSymbol - Token symbol (max 100 bytes)
-     * @param options.decimals - Decimal places (default: 0)
-     * @param options.initialSupply - Initial supply (default: 0, in smallest units)
-     * @param options.treasuryAccountId - Account that receives initial supply and serves as treasury
-     * @param options.adminKey - Admin key required to update / delete the token
-     * @param options.supplyKey - Required to mint / burn after creation
-     * @param options.kycKey - Required to grant / revoke KYC on accounts holding the token
-     * @param options.freezeKey - Required to freeze / unfreeze accounts holding the token
-     * @param options.pauseKey - Required to pause / unpause the entire token
-     * @param options.wipeKey - Required to wipe token balances from accounts
-     * @param options.feeScheduleKey - Required to update custom fees
-     * @param options.metadataKey - Required to update token metadata
-     * @param options.maxSupply - Maximum token supply (auto-sets `supplyType` to Finite)
-     * @param options.supplyType - Explicit supply type override (`Infinite` or `Finite`)
-     * @param options.customFees - Custom fee schedule
-     * @param options.tokenMemo - Token memo (max 100 bytes)
-     * @param options.metadata - Arbitrary token metadata bytes
+     * @param options - Token name, symbol, treasury, keys and supply settings
      * @returns The token ID of the created token (e.g., `"0.0.12345"`)
      *
      * @example
@@ -284,24 +267,7 @@ export class TokenService {
      * Returns a `scheduleId` — other parties can then sign using
      * `ScheduleService` before the transaction executes.
      *
-     * @param options.tokenName - Token name (max 100 bytes)
-     * @param options.tokenSymbol - Token symbol (max 100 bytes)
-     * @param options.decimals - Decimal places (default: 0)
-     * @param options.initialSupply - Initial supply (default: 0, in smallest units)
-     * @param options.treasuryAccountId - Account that receives initial supply and serves as treasury
-     * @param options.adminKey - Admin key required to update / delete the token
-     * @param options.supplyKey - Required to mint / burn after creation
-     * @param options.kycKey - Required to grant / revoke KYC on accounts holding the token
-     * @param options.freezeKey - Required to freeze / unfreeze accounts holding the token
-     * @param options.pauseKey - Required to pause / unpause the entire token
-     * @param options.wipeKey - Required to wipe token balances from accounts
-     * @param options.feeScheduleKey - Required to update custom fees
-     * @param options.metadataKey - Required to update token metadata
-     * @param options.maxSupply - Maximum token supply (auto-sets `supplyType` to Finite)
-     * @param options.supplyType - Explicit supply type override (`Infinite` or `Finite`)
-     * @param options.customFees - Custom fee schedule
-     * @param options.tokenMemo - Token memo (max 100 bytes)
-     * @param options.metadata - Arbitrary token metadata bytes
+     * @param options - Token name, symbol, treasury, keys and supply settings
      * @param scheduleOptions.payerAccountId - Override the account that pays for the schedule creation
      * @param scheduleOptions.adminKey - Optional schedule admin key for later updates / deletion
      * @param scheduleOptions.scheduleMemo - Optional memo stored on the schedule itself
@@ -323,22 +289,7 @@ export class TokenService {
      * to `NonFungibleUnique`. Mint individual NFTs after creation using the
      * supply key via `mintToken`.
      *
-     * @param options.tokenName - Collection name (max 100 bytes)
-     * @param options.tokenSymbol - Collection symbol (max 100 bytes)
-     * @param options.treasuryAccountId - Account that owns newly minted NFTs by default
-     * @param options.supplyKey - Required, used to mint NFTs after creation
-     * @param options.adminKey - Admin key required to update / delete the collection
-     * @param options.kycKey - Required to grant / revoke KYC on holders
-     * @param options.freezeKey - Required to freeze / unfreeze holders
-     * @param options.pauseKey - Required to pause / unpause the collection
-     * @param options.wipeKey - Required to wipe NFTs from holders
-     * @param options.feeScheduleKey - Required to update custom fees
-     * @param options.metadataKey - Required to update collection metadata
-     * @param options.maxSupply - Maximum number of NFTs (auto-sets `supplyType` to Finite)
-     * @param options.supplyType - Explicit supply type override (`Infinite` or `Finite`)
-     * @param options.customFees - Custom fee schedule
-     * @param options.tokenMemo - Collection memo (max 100 bytes)
-     * @param options.metadata - Arbitrary collection metadata bytes
+     * @param options - Collection name, symbol, treasury, keys and supply settings; `supplyKey` is required
      * @returns The token ID of the created NFT collection
      *
      * @example
@@ -364,22 +315,7 @@ export class TokenService {
      * Returns a `scheduleId` — other parties can then sign using
      * `ScheduleService` before the transaction executes.
      *
-     * @param options.tokenName - Collection name (max 100 bytes)
-     * @param options.tokenSymbol - Collection symbol (max 100 bytes)
-     * @param options.treasuryAccountId - Account that owns newly minted NFTs by default
-     * @param options.supplyKey - Required, used to mint NFTs after creation
-     * @param options.adminKey - Admin key required to update / delete the collection
-     * @param options.kycKey - Required to grant / revoke KYC on holders
-     * @param options.freezeKey - Required to freeze / unfreeze holders
-     * @param options.pauseKey - Required to pause / unpause the collection
-     * @param options.wipeKey - Required to wipe NFTs from holders
-     * @param options.feeScheduleKey - Required to update custom fees
-     * @param options.metadataKey - Required to update collection metadata
-     * @param options.maxSupply - Maximum number of NFTs (auto-sets `supplyType` to Finite)
-     * @param options.supplyType - Explicit supply type override (`Infinite` or `Finite`)
-     * @param options.customFees - Custom fee schedule
-     * @param options.tokenMemo - Collection memo (max 100 bytes)
-     * @param options.metadata - Arbitrary collection metadata bytes
+     * @param options - Collection name, symbol, treasury, keys and supply settings; `supplyKey` is required
      * @param scheduleOptions.payerAccountId - Override the account that pays for the schedule creation
      * @param scheduleOptions.adminKey - Optional schedule admin key for later updates / deletion
      * @param scheduleOptions.scheduleMemo - Optional memo stored on the schedule itself

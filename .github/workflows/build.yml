@@ -80,6 +80,11 @@ jobs:
                     echo "::endgroup::"
                   done
 
+            # Fails on any TypeDoc warning, such as a broken {@link} or a
+            # public API referencing a type that isn't exported.
+            - name: Build API docs
+              run: pnpm run docs
+
             - name: Run unit tests
               run: pnpm --filter @hiero-hackers/enterprise-core run test:unit:coverage
 
