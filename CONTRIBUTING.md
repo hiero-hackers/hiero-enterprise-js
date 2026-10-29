@@ -110,6 +110,7 @@ for the tag, so the Releases tab always mirrors what is on the registry.
 | Live behavior of every mirror query        | `pnpm --filter @hiero-hackers/examples examples mirror` (also weekly via [`mainnet-smoke`](.github/workflows/mainnet-smoke.yml)) | public mainnet (read-only, keyless)         |
 | Upstream OpenAPI spec drift                | weekly [`spec-drift`](.github/workflows/spec-drift.yml) workflow, or `gh workflow run spec-drift.yml`                               | GitHub                                      |
 | Response-field completeness                | `node spec/diff-response-fields.mjs` from `packages/mirror` (also a CI step)                                                        | none                                        |
+| Core and mirror bundle for browsers and React Native | `node scripts/check-browser-bundle.mjs` after `pnpm run build` (also a CI step; ESLint bans `Buffer`, `process` and Node imports in their `src`) | none |
 
 CI runs the first five automatically (Solo is provisioned in the workflow);
 the examples run there against Solo too, with the mainnet-dependent mirror

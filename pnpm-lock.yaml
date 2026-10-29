@@ -22,12 +22,18 @@ importers:
       '@hiero-hackers/enterprise-core':
         specifier: workspace:*
         version: link:packages/core
+      '@hiero-hackers/enterprise-mirror':
+        specifier: workspace:*
+        version: link:packages/mirror
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.5
       '@vitest/coverage-v8':
         specifier: ^5.0.5
         version: 5.0.5(vitest@5.0.5)
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
       eslint:
         specifier: ^10.13.0
         version: 10.13.0(supports-color@7.2.0)
