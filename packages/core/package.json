@@ -52,10 +52,10 @@
         "bignumber.js": "11.1.2"
     },
     "peerDependencies": {
-        "@hiero-ledger/sdk": "^2.90.1"
+        "@hiero-ledger/sdk": "^2.91.0"
     },
     "devDependencies": {
-        "@hiero-ledger/sdk": "^2.90.1"
+        "@hiero-ledger/sdk": "^2.91.0"
     },
     "publishConfig": {
         "registry": "https://npm.pkg.github.com",
