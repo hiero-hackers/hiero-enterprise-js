@@ -65,6 +65,27 @@ describe("CreateAccountValidator", () => {
                 }),
             ).toThrow(/alias is not supported when using 'key' directly/);
         });
+
+        it("passes when an EVM address alias is combined with key", () => {
+            expect(() =>
+                validator.validate({
+                    key: PrivateKey.generateED25519().publicKey,
+                    alias: PrivateKey.generateECDSA().publicKey.toEvmAddress(),
+                }),
+            ).not.toThrow();
+        });
+
+        it("throws when an ecdsaPublicKey alias is combined with key", () => {
+            expect(() =>
+                validator.validate({
+                    key: PrivateKey.generateED25519().publicKey,
+                    alias: {
+                        ecdsaPublicKey:
+                            PrivateKey.generateECDSA().publicKey.toStringRaw(),
+                    },
+                }),
+            ).toThrow(/alias is not supported when using 'key' directly/);
+        });
     });
 
     describe("alias", () => {
@@ -77,6 +98,31 @@ describe("CreateAccountValidator", () => {
         it("throws with alias: true and the default ED25519 keyType", () => {
             expect(validate({ alias: true })).toThrow(
                 /alias: true requires keyType AccountType.ECDSA/,
+            );
+        });
+
+        it("passes with an EVM address, with or without 0x", () => {
+            const address = PrivateKey.generateECDSA().publicKey.toEvmAddress();
+            expect(validate({ alias: address })).not.toThrow();
+            expect(validate({ alias: `0x${address}` })).not.toThrow();
+            expect(validate({ alias: address.toUpperCase() })).not.toThrow();
+        });
+
+        it.each([
+            ["empty", ""],
+            ["too short", "0x" + "a".repeat(38)],
+            ["too long", "a".repeat(42)],
+            ["non-hex", "0x" + "g".repeat(40)],
+            ["account ID", "0.0.1234"],
+        ])("throws on an alias that isn't an EVM address (%s)", (_, alias) => {
+            expect(validate({ alias })).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    context: "CreateAccountValidator",
+                    message: expect.stringContaining(
+                        "alias must be an EVM address: 40 hex characters, optionally prefixed with 0x.",
+                    ),
+                }),
             );
         });
     });

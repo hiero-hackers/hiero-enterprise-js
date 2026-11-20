@@ -6,7 +6,12 @@ import {
     normalizeError,
     validationError,
 } from "../../errors/index.js";
-import type { QueryOptions, ScheduleOptions } from "../transaction/index.js";
+import type {
+    QueryOptions,
+    ScheduleOptions,
+    TransactionOptions,
+} from "../transaction/index.js";
+import { resolveTransactionId } from "../transaction/index.js";
 import {
     FileCreateOperation,
     FileAppendOperation,
@@ -110,7 +115,9 @@ export class FileService {
      * (~4 KiB) they are automatically split.
      * The leading chunk is submitted via `FileCreateTransaction`,
      * and the remainder is appended via a single `FileAppendTransaction`
-     * (which the SDK further sub-chunks internally).
+     * (which the SDK further sub-chunks internally). With a `payer` or a
+     * `transactionId`, the append is paid by the same payer under its own
+     * transaction ID.
      *
      * If `keys` is omitted the file is created with `[operatorPublicKey]`
      * so the operator can later update or delete it. Pass `keys: []`
@@ -179,6 +186,8 @@ export class FileService {
             try {
                 await this.appendOperation.execute({
                     ...options,
+                    transactionId: undefined,
+                    payer: appendPayer(options),
                     fileId: result.fileId,
                     contents: tail,
                 });
@@ -224,7 +233,9 @@ export class FileService {
      *
      * When `contents` exceeds the per-transaction network limit
      * (~4 KiB), the leading chunk goes into the `FileUpdate` and the
-     * remainder into a single follow-up `FileAppendTransaction`.
+     * remainder into a single follow-up `FileAppendTransaction`. With a
+     * `payer` or a `transactionId`, the append is paid by the same payer
+     * under its own transaction ID.
      *
      * Every key in the file's existing `keys` must sign; rotating
      * `keys` to a new list additionally requires the new keys to sign.
@@ -254,6 +265,8 @@ export class FileService {
             try {
                 await this.appendOperation.execute({
                     ...options,
+                    transactionId: undefined,
+                    payer: appendPayer(options),
                     fileId: options.fileId,
                     contents: tail,
                 });
@@ -391,6 +404,18 @@ function splitContents(
         contents.subarray(0, MAX_FILE_TX_BYTES),
         contents.subarray(MAX_FILE_TX_BYTES),
     ];
+}
+
+/**
+ * The follow-up append's payer: reusing the create / update's transaction
+ * ID would make the append a duplicate, so it keeps only the payer and gets
+ * its own transaction ID.
+ */
+function appendPayer(options: TransactionOptions): string | undefined {
+    return (
+        options.payer?.toString() ??
+        resolveTransactionId(options)?.accountId?.toString()
+    );
 }
 
 /**

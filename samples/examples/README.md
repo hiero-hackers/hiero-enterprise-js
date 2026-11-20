@@ -2,7 +2,7 @@
 
 Runnable scripts for `@hiero-hackers/enterprise-core` and `@hiero-hackers/enterprise-mirror`, one feature per file.
 
-Each file is self-contained: setup, constants and helpers are repeated in every file, so you can copy any one of them out as a starting point. The scripts make live network calls.
+Each file is self-contained: it imports only the enterprise packages, `@hiero-ledger/sdk` and Node built-ins, and repeats its own setup, constants and helpers, so you can copy any one of them out as a starting point. The scripts make live network calls.
 
 ## Run
 
@@ -27,15 +27,21 @@ npx tsx src/mirror/queries.ts
 
 Put the variables in a `.env` file in this directory.
 
-**Writes** need an operator account (see [`src/env.ts`](./src/env.ts)):
+**Writes** need an operator account. Each example builds its client with `resolveConfigFromEnv()` from `@hiero-hackers/enterprise-core`, which reads:
 
 ```sh
-HIERO_NETWORK=testnet
-HIERO_ED25519_OPERATOR_ID=0.0.12345
-HIERO_ED25519_OPERATOR_KEY=<your private key>
-# or the ECDSA pair:
-HIERO_ECDSA_OPERATOR_ID=0.0.12345
-HIERO_ECDSA_OPERATOR_KEY=<your private key>
+HIERO_NETWORK=testnet                 # testnet, mainnet, previewnet, or a custom name
+HIERO_OPERATOR_ID=0.0.12345           # the account that pays the fees
+HIERO_OPERATOR_KEY=<your private key>
+HIERO_OPERATOR_KEY_TYPE=ed25519       # ed25519, ecdsa or der
+```
+
+For a custom network such as local Solo, also set its nodes and mirror node:
+
+```sh
+HIERO_NETWORK_NODES=127.0.0.1:50211=0.0.3
+HIERO_MIRROR_NETWORK=localhost:5600
+HIERO_MIRROR_NODE_URL=http://localhost:5551
 ```
 
 **Mirror reads** need nothing; these are optional:

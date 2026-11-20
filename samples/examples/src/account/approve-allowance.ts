@@ -10,6 +10,15 @@
  * In all cases the owner's key must sign. Since the operator is not the owner,
  * we pass the owner's key via `additionalSigners`.
  *
+ * Setup: the client is built from environment variables by
+ * `resolveConfigFromEnv()` from `@hiero-hackers/enterprise-core`:
+ *   HIERO_NETWORK            testnet, mainnet, previewnet, or a custom name
+ *   HIERO_OPERATOR_ID        account that pays the fees, e.g. 0.0.12345
+ *   HIERO_OPERATOR_KEY       the operator's private key
+ *   HIERO_OPERATOR_KEY_TYPE  ed25519, ecdsa or der
+ * For a custom network such as local Solo, also set HIERO_NETWORK_NODES,
+ * HIERO_MIRROR_NETWORK and HIERO_MIRROR_NODE_URL.
+ *
  * Run: pnpm tsx src/account/approve-allowance.ts
  */
 
@@ -19,8 +28,8 @@ import {
     AccountType,
     HieroContext,
     TokenService,
+    resolveConfigFromEnv,
 } from "@hiero-hackers/enterprise-core";
-import { getED25519Config } from "../env.js";
 
 /**
  * Demonstrates approving an HBAR spending allowance.
@@ -290,7 +299,8 @@ async function approveNftWithDelegatingSpender(
 }
 
 async function main() {
-    const context = new HieroContext(getED25519Config());
+    // Read the network and operator from the HIERO_* environment variables.
+    const context = new HieroContext(resolveConfigFromEnv());
     const accountService = new AccountService(context);
     const tokenService = new TokenService(context);
 
