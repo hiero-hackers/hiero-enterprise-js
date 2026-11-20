@@ -25,6 +25,6 @@ export interface Account {
     accountId: AccountId;
     /** The public key associated with the account */
     publicKey?: string;
-    /** The EVM address derived from the public key */
+    /** The EVM address alias, derived from a public key or given at creation */
     evmAddress?: string;
 }

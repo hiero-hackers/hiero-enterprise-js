@@ -63,6 +63,29 @@ describe("AccountService.createAccount [Integration]", () => {
         expect(balance.tinybars).toBe(String(5 * 100_000_000));
     });
 
+    it("creates an account with a given EVM address alias", async () => {
+        const newKey = PrivateKey.generateED25519();
+        const aliasKey = PrivateKey.generateECDSA();
+        const evmAddress = aliasKey.publicKey.toEvmAddress();
+
+        const account = await client.createAccount({
+            publicKey: newKey.publicKey.toString(),
+            keyType: AccountType.ED25519,
+            alias: `0x${evmAddress}`,
+            initialBalance: 5,
+            memo: "EVM Address Alias Test",
+            // The owner of the alias address must sign
+            additionalSigners: [aliasKey],
+        });
+
+        expect(account.accountId).toBeDefined();
+        expect(account.evmAddress).toBe(evmAddress);
+
+        await waitForMirrorNodeRecord();
+        const balance = await client.getAccountBalance(account.accountId);
+        expect(balance.tinybars).toBe(String(5 * 100_000_000));
+    });
+
     // Skipped: Solo rejects hooks with HOOKS_NOT_ENABLED. Run on a network with HIP-1195 enabled.
     it.skip("creates an account with an allowance hook (HIP-1195)", async () => {
         const hookContractId = await deployHookContract(contractService);

@@ -55,6 +55,52 @@ describe("TransferHbarOperation [Integration]", () => {
             expect(afterTinybars - beforeTinybars).toBe(100_000_000n);
         });
 
+        it("lets another account pay for the transfer (payer)", async () => {
+            const payer = await createTestAccount(client, 5);
+            const receiver = await createTestAccount(client, 0);
+
+            await waitForMirrorNodeRecord();
+
+            const payerBefore = BigInt(
+                (await client.getAccountBalance(payer.accountId)).tinybars,
+            );
+
+            const result = await client.transferHbar(
+                receiver.accountId,
+                1,
+                operatorAccountId,
+                {
+                    payer: payer.accountId,
+                    additionalSigners: [payer.key],
+                },
+            );
+
+            expect(result.transactionId.startsWith(`${payer.accountId}@`)).toBe(
+                true,
+            );
+
+            await waitForMirrorNodeRecord();
+
+            const receiverAfter = BigInt(
+                (await client.getAccountBalance(receiver.accountId)).tinybars,
+            );
+            const payerAfter = BigInt(
+                (await client.getAccountBalance(payer.accountId)).tinybars,
+            );
+
+            expect(receiverAfter).toBe(100_000_000n);
+            // The payer is not part of the transfer, so it only lost the fee.
+            expect(payerAfter).toBeLessThan(payerBefore);
+        });
+
+        it("rejects a malformed transactionId before submitting to the network", async () => {
+            await expect(
+                client.transferHbar(operatorAccountId, 1, "0.0.2", {
+                    transactionId: "not-an-id",
+                }),
+            ).rejects.toMatchObject({ code: "INPUT_INVALID" });
+        });
+
         it("rejects a self-transfer before submitting to the network", async () => {
             await expect(
                 client.transferHbar(operatorAccountId, 1, operatorAccountId),

@@ -79,7 +79,7 @@ class AccountController {
         body: {
             publicKey: string;
             keyType?: AccountType;
-            alias?: boolean | { ecdsaPublicKey: string };
+            alias?: boolean | { ecdsaPublicKey: string } | string;
             initialBalance?: number;
             memo?: string;
         },

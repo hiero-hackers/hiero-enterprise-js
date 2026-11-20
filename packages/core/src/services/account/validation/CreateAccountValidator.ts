@@ -3,6 +3,9 @@ import { validationError } from "../../../errors/index.js";
 import { validateHookCreations } from "../../contract/validation/index.js";
 import type { CreateAccountOptions } from "../operations/index.js";
 
+/** A 20-byte EVM address, with or without `0x`. */
+const EVM_ADDRESS = /^(0x)?[0-9a-fA-F]{40}$/;
+
 /**
  * Validates a built `AccountCreateTransaction` and its options before execution.
  *
@@ -50,7 +53,12 @@ export class CreateAccountValidator {
             // keyType defaults to ED25519 when not specified
         }
 
-        if (options.key != null && options.alias != null) {
+        // A given EVM address needs no key to derive from, so it may go with `key`
+        if (
+            options.key != null &&
+            options.alias != null &&
+            typeof options.alias !== "string"
+        ) {
             throw validationError(
                 "CreateAccountValidator",
                 "alias is not supported when using 'key' directly — alias derivation requires a single ECDSA public key string.",
@@ -67,6 +75,16 @@ export class CreateAccountValidator {
                     "alias: true requires keyType AccountType.ECDSA — ed25519 keys cannot derive an EVM alias.",
                 );
             }
+        }
+
+        if (
+            typeof options.alias === "string" &&
+            !EVM_ADDRESS.test(options.alias)
+        ) {
+            throw validationError(
+                "CreateAccountValidator",
+                "alias must be an EVM address: 40 hex characters, optionally prefixed with 0x.",
+            );
         }
     }
 

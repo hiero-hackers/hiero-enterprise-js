@@ -126,7 +126,7 @@ export class AccountService {
      * @param options.publicKey - The public key hex string for the new account (mutually exclusive with `options.key`)
      * @param options.key - SDK `Key` instance (KeyList, threshold, etc.). Mutually exclusive with `options.publicKey`
      * @param options.keyType - Key algorithm: `AccountType.ED25519` or `AccountType.ECDSA`. Required when `publicKey` is a string
-     * @param options.alias - `true` to derive EVM alias from key, or `{ ecdsaPublicKey }` for two-key pattern
+     * @param options.alias - `true` to derive EVM alias from key, `{ ecdsaPublicKey }` for two-key pattern, or a given EVM address (its ECDSA key must sign via `additionalSigners`)
      * @param options.initialBalance - Initial HBAR balance (default: 0)
      * @param options.receiverSignatureRequired - Require receiver sig for inbound transfers
      * @param options.memo - Account memo (max 100 bytes)
@@ -148,7 +148,7 @@ export class AccountService {
      * @param options.publicKey - The public key hex string for the new account (mutually exclusive with `options.key`)
      * @param options.key - SDK `Key` instance (KeyList, threshold, etc.). Mutually exclusive with `options.publicKey`
      * @param options.keyType - Key algorithm: `AccountType.ED25519` or `AccountType.ECDSA`. Required when `publicKey` is a string
-     * @param options.alias - `true` to derive EVM alias from key, or `{ ecdsaPublicKey }` for two-key pattern
+     * @param options.alias - `true` to derive EVM alias from key, `{ ecdsaPublicKey }` for two-key pattern, or a given EVM address (its ECDSA key must sign via `additionalSigners`)
      * @param options.initialBalance - Initial HBAR balance (default: 0)
      * @param options.receiverSignatureRequired - Require receiver sig for inbound transfers
      * @param options.memo - Account memo (max 100 bytes)
