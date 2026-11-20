@@ -1,0 +1,11 @@
+{
+    "$schema": "https://typedoc.org/schema.json",
+    "name": "Hiero Enterprise JS",
+    "entryPointStrategy": "packages",
+    "entryPoints": ["packages/core", "packages/mirror"],
+    "packageOptions": {
+        "entryPoints": ["src/index.ts"]
+    },
+    "out": "docs/api",
+    "treatWarningsAsErrors": true
+}

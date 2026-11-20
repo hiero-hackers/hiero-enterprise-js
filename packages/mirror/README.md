@@ -2,7 +2,7 @@
 
 A typed client for the Hiero mirror node REST API, with no dependencies.
 
-Mirror node reads are free and need no keys, so this package has no SDK, no credentials and no gRPC. It only needs a global `fetch` (Node.js 18+). It covers the whole REST API with typed repositories, and adds pagination, client-side rate limiting, filters and unit helpers. To send transactions as well, add [`@hiero-hackers/enterprise-core`](../core).
+Mirror node reads are free and need no keys, so this package has no SDK, no credentials and no gRPC. It only needs a global `fetch` (Node.js 18+). It covers the whole REST API with typed repositories, and adds pagination, client-side rate limiting, filters and unit helpers. To send transactions as well, add [`@hiero-hackers/enterprise-core`](https://github.com/hiero-hackers/hiero-enterprise-js/tree/main/packages/core).
 
 ## Install
 
@@ -52,7 +52,7 @@ const mirror = createMirrorNodeClient();
 | `NetworkRepository` | Exchange rates, supply, staking, node stake, registered nodes, the fee schedule and HIP-1313 fee estimates |
 | `ScheduleRepository` | Scheduled transactions: signatures, executed or deleted state, expiry |
 
-Together they cover every path and operation of the mirror node REST API: 47 of the 48 paths and 48 of the 49 operations in the vendored spec (v0.166). The missing one, `contracts/results/{id}/prestate`, is new upstream and no public network serves it yet. A test compares the client against the [spec](./spec) on every build, so the claim stays true. The mirror node's gRPC and Rosetta APIs are out of scope.
+Together they cover every path and operation of the mirror node REST API: 47 of the 48 paths and 48 of the 49 operations in the vendored spec (v0.166). The missing one, `contracts/results/{id}/prestate`, is new upstream and no public network serves it yet. A test compares the client against the [spec](https://github.com/hiero-hackers/hiero-enterprise-js/tree/main/packages/mirror/spec) on every build, so the claim stays true. The mirror node's gRPC and Rosetta APIs are out of scope.
 
 Create the repositories one by one, or all at once over one client. Either way they share its rate limiter:
 
@@ -341,7 +341,7 @@ If the entity was just created, use [`withRetryOn404()`](#new-entities) instead.
 
 ## Examples
 
-[`samples/examples/src/mirror`](../../samples/examples/src/mirror) runs against mainnet with no credentials. It shows query filters and the three ways to page through results.
+[`samples/examples/src/mirror`](https://github.com/hiero-hackers/hiero-enterprise-js/tree/main/samples/examples/src/mirror) runs against mainnet with no credentials. It shows query filters and the three ways to page through results.
 
 ## License
 

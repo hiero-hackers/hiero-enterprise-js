@@ -80,6 +80,11 @@ jobs:
                     echo "::endgroup::"
                   done
 
+            # Fails on any TypeDoc warning, such as a broken {@link} or a
+            # public API referencing a type that isn't exported.
+            - name: Build API docs
+              run: pnpm run docs
+
             # Pack both packages once for the packed-consumer steps at the
             # end, and bundle enterprise-mirror (alone) for the browser. The
             # bundle size lands in the job summary so a jump is visible.

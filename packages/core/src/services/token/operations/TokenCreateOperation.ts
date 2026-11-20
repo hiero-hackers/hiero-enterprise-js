@@ -29,28 +29,46 @@ import { HieroError } from "../../../errors/HieroError.js";
  * and scheduling.
  */
 export interface TokenCreateOperationOptions extends TransactionOptions {
+    /** Token name (max 100 bytes). */
     tokenName: string;
+    /** Token symbol (max 100 bytes). */
     tokenSymbol: string;
+    /** Decimal places (default: 0). */
     decimals?: number | Long;
+    /** Initial supply in the smallest unit (default: 0). */
     initialSupply?: Long | number | BigNumber | bigint;
+    /** Account that receives the initial supply and serves as treasury. */
     treasuryAccountId: string | AccountId;
+    /** Required to update or delete the token. */
     adminKey?: Key;
+    /** Required to grant or revoke KYC on accounts holding the token. */
     kycKey?: Key;
+    /** Required to freeze or unfreeze accounts holding the token. */
     freezeKey?: Key;
+    /** Required to pause or unpause the entire token. */
     pauseKey?: Key;
+    /** Required to wipe token balances from accounts. */
     wipeKey?: Key;
+    /** Required to mint or burn after creation. */
     supplyKey?: Key;
+    /** Required to update custom fees. */
     feeScheduleKey?: Key;
     freezeDefault?: boolean;
     autoRenewAccountId?: string | AccountId;
     expirationTime?: Timestamp | Date;
     autoRenewPeriod?: Long | number;
+    /** Token memo (max 100 bytes). */
     tokenMemo?: string;
+    /** Custom fee schedule. */
     customFees?: CustomFee[];
     tokenType?: TokenType;
+    /** Explicit supply type override (`Infinite` or `Finite`). */
     supplyType?: TokenSupplyType;
+    /** Maximum supply; sets `supplyType` to `Finite` unless given. */
     maxSupply?: Long | number | BigNumber | bigint;
+    /** Required to update token metadata. */
     metadataKey?: Key;
+    /** Arbitrary token metadata bytes. */
     metadata?: Uint8Array;
 }
 

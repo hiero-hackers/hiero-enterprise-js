@@ -1,7 +1,7 @@
 # Hiero Enterprise JS
 
-[![CI](../../actions/workflows/build.yml/badge.svg)](../../actions/workflows/build.yml)
-[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Jexsie/4a3c4fd2dae12f95e6177ae3bc807403/raw/hiero-enterprise-js-coverage.json)](../../actions/workflows/build.yml)
+[![CI](https://github.com/hiero-hackers/hiero-enterprise-js/actions/workflows/build.yml/badge.svg)](https://github.com/hiero-hackers/hiero-enterprise-js/actions/workflows/build.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Jexsie/4a3c4fd2dae12f95e6177ae3bc807403/raw/hiero-enterprise-js-coverage.json)](https://github.com/hiero-hackers/hiero-enterprise-js/actions/workflows/build.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/hiero-hackers/hiero-enterprise-js/badge)](https://scorecard.dev/viewer/?uri=github.com/hiero-hackers/hiero-enterprise-js)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
 
@@ -123,7 +123,16 @@ A Hiero network has two kinds of servers:
 - Large numbers keep their full precision
 - Helpers for tinybar ⇄ ℏ, token decimals and consensus timestamps
 
-The [core](./packages/core/README.md) and [mirror](./packages/mirror/README.md) READMEs list every export. [`samples/examples`](./samples/examples) has a runnable script for each service, and [`samples`](./samples) has Express, Fastify and NestJS apps.
+The [core](./packages/core/README.md) and [mirror](./packages/mirror/README.md) READMEs list every export. [`samples/examples`](https://github.com/hiero-hackers/hiero-enterprise-js/tree/main/samples/examples) has a runnable script for each service, and [`samples`](https://github.com/hiero-hackers/hiero-enterprise-js/tree/main/samples) has Express, Fastify and NestJS apps.
+
+## API Reference
+
+The API reference for both packages is generated from the source comments with [TypeDoc](https://typedoc.org). It lists every exported service, repository, option and result type, with each method's parameters, return value, errors and, for many methods, a code example. Build it locally and open `docs/api/index.html`:
+
+```bash
+pnpm install
+pnpm run docs
+```
 
 ## Errors
 
