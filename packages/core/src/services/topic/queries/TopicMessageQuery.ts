@@ -147,13 +147,20 @@ export class TopicMessageQuery {
             options.errorHandler(message, hieroError);
             return;
         }
-        process.emitWarning(
-            `Subscription to topic ${options.topicId.toString()} failed: ${hieroError.message}`,
-            {
-                type: "HieroSubscriptionWarning",
-                code: "HIERO_SUBSCRIPTION_ERROR",
-            },
-        );
+
+        const warning = `Subscription to topic ${options.topicId.toString()} failed: ${hieroError.message}`;
+
+        // Browsers and React Native have no `process`.
+        if (globalThis.process === undefined) {
+            console.warn(warning);
+
+            return;
+        }
+
+        globalThis.process.emitWarning(warning, {
+            type: "HieroSubscriptionWarning",
+            code: "HIERO_SUBSCRIPTION_ERROR",
+        });
     }
 
     private build(options: TopicMessageSubscribeOptions): SdkTopicMessageQuery {

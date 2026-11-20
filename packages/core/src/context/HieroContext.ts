@@ -66,10 +66,19 @@ function reportListenerError(
     event: TransactionEvent,
     error: unknown,
 ): void {
-    process.emitWarning(
-        `${hook} listener threw for ${event.serviceName}.${event.methodName}: ${describeError(error)}`,
-        { type: "HieroListenerWarning", code: "HIERO_LISTENER_ERROR" },
-    );
+    const message = `${hook} listener threw for ${event.serviceName}.${event.methodName}: ${describeError(error)}`;
+
+    // Browsers and React Native have no `process`.
+    if (globalThis.process === undefined) {
+        console.warn(message);
+
+        return;
+    }
+
+    globalThis.process.emitWarning(message, {
+        type: "HieroListenerWarning",
+        code: "HIERO_LISTENER_ERROR",
+    });
 }
 
 /** Stringify a thrown value; listeners may throw values that cannot be. */

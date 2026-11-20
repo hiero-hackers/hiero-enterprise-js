@@ -65,6 +65,11 @@ jobs:
             - name: Build packages
               run: pnpm run build
 
+            # Core and mirror must bundle for browsers and React Native
+            # without Node built-ins.
+            - name: Check browser and React Native bundles
+              run: node scripts/check-browser-bundle.mjs
+
             # Response-field completeness: every schema reachable from a
             # mirror node spec response must be carried by the wire types.
             - name: Mirror spec field diff

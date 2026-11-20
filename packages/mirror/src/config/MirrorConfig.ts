@@ -121,26 +121,38 @@ function booleanFromEnv(
  *   HIERO_MIRROR_NODE_RETRY_ON_404
  *   HIERO_MIRROR_NODE_MAX_CONCURRENT
  *   HIERO_MIRROR_NODE_MAX_REQUESTS_PER_SECOND
+ *
+ * @throws {MirrorError} `CONFIG_INVALID` if there is no `process`
+ *   (browsers, React Native)
  */
 export function mirrorConfigFromEnv(): MirrorConfig {
+    // Browsers and React Native have no `process`.
+    if (globalThis.process === undefined) {
+        throw new MirrorError(
+            "No environment variables to read the mirror config from. " +
+                "Pass a MirrorConfig object instead, e.g. createMirrorNodeClient(config).",
+            { code: MirrorErrorCodes.ConfigInvalid },
+        );
+    }
+
+    const env = globalThis.process.env;
+
     return {
-        network: process.env["HIERO_NETWORK"],
-        mirrorNodeUrl: process.env["HIERO_MIRROR_NODE_URL"],
-        mirrorNodeTimeoutMs: numberFromEnv(
-            process.env["HIERO_MIRROR_NODE_TIMEOUT_MS"],
-        ),
+        network: env["HIERO_NETWORK"],
+        mirrorNodeUrl: env["HIERO_MIRROR_NODE_URL"],
+        mirrorNodeTimeoutMs: numberFromEnv(env["HIERO_MIRROR_NODE_TIMEOUT_MS"]),
         mirrorNodeMaxRetries: numberFromEnv(
-            process.env["HIERO_MIRROR_NODE_MAX_RETRIES"],
+            env["HIERO_MIRROR_NODE_MAX_RETRIES"],
         ),
         mirrorNodeRetryOn404: booleanFromEnv(
             "HIERO_MIRROR_NODE_RETRY_ON_404",
-            process.env["HIERO_MIRROR_NODE_RETRY_ON_404"],
+            env["HIERO_MIRROR_NODE_RETRY_ON_404"],
         ),
         mirrorNodeMaxConcurrent: numberFromEnv(
-            process.env["HIERO_MIRROR_NODE_MAX_CONCURRENT"],
+            env["HIERO_MIRROR_NODE_MAX_CONCURRENT"],
         ),
         mirrorNodeMaxRequestsPerSecond: numberFromEnv(
-            process.env["HIERO_MIRROR_NODE_MAX_REQUESTS_PER_SECOND"],
+            env["HIERO_MIRROR_NODE_MAX_REQUESTS_PER_SECOND"],
         ),
     };
 }

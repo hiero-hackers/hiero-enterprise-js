@@ -1,4 +1,5 @@
 import { validationError } from "../../../errors/index.js";
+import { utf8ByteLength } from "../../../utils/index.js";
 import type { TopicUpdateOperationOptions } from "../operations/index.js";
 
 const MAX_TOPIC_MEMO_BYTES = 100;
@@ -75,7 +76,7 @@ export class TopicUpdateValidator {
         // `null` clears the memo on the network — no length check needed.
         if (options.topicMemo == null) return;
 
-        const byteLength = Buffer.byteLength(options.topicMemo, "utf8");
+        const byteLength = utf8ByteLength(options.topicMemo);
         if (byteLength > MAX_TOPIC_MEMO_BYTES) {
             throw validationError(
                 "TopicUpdateValidator",

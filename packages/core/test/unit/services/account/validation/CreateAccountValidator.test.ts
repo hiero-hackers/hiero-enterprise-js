@@ -158,6 +158,18 @@ describe("CreateAccountValidator", () => {
             expect(validate({ memo: "a".repeat(100) })).not.toThrow();
         });
 
+        it("passes at exactly 100 bytes of multi-byte characters", () => {
+            // 50 × 2-byte characters = 100 bytes
+            expect(validate({ memo: "é".repeat(50) })).not.toThrow();
+        });
+
+        it("throws one byte over 100 with multi-byte characters", () => {
+            // 49 × 2 bytes + 3 bytes = 101 bytes
+            expect(validate({ memo: "é".repeat(49) + "€" })).toThrow(
+                /Account memo exceeds 100 bytes \(got 101\)/,
+            );
+        });
+
         it("throws over 100 bytes, counting UTF-8 bytes", () => {
             // 34 × 3-byte characters = 102 bytes
             expect(validate({ memo: "€".repeat(34) })).toThrow(

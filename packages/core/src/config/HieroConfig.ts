@@ -66,18 +66,28 @@ const OPERATOR_KEY_TYPES = ["ed25519", "ecdsa", "der"];
  *   HIERO_MAX_BACKOFF_MS
  *
  * @returns The resolved HieroConfig
- * @throws {HieroError} `CONFIG_INVALID` if a required variable is missing,
+ * @throws {HieroError} `CONFIG_INVALID` if there is no `process` (browsers,
+ *   React Native), a required variable is missing,
  *   `HIERO_OPERATOR_KEY_TYPE` is not a known key type, a
  *   `HIERO_NETWORK_NODES` entry is malformed, or a numeric variable is not
  *   a positive number
  */
 export function resolveConfigFromEnv(): HieroConfig {
-    const network = process.env["HIERO_NETWORK"];
-    const operatorId = process.env["HIERO_OPERATOR_ID"];
-    const operatorKey = process.env["HIERO_OPERATOR_KEY"];
-    const operatorKeyType =
-        process.env["HIERO_OPERATOR_KEY_TYPE"]?.toLowerCase();
-    const networkNodesRaw = process.env["HIERO_NETWORK_NODES"];
+    // Browsers and React Native have no `process`.
+    if (globalThis.process === undefined) {
+        throw new HieroError(
+            "No environment variables to read the Hiero config from. " +
+                "Pass a HieroConfig object instead, e.g. new HieroContext(config).",
+            { code: HieroErrorCodes.ConfigInvalid },
+        );
+    }
+
+    const env = globalThis.process.env;
+    const network = env["HIERO_NETWORK"];
+    const operatorId = env["HIERO_OPERATOR_ID"];
+    const operatorKey = env["HIERO_OPERATOR_KEY"];
+    const operatorKeyType = env["HIERO_OPERATOR_KEY_TYPE"]?.toLowerCase();
+    const networkNodesRaw = env["HIERO_NETWORK_NODES"];
 
     if (!network || !operatorId || !operatorKey || !operatorKeyType) {
         const missing = [];
@@ -125,7 +135,7 @@ export function resolveConfigFromEnv(): HieroConfig {
     }
 
     // Parse HIERO_MIRROR_NETWORK: "host:port,host:port"
-    const mirrorNetwork = process.env["HIERO_MIRROR_NETWORK"]
+    const mirrorNetwork = env["HIERO_MIRROR_NETWORK"]
         ?.split(",")
         .map((address) => address.trim())
         .filter((address) => address.length > 0);
@@ -137,26 +147,26 @@ export function resolveConfigFromEnv(): HieroConfig {
         operatorKeyType,
         networkNodes,
         mirrorNetwork: mirrorNetwork?.length ? mirrorNetwork : undefined,
-        mirrorNodeUrl: process.env["HIERO_MIRROR_NODE_URL"] || undefined,
+        mirrorNodeUrl: env["HIERO_MIRROR_NODE_URL"] || undefined,
         requestTimeoutMs: positiveNumberFromEnv(
             "HIERO_REQUEST_TIMEOUT_MS",
-            process.env["HIERO_REQUEST_TIMEOUT_MS"],
+            env["HIERO_REQUEST_TIMEOUT_MS"],
         ),
         grpcDeadlineMs: positiveNumberFromEnv(
             "HIERO_GRPC_DEADLINE_MS",
-            process.env["HIERO_GRPC_DEADLINE_MS"],
+            env["HIERO_GRPC_DEADLINE_MS"],
         ),
         maxAttempts: positiveNumberFromEnv(
             "HIERO_MAX_ATTEMPTS",
-            process.env["HIERO_MAX_ATTEMPTS"],
+            env["HIERO_MAX_ATTEMPTS"],
         ),
         minBackoffMs: positiveNumberFromEnv(
             "HIERO_MIN_BACKOFF_MS",
-            process.env["HIERO_MIN_BACKOFF_MS"],
+            env["HIERO_MIN_BACKOFF_MS"],
         ),
         maxBackoffMs: positiveNumberFromEnv(
             "HIERO_MAX_BACKOFF_MS",
-            process.env["HIERO_MAX_BACKOFF_MS"],
+            env["HIERO_MAX_BACKOFF_MS"],
         ),
     };
 }

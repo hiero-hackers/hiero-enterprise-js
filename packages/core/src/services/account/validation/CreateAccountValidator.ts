@@ -1,5 +1,6 @@
 import { AccountType } from "../../../types/index.js";
 import { validationError } from "../../../errors/index.js";
+import { utf8ByteLength } from "../../../utils/index.js";
 import { validateHookCreations } from "../../contract/validation/index.js";
 import type { CreateAccountOptions } from "../operations/index.js";
 
@@ -118,10 +119,10 @@ export class CreateAccountValidator {
     }
 
     private validateMemo(options: CreateAccountOptions): void {
-        if (options.memo && Buffer.byteLength(options.memo, "utf8") > 100) {
+        if (options.memo && utf8ByteLength(options.memo) > 100) {
             throw validationError(
                 "CreateAccountValidator",
-                `Account memo exceeds 100 bytes (got ${Buffer.byteLength(options.memo, "utf8")}).`,
+                `Account memo exceeds 100 bytes (got ${utf8ByteLength(options.memo)}).`,
             );
         }
     }

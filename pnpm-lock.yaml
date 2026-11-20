@@ -22,6 +22,9 @@ importers:
       '@hiero-hackers/enterprise-core':
         specifier: workspace:*
         version: link:packages/core
+      '@hiero-hackers/enterprise-mirror':
+        specifier: workspace:*
+        version: link:packages/mirror
       '@types/node':
         specifier: ^26.6.6
         version: 26.6.6

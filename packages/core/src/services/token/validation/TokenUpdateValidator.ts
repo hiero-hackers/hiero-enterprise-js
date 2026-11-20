@@ -1,4 +1,5 @@
 import { validationError } from "../../../errors/index.js";
+import { utf8ByteLength } from "../../../utils/index.js";
 import type { TokenUpdateOperationOptions } from "../operations/TokenUpdateOperation.js";
 
 const MAX_TOKEN_NAME_BYTES = 100;
@@ -56,7 +57,7 @@ export class TokenUpdateValidator {
             );
         }
 
-        const byteLength = Buffer.byteLength(options.tokenName, "utf8");
+        const byteLength = utf8ByteLength(options.tokenName);
         if (byteLength > MAX_TOKEN_NAME_BYTES) {
             throw validationError(
                 "TokenUpdateValidator",
@@ -75,7 +76,7 @@ export class TokenUpdateValidator {
             );
         }
 
-        const byteLength = Buffer.byteLength(options.tokenSymbol, "utf8");
+        const byteLength = utf8ByteLength(options.tokenSymbol);
         if (byteLength > MAX_TOKEN_SYMBOL_BYTES) {
             throw validationError(
                 "TokenUpdateValidator",
@@ -87,7 +88,7 @@ export class TokenUpdateValidator {
     private validateMemo(options: TokenUpdateOperationOptions): void {
         if (options.tokenMemo == null) return;
 
-        const byteLength = Buffer.byteLength(options.tokenMemo, "utf8");
+        const byteLength = utf8ByteLength(options.tokenMemo);
         if (byteLength > MAX_TOKEN_MEMO_BYTES) {
             throw validationError(
                 "TokenUpdateValidator",
