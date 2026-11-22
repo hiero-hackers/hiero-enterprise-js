@@ -5,13 +5,13 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/hiero-hackers/hiero-enterprise-js/badge)](https://scorecard.dev/viewer/?uri=github.com/hiero-hackers/hiero-enterprise-js)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
 
-TypeScript libraries for building Node.js services on [Hiero](https://hiero.org) networks.
+TypeScript libraries for building apps on [Hiero](https://hiero.org) networks: Node.js services, browser apps and React Native apps.
 
 `@hiero-hackers/enterprise-core` sends transactions: accounts, tokens, topics, files, smart contracts and schedules, each behind a typed service. `@hiero-hackers/enterprise-mirror` reads the network's history from the mirror node, with no dependencies and no keys. Both wrap the plumbing a production service needs around the [Hiero SDK](https://github.com/hiero-ledger/hiero-sdk-js): a shared client, input checks, typed errors, pagination and rate limiting.
 
 ## Install
 
-This repository publishes two packages. Both need Node.js 18 or later.
+This repository publishes two packages. Both run on Node.js 18 or later, in browsers and in React Native.
 
 **Core**, to send transactions. It uses the app's own [Hiero SDK](https://github.com/hiero-ledger/hiero-sdk-js) (a peer dependency), so install both:
 
@@ -26,6 +26,13 @@ npm install @hiero-hackers/enterprise-mirror
 ```
 
 Use them together or on their own.
+
+### Browsers and React Native
+
+- Each package ships one ESM and one CommonJS build that works on every platform. Core leaves `@hiero-ledger/sdk` to your app, so your bundler picks the SDK's own browser or React Native build.
+- Environment variables are read only on Node.js. Elsewhere, pass a config object: `new HieroContext({ ... })` or `createMirrorNodeClient({ ... })`. Without one they throw `CONFIG_INVALID`.
+- React Native needs the SDK's own setup, such as `react-native-get-random-values`. See the SDK's [React Native guide](https://github.com/hiero-ledger/hiero-sdk-js#react-native-support).
+- Users can read code that runs in their browser or on their phone. Don't put a key there that they shouldn't have, such as a shared operator key.
 
 ## Usage
 
@@ -153,7 +160,7 @@ try {
 ## Limitations
 
 - **Pre-1.0.** Minor releases can break the API.
-- **Node.js only.** CI tests Node.js 22 and 24.
+- **Browsers and React Native are only checked by bundling.** CI runs the tests on Node.js 22 and 24, and bundles both packages for browsers and React Native without running them there.
 - **Not every SDK feature is wrapped.** Batch transactions, hooks and fee estimates are on the [roadmap](https://github.com/hiero-hackers/hiero-enterprise-js/milestones). Until then, `context.client` gives you the SDK client directly.
 
 ## Contributing

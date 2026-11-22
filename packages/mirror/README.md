@@ -2,7 +2,7 @@
 
 A typed client for the Hiero mirror node REST API, with no dependencies.
 
-Mirror node reads are free and need no keys, so this package has no SDK, no credentials and no gRPC. It only needs a global `fetch` (Node.js 18+). It covers the whole REST API with typed repositories, and adds pagination, client-side rate limiting, filters and unit helpers. To send transactions as well, add [`@hiero-hackers/enterprise-core`](../core).
+Mirror node reads are free and need no keys, so this package has no SDK, no credentials and no gRPC. It only needs a global `fetch`, which Node.js 18+, browsers and React Native all have. It covers the whole REST API with typed repositories, and adds pagination, client-side rate limiting, filters and unit helpers. To send transactions as well, add [`@hiero-hackers/enterprise-core`](../core).
 
 ## Install
 
@@ -30,7 +30,7 @@ const recent = await transactions.findByAccount("0.0.98", {
 });
 ```
 
-Or read the settings from the environment (`HIERO_NETWORK`, `HIERO_MIRROR_NODE_*`):
+Or, on Node.js, read the settings from the environment (`HIERO_NETWORK`, `HIERO_MIRROR_NODE_*`):
 
 ```ts
 import { createMirrorNodeClient } from "@hiero-hackers/enterprise-mirror";

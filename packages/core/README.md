@@ -60,7 +60,7 @@ Many write methods have a `schedule…` version that returns a schedule ID inste
 
 ## Configuration
 
-Pass a config object to `new HieroContext({ ... })`, or call it with no arguments to read the environment:
+Pass a config object to `new HieroContext({ ... })`, or, on Node.js, call it with no arguments to read the environment. Browsers and React Native have no environment, so there `new HieroContext()` throws `CONFIG_INVALID`.
 
 | Variable | Config field | Notes |
 |---|---|---|
