@@ -20,12 +20,24 @@
  * the caller, and per-update status / timing is delivered through the
  * `before` / `after` listener events on the surrounding `HieroContext`.
  *
+ * Setup: the client is built from environment variables by
+ * `resolveConfigFromEnv()` from `@hiero-hackers/enterprise-core`:
+ *   HIERO_NETWORK            testnet, mainnet, previewnet, or a custom name
+ *   HIERO_OPERATOR_ID        account that pays the fees, e.g. 0.0.12345
+ *   HIERO_OPERATOR_KEY       the operator's private key
+ *   HIERO_OPERATOR_KEY_TYPE  ed25519, ecdsa or der
+ * For a custom network such as local Solo, also set HIERO_NETWORK_NODES,
+ * HIERO_MIRROR_NETWORK and HIERO_MIRROR_NODE_URL.
+ *
  * Run: pnpm tsx src/contract/update-contract.ts
  */
 
 import { PrivateKey } from "@hiero-ledger/sdk";
-import { ContractService, HieroContext } from "@hiero-hackers/enterprise-core";
-import { getED25519Config } from "../env.js";
+import {
+    ContractService,
+    HieroContext,
+    resolveConfigFromEnv,
+} from "@hiero-hackers/enterprise-core";
 
 /**
  * Minimal compiled EVM bytecode for an empty Solidity contract — solc
@@ -53,6 +65,7 @@ async function deployMutableContract(
         additionalSigners: [adminKey],
     });
     console.log(`Deployed ${label} contract:`, contractId);
+
     return { contractId: contractId.toString(), adminKey };
 }
 
@@ -173,7 +186,8 @@ async function scheduleUpdate(contractService: ContractService) {
 }
 
 async function main() {
-    const context = new HieroContext(getED25519Config());
+    // Read the network and operator from the HIERO_* environment variables.
+    const context = new HieroContext(resolveConfigFromEnv());
     const contractService = new ContractService(context);
     try {
         await updateMemoOnly(contractService);

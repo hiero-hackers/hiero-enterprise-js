@@ -60,6 +60,9 @@ pnpm lint
 
 # Check formatting (CI runs this); `pnpm format` rewrites files
 pnpm format:check
+
+# Build the API reference into docs/api (CI fails on any TypeDoc warning)
+pnpm docs
 ```
 
 Once building and testing pass, see the [samples](samples/README.md) for
@@ -110,6 +113,8 @@ for the tag, so the Releases tab always mirrors what is on the registry.
 | Live behavior of every mirror query        | `pnpm --filter @hiero-hackers/examples examples mirror` (also weekly via [`mainnet-smoke`](.github/workflows/mainnet-smoke.yml)) | public mainnet (read-only, keyless)         |
 | Upstream OpenAPI spec drift                | weekly [`spec-drift`](.github/workflows/spec-drift.yml) workflow, or `gh workflow run spec-drift.yml`                               | GitHub                                      |
 | Response-field completeness                | `node spec/diff-response-fields.mjs` from `packages/mirror` (also a CI step)                                                        | none                                        |
+| Packed tarballs work in Node ESM, CJS and a browser bundle | `node test/packed/run.mjs` (packs, so it builds first; also in CI on Node 24, plus a non-blocking Node 18 run, against Solo) | public mainnet mirror; local Solo to also submit a topic message (`HIERO_*` variables set) |
+| Core and mirror bundle for browsers and React Native | `node scripts/check-browser-bundle.mjs` after `pnpm run build` (also a CI step; ESLint bans `Buffer`, `process` and Node imports in their `src`) | none |
 
 CI runs the first five automatically (Solo is provisioned in the workflow);
 the examples run there against Solo too, with the mainnet-dependent mirror
@@ -308,6 +313,19 @@ Code contributions are handled using [Pull Requests][pull-requests]. Please keep
 
 - All code contributions must be accompanied with new or modified tests that verify that the code works as expected; i.e. that the issue has been fixed or that the functionality works as intended.
 
+### Difficulty Levels
+
+Issues ready to pick up carry the `approved` label and one difficulty label. Each level has an issue template in [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE) that states the expected time and prerequisites:
+
+| Label                                           | Time  | Prerequisites                                        |
+| ----------------------------------------------- | ----- | ---------------------------------------------------- |
+| [good first issue][label-good-first-issue]      | ~4h   | none                                                 |
+| [skill: beginner][label-skill-beginner]         | ~8h   | about one completed good first issue                 |
+| [skill: intermediate][label-skill-intermediate] | ~25h  | comfortable with both packages and their conventions |
+| [skill: advanced][label-skill-advanced]         | ~30h+ | deep context on core, mirror and the Hiero SDK       |
+
+Comment on the issue to ask a maintainer to assign it to you before you start.
+
 ### Coding Standards
 
 - **TypeScript** — strict mode, no implicit `any`
@@ -402,3 +420,7 @@ All Pull Requests must be approved by at least one maintainer before it can be m
 [pull-requests]: ../../pulls
 [label-bug]: ../../labels/bug
 [label-enhancement]: ../../labels/enhancement
+[label-good-first-issue]: ../../labels/good%20first%20issue
+[label-skill-beginner]: ../../labels/skill%3A%20beginner
+[label-skill-intermediate]: ../../labels/skill%3A%20intermediate
+[label-skill-advanced]: ../../labels/skill%3A%20advanced

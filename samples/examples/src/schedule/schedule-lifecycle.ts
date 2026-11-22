@@ -8,6 +8,15 @@
  *   4. Sign with the payer's key to trigger execution
  *   5. Query final state (executed)
  *
+ * Setup: the client is built from environment variables by
+ * `resolveConfigFromEnv()` from `@hiero-hackers/enterprise-core`:
+ *   HIERO_NETWORK            testnet, mainnet, previewnet, or a custom name
+ *   HIERO_OPERATOR_ID        account that pays the fees, e.g. 0.0.12345
+ *   HIERO_OPERATOR_KEY       the operator's private key
+ *   HIERO_OPERATOR_KEY_TYPE  ed25519, ecdsa or der
+ * For a custom network such as local Solo, also set HIERO_NETWORK_NODES,
+ * HIERO_MIRROR_NETWORK and HIERO_MIRROR_NODE_URL.
+ *
  * Run: pnpm tsx src/schedule/schedule-lifecycle.ts
  */
 
@@ -17,12 +26,13 @@ import {
     AccountType,
     ScheduleService,
     HieroContext,
+    resolveConfigFromEnv,
 } from "@hiero-hackers/enterprise-core";
-import { getED25519Config } from "../env.js";
 import type { ScheduleOptions } from "@hiero-hackers/enterprise-core";
 
 async function main() {
-    const context = new HieroContext(getED25519Config());
+    // Read the network and operator from the HIERO_* environment variables.
+    const context = new HieroContext(resolveConfigFromEnv());
 
     const accountService = new AccountService(context);
     const scheduleService = new ScheduleService(context);

@@ -49,7 +49,7 @@ export async function fetchFunctionResult(
     const fn = record.contractFunctionResult;
     return fn
         ? {
-              returnDataHex: `0x${Buffer.from(fn.bytes).toString("hex")}`,
+              returnDataHex: `0x${toHex(fn.bytes)}`,
               gasUsed: fn.gasUsed.toNumber(),
               errorMessage:
                   fn.errorMessage != null && fn.errorMessage !== ""
@@ -57,4 +57,14 @@ export async function fetchFunctionResult(
                       : null,
           }
         : null;
+}
+
+/** Lowercase hex of `bytes`; the SDK exports no hex encoder. */
+function toHex(bytes: Uint8Array): string {
+    let hex = "";
+    for (const byte of bytes) {
+        hex += byte.toString(16).padStart(2, "0");
+    }
+
+    return hex;
 }

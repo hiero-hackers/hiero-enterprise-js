@@ -7,7 +7,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import globals from "globals";
 
 export default defineConfig(
-    globalIgnores(["**/dist/**", "**/node_modules/**"]),
+    globalIgnores(["**/dist/**", "**/node_modules/**", "docs/api/**"]),
 
     ...tseslint.configs.recommended,
     eslint.configs.recommended,
@@ -78,6 +78,52 @@ export default defineConfig(
             "@typescript-eslint/consistent-type-imports": [
                 "warn",
                 { prefer: "type-imports", fixStyle: "separate-type-imports" },
+            ],
+        },
+    },
+
+    // Core and mirror run in browsers and React Native: no Node-only APIs.
+    // Guarded fallbacks go through `globalThis.process`.
+    {
+        files: ["packages/core/src/**", "packages/mirror/src/**"],
+        rules: {
+            "no-restricted-globals": [
+                "error",
+                {
+                    name: "Buffer",
+                    message: "Node-only. Use Uint8Array and TextEncoder.",
+                },
+                {
+                    name: "process",
+                    message:
+                        "Node-only. Check `globalThis.process` before using it.",
+                },
+            ],
+            "no-restricted-imports": [
+                "error",
+                {
+                    patterns: [
+                        {
+                            regex: "^node:",
+                            message: "Node built-ins don't run in browsers.",
+                        },
+                    ],
+                    paths: [
+                        "fs",
+                        "crypto",
+                        "path",
+                        "os",
+                        "util",
+                        "events",
+                        "stream",
+                        "http",
+                        "https",
+                        "net",
+                    ].map((name) => ({
+                        name,
+                        message: "Node built-ins don't run in browsers.",
+                    })),
+                },
             ],
         },
     },

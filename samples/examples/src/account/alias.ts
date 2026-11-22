@@ -5,9 +5,19 @@
  *
  * 1. Single-key alias: ECDSA key derives both the account key and EVM alias
  * 2. Two-key alias: ED25519 controls the account, separate ECDSA key provides the alias
+ * 3. Given EVM address: the address itself is the alias; its ECDSA key signs
  *
  * Aliases are immutable once set. The derived EVM address (0x...) can be used
  * in Solidity contracts and EVM tooling (MetaMask, Hardhat, etc.).
+ *
+ * Setup: the client is built from environment variables by
+ * `resolveConfigFromEnv()` from `@hiero-hackers/enterprise-core`:
+ *   HIERO_NETWORK            testnet, mainnet, previewnet, or a custom name
+ *   HIERO_OPERATOR_ID        account that pays the fees, e.g. 0.0.12345
+ *   HIERO_OPERATOR_KEY       the operator's private key
+ *   HIERO_OPERATOR_KEY_TYPE  ed25519, ecdsa or der
+ * For a custom network such as local Solo, also set HIERO_NETWORK_NODES,
+ * HIERO_MIRROR_NETWORK and HIERO_MIRROR_NODE_URL.
  *
  * Run: pnpm tsx src/account/alias.ts
  */
@@ -17,11 +27,12 @@ import {
     AccountService,
     AccountType,
     HieroContext,
+    resolveConfigFromEnv,
 } from "@hiero-hackers/enterprise-core";
-import { getED25519Config } from "../env.js";
 
 async function main() {
-    const context = new HieroContext(getED25519Config());
+    // Read the network and operator from the HIERO_* environment variables.
+    const context = new HieroContext(resolveConfigFromEnv());
 
     const accountService = new AccountService(context);
 
@@ -70,6 +81,27 @@ async function main() {
         controlKey.publicKey.toStringRaw(),
     );
     console.log("   Alias key (ECDSA):", aliasKey.publicKey.toStringRaw());
+
+    // Pattern 3: Given EVM address
+    // Pass the EVM address itself (40 hex characters, with or without 0x),
+    // e.g. one a wallet already uses. The owner of that address's ECDSA key
+    // must sign.
+    const addressOwnerKey = PrivateKey.generateECDSA();
+    const evmAddress = `0x${addressOwnerKey.publicKey.toEvmAddress()}`;
+
+    const addressAccount = await accountService.createAccount({
+        publicKey: controlKey.publicKey.toStringRaw(),
+        keyType: AccountType.ED25519,
+        alias: evmAddress,
+        initialBalance: new Hbar(1),
+        memo: "ED25519 account with given EVM address",
+        // The address owner's ECDSA key must sign to prove ownership
+        additionalSigners: [addressOwnerKey],
+    });
+
+    console.log("\n3. Given EVM address");
+    console.log("   Account ID:", addressAccount.accountId);
+    console.log("   EVM address:", addressAccount.evmAddress);
 
     context.client.close();
 }

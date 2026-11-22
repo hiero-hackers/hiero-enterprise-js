@@ -14,12 +14,24 @@
  * Every key on the file's existing `keys` list must sign the update;
  * rotating `keys` additionally requires the new keys to sign.
  *
+ * Setup: the client is built from environment variables by
+ * `resolveConfigFromEnv()` from `@hiero-hackers/enterprise-core`:
+ *   HIERO_NETWORK            testnet, mainnet, previewnet, or a custom name
+ *   HIERO_OPERATOR_ID        account that pays the fees, e.g. 0.0.12345
+ *   HIERO_OPERATOR_KEY       the operator's private key
+ *   HIERO_OPERATOR_KEY_TYPE  ed25519, ecdsa or der
+ * For a custom network such as local Solo, also set HIERO_NETWORK_NODES,
+ * HIERO_MIRROR_NETWORK and HIERO_MIRROR_NODE_URL.
+ *
  * Run: pnpm tsx src/file/update-file.ts
  */
 
 import { PrivateKey } from "@hiero-ledger/sdk";
-import { FileService, HieroContext } from "@hiero-hackers/enterprise-core";
-import { getED25519Config } from "../env.js";
+import {
+    FileService,
+    HieroContext,
+    resolveConfigFromEnv,
+} from "@hiero-hackers/enterprise-core";
 
 /**
  * Provision a fresh operator-modifiable file to operate on. Each
@@ -195,7 +207,8 @@ async function scheduleFileUpdate(fileService: FileService) {
 }
 
 async function main() {
-    const context = new HieroContext(getED25519Config());
+    // Read the network and operator from the HIERO_* environment variables.
+    const context = new HieroContext(resolveConfigFromEnv());
     const fileService = new FileService(context);
     try {
         await replaceMemo(fileService);

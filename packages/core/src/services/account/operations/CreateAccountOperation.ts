@@ -3,7 +3,12 @@ import type {
     Key,
     HookCreationDetails,
 } from "@hiero-ledger/sdk";
-import { AccountCreateTransaction, PublicKey, Hbar } from "@hiero-ledger/sdk";
+import {
+    AccountCreateTransaction,
+    EvmAddress,
+    PublicKey,
+    Hbar,
+} from "@hiero-ledger/sdk";
 import { AccountType } from "../../../types/index.js";
 import type { Account } from "../../../types/index.js";
 import { HieroError } from "../../../errors/HieroError.js";
@@ -65,12 +70,15 @@ export interface CreateAccountOptions extends TransactionOptions {
      * - `{ ecdsaPublicKey: string }` — derives alias from a separate ECDSA key
      *   while using `publicKey` as the account's controlling key (two-key pattern).
      *   The separate key's derived EVM address becomes the permanent, immutable alias.
+     * - `string` — a given EVM address (40 hex characters, optionally prefixed
+     *   with `0x`) becomes the alias. The owner of that address's ECDSA key must
+     *   sign the transaction (via `additionalSigners`). Also allowed with `key`.
      * - `undefined` / `false` — no alias is set.
      *
      * Note: aliases are immutable once set. Do not set an alias if you plan
      * to rotate keys in the future.
      */
-    alias?: boolean | { ecdsaPublicKey: string };
+    alias?: boolean | { ecdsaPublicKey: string } | string;
 
     /** Initial balance in HBAR (default: 0). Accepts Hbar instance for tinybar precision. */
     initialBalance?: number | Hbar;
@@ -166,6 +174,11 @@ export class CreateAccountOperation extends BaseOperation<CreateAccountOptions> 
             }
         }
 
+        // Given EVM address: set as-is, nothing to derive
+        if (typeof options.alias === "string") {
+            tx.setAlias(options.alias);
+        }
+
         // Initial balance
         const hbarBalance =
             options.initialBalance instanceof Hbar
@@ -255,6 +268,10 @@ export class CreateAccountOperation extends BaseOperation<CreateAccountOptions> 
                     options.alias.ecdsaPublicKey,
                 ).toEvmAddress();
             }
+        }
+
+        if (typeof options.alias === "string") {
+            result.evmAddress = EvmAddress.fromString(options.alias).toString();
         }
 
         return result;

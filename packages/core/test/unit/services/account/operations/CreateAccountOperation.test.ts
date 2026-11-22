@@ -6,6 +6,7 @@ import {
     EvmHook,
     HookCreationDetails,
     HookExtensionPoint,
+    KeyList,
     PrivateKey,
     ScheduleId,
 } from "@hiero-ledger/sdk";
@@ -95,6 +96,59 @@ describe("CreateAccountOperation (via AccountService)", () => {
             const tx = sentTx();
             expect(tx.key?.toString()).toBe(primaryKey);
             expect(tx.alias?.toString()).toBe(aliasKey.toEvmAddress());
+        });
+
+        it("creates an account with a given EVM address alias", async () => {
+            const primaryKey =
+                PrivateKey.generateED25519().publicKey.toString();
+            const address = PrivateKey.generateECDSA().publicKey.toEvmAddress();
+
+            const account = await service.createAccount({
+                publicKey: primaryKey,
+                alias: `0x${address.toUpperCase()}`,
+            });
+
+            expect(account.publicKey).toBe(primaryKey);
+            expect(account.evmAddress).toBe(address);
+            const tx = sentTx();
+            expect(tx.key?.toString()).toBe(primaryKey);
+            expect(tx.alias?.toString()).toBe(address);
+        });
+
+        it("creates an account with an SDK key and a given EVM address alias", async () => {
+            const key = new KeyList([
+                PrivateKey.generateED25519().publicKey,
+                PrivateKey.generateED25519().publicKey,
+            ]);
+            const address = PrivateKey.generateECDSA().publicKey.toEvmAddress();
+
+            const account = await service.createAccount({
+                key,
+                alias: address,
+            });
+
+            expect(account.evmAddress).toBe(address);
+            const tx = sentTx();
+            expect(tx.key).toBe(key);
+            expect(tx.alias?.toString()).toBe(address);
+        });
+
+        it("throws on an alias that isn't an EVM address", async () => {
+            await expect(
+                service.createAccount({
+                    publicKey:
+                        PrivateKey.generateED25519().publicKey.toString(),
+                    alias: "0x1234",
+                }),
+            ).rejects.toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    message: expect.stringContaining(
+                        "alias must be an EVM address",
+                    ),
+                }),
+            );
+            expect(run).not.toHaveBeenCalled();
         });
 
         it("throws if alias: true is used with an ED25519 key", async () => {
@@ -219,6 +273,25 @@ describe("CreateAccountOperation (via AccountService)", () => {
                 scheduleMemo: "pending approval",
             });
             expect(result.scheduleId.toString()).toBe("0.0.777");
+        });
+
+        it("schedules an account with a given EVM address alias", async () => {
+            const scheduleRun = vi
+                .spyOn(TransactionExecutor.prototype, "scheduleRun")
+                .mockResolvedValue({
+                    scheduleId: ScheduleId.fromString("0.0.777"),
+                } as never);
+            const address = PrivateKey.generateECDSA().publicKey.toEvmAddress();
+
+            await service.scheduleCreateAccount({
+                publicKey: PrivateKey.generateED25519().publicKey.toString(),
+                alias: `0x${address}`,
+            });
+
+            const [tx] = scheduleRun.mock.calls[0];
+            expect((tx as AccountCreateTransaction).alias?.toString()).toBe(
+                address,
+            );
         });
     });
 });

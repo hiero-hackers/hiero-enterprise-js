@@ -85,6 +85,22 @@ describe("HieroContext", () => {
             expect(configModule.resolveConfigFromEnv).toHaveBeenCalled();
         });
 
+        it("throws CONFIG_INVALID asking for a config object when process is undefined", () => {
+            vi.stubGlobal("process", undefined);
+            try {
+                expect(() => create()).toThrow(
+                    expect.objectContaining({
+                        code: HieroErrorCodes.ConfigInvalid,
+                        message: expect.stringContaining(
+                            "Pass a HieroConfig object instead",
+                        ),
+                    }),
+                );
+            } finally {
+                vi.unstubAllGlobals();
+            }
+        });
+
         it("throws CONFIG_INVALID for an unknown HIERO_OPERATOR_KEY_TYPE", () => {
             const env = process.env;
             process.env = {
@@ -358,6 +374,29 @@ describe("HieroContext", () => {
                     "onBeforeTransaction listener threw for AccountService.createAccount: metrics backend down",
                 ),
                 expect.objectContaining({ code: "HIERO_LISTENER_ERROR" }),
+            );
+        });
+
+        it("warns through console.warn when process is undefined", async () => {
+            const warn = vi
+                .spyOn(console, "warn")
+                .mockImplementation(() => undefined);
+            const ctx = create(validConfig);
+            ctx.addTransactionListener({
+                onAfterTransaction: () => {
+                    throw new Error("listener bug");
+                },
+            });
+
+            vi.stubGlobal("process", undefined);
+            try {
+                await ctx.emitAfterTransaction(event);
+            } finally {
+                vi.unstubAllGlobals();
+            }
+
+            expect(warn).toHaveBeenCalledWith(
+                "onAfterTransaction listener threw for AccountService.createAccount: listener bug",
             );
         });
     });
