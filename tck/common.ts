@@ -25,6 +25,11 @@ export function transactionOptions(
         notSupported("a custom transactionId");
     }
 
+    // A cleanup hook sends `null` when the setup that made the key was skipped.
+    if (params.signers?.some((signer) => !signer)) {
+        notSupported("a missing signer key (cleanup after a skipped setup)");
+    }
+
     return {
         maxTransactionFee: params.maxTransactionFee
             ? Hbar.fromTinybars(params.maxTransactionFee)
