@@ -53,6 +53,7 @@ export class DeleteAccountValidator {
             throw validationError(
                 "DeleteAccountValidator",
                 `${paramName} is required.`,
+                "ACCOUNT_ID_DOES_NOT_EXIST",
             );
         }
 

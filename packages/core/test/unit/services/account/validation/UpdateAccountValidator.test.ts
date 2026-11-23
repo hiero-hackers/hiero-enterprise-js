@@ -166,4 +166,44 @@ describe("UpdateAccountValidator", () => {
             );
         });
     });
+
+    describe("network status", () => {
+        it("reports ACCOUNT_ID_DOES_NOT_EXIST for a missing accountId", () => {
+            expect(validate({ accountId: undefined })).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "ACCOUNT_ID_DOES_NOT_EXIST",
+                }),
+            );
+        });
+
+        it("reports no status for an empty accountId, which the SDK can't parse", () => {
+            expect(validate({ accountId: "" })).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: undefined,
+                }),
+            );
+        });
+
+        it("reports INVALID_EXPIRATION_TIME for a past expiration time", () => {
+            expect(
+                validate({ expirationTime: new Date(Date.now() - 60_000) }),
+            ).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "INVALID_EXPIRATION_TIME",
+                }),
+            );
+        });
+
+        it("reports MEMO_TOO_LONG for a memo over 100 bytes", () => {
+            expect(validate({ memo: "a".repeat(101) })).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "MEMO_TOO_LONG",
+                }),
+            );
+        });
+    });
 });

@@ -47,6 +47,7 @@ export class UpdateAccountValidator {
             throw validationError(
                 "UpdateAccountValidator",
                 "accountId is required.",
+                "ACCOUNT_ID_DOES_NOT_EXIST",
             );
         }
 
@@ -82,6 +83,7 @@ export class UpdateAccountValidator {
                 throw validationError(
                     "UpdateAccountValidator",
                     "expirationTime must be in the future.",
+                    "INVALID_EXPIRATION_TIME",
                 );
             }
         }
@@ -109,6 +111,7 @@ export class UpdateAccountValidator {
             throw validationError(
                 "UpdateAccountValidator",
                 `Account memo exceeds 100 bytes (got ${utf8ByteLength(options.memo)}).`,
+                "MEMO_TOO_LONG",
             );
         }
     }

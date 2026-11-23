@@ -47,6 +47,7 @@ export class CreateAccountValidator {
             throw validationError(
                 "CreateAccountValidator",
                 "Either 'key' (SDK Key) or 'publicKey' (string) must be provided.",
+                "KEY_REQUIRED",
             );
         }
 
@@ -97,6 +98,7 @@ export class CreateAccountValidator {
             throw validationError(
                 "CreateAccountValidator",
                 "Initial balance cannot be negative.",
+                "INVALID_INITIAL_BALANCE",
             );
         }
     }
@@ -123,6 +125,7 @@ export class CreateAccountValidator {
             throw validationError(
                 "CreateAccountValidator",
                 `Account memo exceeds 100 bytes (got ${utf8ByteLength(options.memo)}).`,
+                "MEMO_TOO_LONG",
             );
         }
     }

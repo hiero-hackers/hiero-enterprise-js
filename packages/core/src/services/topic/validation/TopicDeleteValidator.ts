@@ -23,6 +23,7 @@ export class TopicDeleteValidator {
             throw validationError(
                 "TopicDeleteValidator",
                 "topicId is required.",
+                "INVALID_TOPIC_ID",
             );
         }
 

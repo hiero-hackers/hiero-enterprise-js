@@ -23,6 +23,7 @@ export class ApproveAllowanceValidator {
             throw validationError(
                 "ApproveAllowanceValidator",
                 "At least one allowance must be provided (hbarAllowances, tokenAllowances, or nftAllowances).",
+                "EMPTY_ALLOWANCES",
             );
         }
     }
@@ -54,6 +55,7 @@ export class ApproveAllowanceValidator {
                 throw validationError(
                     "ApproveAllowanceValidator",
                     "hbarAllowances[].amount cannot be negative.",
+                    "NEGATIVE_ALLOWANCE_AMOUNT",
                 );
             }
         }
@@ -93,6 +95,7 @@ export class ApproveAllowanceValidator {
                 throw validationError(
                     "ApproveAllowanceValidator",
                     "tokenAllowances[].amount cannot be negative.",
+                    "NEGATIVE_ALLOWANCE_AMOUNT",
                 );
             }
 

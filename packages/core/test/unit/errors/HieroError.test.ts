@@ -120,5 +120,16 @@ describe("validationError", () => {
         expect(error.code).toBe("INPUT_INVALID");
         expect(error.context).toBe("ScheduleSignValidator");
         expect(error.cause).toBeUndefined();
+        expect(error.sdkStatus).toBeUndefined();
+    });
+
+    it("sets the network status the input would get", () => {
+        const error = validationError(
+            "CreateAccountValidator",
+            "no key",
+            "KEY_REQUIRED",
+        );
+        expect(error.code).toBe("INPUT_INVALID");
+        expect(error.sdkStatus).toBe("KEY_REQUIRED");
     });
 });

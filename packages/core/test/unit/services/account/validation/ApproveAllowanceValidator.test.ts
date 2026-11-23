@@ -472,4 +472,54 @@ describe("ApproveAllowanceValidator", () => {
             }),
         ).not.toThrow();
     });
+
+    describe("network status", () => {
+        it("reports EMPTY_ALLOWANCES with no allowances", () => {
+            expect(() => validator.validate({})).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "EMPTY_ALLOWANCES",
+                }),
+            );
+        });
+
+        it("reports NEGATIVE_ALLOWANCE_AMOUNT for a negative hbar allowance", () => {
+            expect(() =>
+                validator.validate({
+                    hbarAllowances: [
+                        {
+                            ownerAccountId: "0.0.100",
+                            spenderAccountId: "0.0.200",
+                            amount: -1,
+                        },
+                    ],
+                }),
+            ).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "NEGATIVE_ALLOWANCE_AMOUNT",
+                }),
+            );
+        });
+
+        it("reports NEGATIVE_ALLOWANCE_AMOUNT for a negative token allowance", () => {
+            expect(() =>
+                validator.validate({
+                    tokenAllowances: [
+                        {
+                            tokenId: "0.0.300",
+                            ownerAccountId: "0.0.100",
+                            spenderAccountId: "0.0.200",
+                            amount: -1,
+                        },
+                    ],
+                }),
+            ).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "NEGATIVE_ALLOWANCE_AMOUNT",
+                }),
+            );
+        });
+    });
 });

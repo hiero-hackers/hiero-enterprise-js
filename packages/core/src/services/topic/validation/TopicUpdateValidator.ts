@@ -58,6 +58,7 @@ export class TopicUpdateValidator {
             throw validationError(
                 "TopicUpdateValidator",
                 "topicId is required.",
+                "INVALID_TOPIC_ID",
             );
         }
 
@@ -81,6 +82,7 @@ export class TopicUpdateValidator {
             throw validationError(
                 "TopicUpdateValidator",
                 `topicMemo exceeds ${MAX_TOPIC_MEMO_BYTES} bytes (got ${byteLength}).`,
+                "MEMO_TOO_LONG",
             );
         }
     }

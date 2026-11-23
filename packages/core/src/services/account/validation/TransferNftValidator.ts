@@ -70,6 +70,7 @@ export class TransferNftValidator {
             throw validationError(
                 "TransferNftValidator",
                 "senderAccountId and receiverAccountId must be different — transferring to self is a no-op.",
+                "ACCOUNT_REPEATED_IN_ACCOUNT_AMOUNTS",
             );
         }
     }

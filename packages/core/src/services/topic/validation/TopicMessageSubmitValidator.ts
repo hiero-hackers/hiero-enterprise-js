@@ -34,6 +34,7 @@ export class TopicMessageSubmitValidator {
             throw validationError(
                 "TopicMessageSubmitValidator",
                 "topicId is required.",
+                "INVALID_TOPIC_ID",
             );
         }
 
