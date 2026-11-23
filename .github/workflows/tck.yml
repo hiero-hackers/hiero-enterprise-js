@@ -3,7 +3,9 @@
 # through the JSON-RPC adapter in tck/, on every pull request and on demand.
 #
 # The TCK's own action waits for the adapter, runs the suite, writes the
-# counts to the job summary, uploads the mochawesome report and fails last.
+# counts to the job summary and uploads the mochawesome report. The job then
+# fails on any failure not listed in tck/known-differences.json, and on a
+# listed test that no longer fails.
 # It starts no network and no server: this workflow builds core, starts the
 # adapter and a Solo network on the TCK's default ports (consensus 50211,
 # mirror REST 5551, mirror gRPC 5600, REST Java 8084, genesis operator 0.0.2).
@@ -83,8 +85,11 @@ jobs:
               run: node .github/scripts/forward-consensus-port.mjs
 
             # The adapter covers the topic and account tests so far (#370);
-            # widen the matrix as it grows (#371).
+            # widen the matrix as it grows (#371). The action fails on any
+            # failure, so the next step decides against the known differences.
             - name: Run the TCK
+              id: tck
+              continue-on-error: true
               timeout-minutes: 30
               uses: hiero-ledger/hiero-sdk-tck@c9e7169888d86be4793cde5932ce57d9450a9761 # v0.14.0
               with:
@@ -92,6 +97,11 @@ jobs:
                   test-matrix: |
                       src/tests/topic-service/**/*.ts
                       src/tests/crypto-service/**/*.ts
+
+            - name: Compare with the known differences
+              env:
+                  REPORT_PATH: ${{ steps.tck.outputs.report-path }}
+              run: node .github/scripts/check-tck-results.mjs "${REPORT_PATH}/mochawesome.json" tck/known-differences.json
 
             - name: Show the TCK adapter log
               if: always()
