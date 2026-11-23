@@ -28,9 +28,9 @@ for (const methods of [sdk, key, topic, account, token]) {
 
 /**
  * Report errors the way the TCK expects (as the hiero-sdk-js adapter does):
- * a status the network returned as a "Hedera error" carrying `status`, and
- * everything else, including core's own validation (`INPUT_INVALID`), as an
- * internal error.
+ * an error with a network status as a "Hedera error" carrying `status`
+ * (including core's `INPUT_INVALID` errors that name the status the network
+ * would return), and everything else as an internal error.
  */
 server.applyMiddleware(
     async (

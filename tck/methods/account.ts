@@ -66,8 +66,6 @@ const optionalNumber = (value: string | undefined) =>
     value == null ? undefined : Number(value);
 
 export const createAccount = async (params: AccountParams) => {
-    // Core derives an alias from the key; it can't set an arbitrary one.
-    if (params.alias != null) notSupported("createAccount with an alias");
     const account = await service(params.sessionId).createAccount({
         ...transactionOptions(params.commonTransactionParams),
         key:
@@ -85,6 +83,8 @@ export const createAccount = async (params: AccountParams) => {
         declineStakingReward: params.declineStakingReward,
         memo: params.memo,
         autoRenewPeriod: optionalNumber(params.autoRenewPeriod),
+        // An EVM address; its key signs through `signers`.
+        alias: params.alias,
     });
     // Core throws on any status other than SUCCESS.
     return { accountId: account.accountId.toString(), status: "SUCCESS" };
