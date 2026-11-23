@@ -42,6 +42,7 @@ export class DeleteAccountValidator {
             throw validationError(
                 "DeleteAccountValidator",
                 "accountKey is required.",
+                Status.InvalidSignature,
             );
         }
     }

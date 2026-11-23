@@ -113,5 +113,19 @@ describe("DeleteAccountValidator", () => {
                 }),
             );
         });
+
+        it("reports INVALID_SIGNATURE for a missing accountKey", () => {
+            expect(() =>
+                validator.validateAccountKey({
+                    accountId: "0.0.999",
+                    accountKey: undefined as unknown as PrivateKey,
+                }),
+            ).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "INVALID_SIGNATURE",
+                }),
+            );
+        });
     });
 });
