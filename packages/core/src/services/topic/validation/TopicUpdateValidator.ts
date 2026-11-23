@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import { utf8ByteLength } from "../../../utils/index.js";
 import type { TopicUpdateOperationOptions } from "../operations/index.js";
@@ -58,6 +59,7 @@ export class TopicUpdateValidator {
             throw validationError(
                 "TopicUpdateValidator",
                 "topicId is required.",
+                Status.InvalidTopicId,
             );
         }
 
@@ -81,6 +83,7 @@ export class TopicUpdateValidator {
             throw validationError(
                 "TopicUpdateValidator",
                 `topicMemo exceeds ${MAX_TOPIC_MEMO_BYTES} bytes (got ${byteLength}).`,
+                Status.MemoTooLong,
             );
         }
     }

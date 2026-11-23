@@ -99,4 +99,19 @@ describe("DeleteAccountValidator", () => {
             ).toThrow(/accountKey is required/);
         });
     });
+
+    describe("network status", () => {
+        it("reports ACCOUNT_ID_DOES_NOT_EXIST for a missing accountId", () => {
+            expect(() =>
+                validator.validate({
+                    accountId: undefined as unknown as string,
+                }),
+            ).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "ACCOUNT_ID_DOES_NOT_EXIST",
+                }),
+            );
+        });
+    });
 });

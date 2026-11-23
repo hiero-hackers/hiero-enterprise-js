@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TopicDeleteOperationOptions } from "../operations/index.js";
 
@@ -23,6 +24,7 @@ export class TopicDeleteValidator {
             throw validationError(
                 "TopicDeleteValidator",
                 "topicId is required.",
+                Status.InvalidTopicId,
             );
         }
 

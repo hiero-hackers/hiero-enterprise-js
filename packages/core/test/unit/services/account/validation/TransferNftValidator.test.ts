@@ -92,4 +92,20 @@ describe("TransferNftValidator", () => {
             }),
         ).toThrow(/must be different/);
     });
+
+    it("reports ACCOUNT_REPEATED_IN_ACCOUNT_AMOUNTS when sender equals receiver", () => {
+        expect(() =>
+            validator.validate({
+                tokenId: "0.0.789",
+                serial: 1,
+                senderAccountId: "0.0.100",
+                receiverAccountId: "0.0.100",
+            }),
+        ).toThrow(
+            expect.objectContaining({
+                code: "INPUT_INVALID",
+                sdkStatus: "ACCOUNT_REPEATED_IN_ACCOUNT_AMOUNTS",
+            }),
+        );
+    });
 });

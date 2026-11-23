@@ -155,4 +155,33 @@ describe("TopicUpdateValidator", () => {
             ).not.toThrow();
         });
     });
+
+    describe("network status", () => {
+        it("reports INVALID_TOPIC_ID for a missing topicId", () => {
+            expect(() =>
+                validator.validate({
+                    topicMemo: "memo",
+                } as TopicUpdateOperationOptions),
+            ).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "INVALID_TOPIC_ID",
+                }),
+            );
+        });
+
+        it("reports MEMO_TOO_LONG for a memo over 100 bytes", () => {
+            expect(() =>
+                validator.validate({
+                    ...baseOptions,
+                    topicMemo: "a".repeat(101),
+                }),
+            ).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "MEMO_TOO_LONG",
+                }),
+            );
+        });
+    });
 });
