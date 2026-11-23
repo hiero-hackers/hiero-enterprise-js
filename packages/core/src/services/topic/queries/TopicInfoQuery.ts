@@ -1,9 +1,11 @@
 import type { CustomFixedFee, Key, TopicId } from "@hiero-ledger/sdk";
-import { TopicInfoQuery as SdkTopicInfoQuery } from "@hiero-ledger/sdk";
+import { Status, TopicInfoQuery as SdkTopicInfoQuery } from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../../context/index.js";
-import { normalizeError } from "../../../errors/index.js";
+import { normalizeError, validationError } from "../../../errors/index.js";
 import { QueryExecutor } from "../../transaction/index.js";
 import type { QueryOptions } from "../../transaction/index.js";
+
+const CONTEXT = "TopicService.getTopicInfo";
 
 /**
  * A plain-object representation of a topic's current consensus-node
@@ -72,11 +74,24 @@ export class TopicInfoQuery {
      * @param topicId - The topic entity ID (e.g., `"0.0.12345"`)
      * @returns Plain-object topic info — never `null`; throws if the
      *          topic does not exist or the network rejects the query
+     * @throws {HieroError} `INPUT_INVALID` if `topicId` is missing or empty
      */
     async execute(
         topicId: string | TopicId,
         options: QueryOptions = {},
     ): Promise<TopicInfoResult> {
+        if (topicId == null) {
+            throw validationError(
+                CONTEXT,
+                "topicId is required.",
+                Status.InvalidTopicId,
+            );
+        }
+
+        if (typeof topicId === "string" && topicId.trim().length === 0) {
+            throw validationError(CONTEXT, "topicId cannot be empty.");
+        }
+
         try {
             const query = new SdkTopicInfoQuery().setTopicId(topicId);
             const info = await this.executor.run(query, options, {
@@ -104,7 +119,7 @@ export class TopicInfoQuery {
                 ledgerId: info.ledgerId?.toString() ?? null,
             };
         } catch (error) {
-            throw normalizeError(error, "TopicService.getTopicInfo");
+            throw normalizeError(error, CONTEXT);
         }
     }
 }

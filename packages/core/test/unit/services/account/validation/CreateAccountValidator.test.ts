@@ -212,4 +212,33 @@ describe("CreateAccountValidator", () => {
             );
         });
     });
+
+    describe("network status", () => {
+        it("reports KEY_REQUIRED without a key", () => {
+            expect(() => validator.validate({})).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "KEY_REQUIRED",
+                }),
+            );
+        });
+
+        it("reports INVALID_INITIAL_BALANCE for a negative initial balance", () => {
+            expect(validate({ initialBalance: -1 })).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "INVALID_INITIAL_BALANCE",
+                }),
+            );
+        });
+
+        it("reports MEMO_TOO_LONG for a memo over 100 bytes", () => {
+            expect(validate({ memo: "a".repeat(101) })).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "MEMO_TOO_LONG",
+                }),
+            );
+        });
+    });
 });

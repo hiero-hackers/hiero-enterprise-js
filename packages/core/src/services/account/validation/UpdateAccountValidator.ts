@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import { utf8ByteLength } from "../../../utils/index.js";
 import {
@@ -47,6 +48,7 @@ export class UpdateAccountValidator {
             throw validationError(
                 "UpdateAccountValidator",
                 "accountId is required.",
+                Status.AccountIdDoesNotExist,
             );
         }
 
@@ -82,6 +84,7 @@ export class UpdateAccountValidator {
                 throw validationError(
                     "UpdateAccountValidator",
                     "expirationTime must be in the future.",
+                    Status.InvalidExpirationTime,
                 );
             }
         }
@@ -109,6 +112,7 @@ export class UpdateAccountValidator {
             throw validationError(
                 "UpdateAccountValidator",
                 `Account memo exceeds 100 bytes (got ${utf8ByteLength(options.memo)}).`,
+                Status.MemoTooLong,
             );
         }
     }

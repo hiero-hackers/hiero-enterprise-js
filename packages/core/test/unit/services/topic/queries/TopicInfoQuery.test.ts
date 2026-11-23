@@ -12,6 +12,7 @@ import {
 } from "@hiero-ledger/sdk";
 import { TopicService } from "../../../../../src/services/topic/index.js";
 import { createMockContext } from "../../../../utils/mock-context.js";
+import type { IHieroContext } from "../../../../../src/context/index.js";
 
 // Builds real SDK queries; only Query.execute, the network call, is stubbed.
 // Its response is plain data built from real SDK values, because TopicInfo
@@ -44,6 +45,7 @@ function topicInfo(overrides: Partial<TopicInfo> = {}): TopicInfo {
 }
 
 describe("TopicInfoQuery (via TopicService)", () => {
+    let context: IHieroContext;
     let service: TopicService;
     let execute: ReturnType<typeof vi.spyOn>;
 
@@ -55,7 +57,8 @@ describe("TopicInfoQuery (via TopicService)", () => {
         execute = vi
             .spyOn(Query.prototype, "execute")
             .mockResolvedValue(topicInfo());
-        service = new TopicService(createMockContext());
+        context = createMockContext();
+        service = new TopicService(context);
     });
 
     afterEach(() => {
@@ -140,4 +143,26 @@ describe("TopicInfoQuery (via TopicService)", () => {
         expect(sentQuery(0)).not.toBe(sentQuery(1));
         expect(sentQuery(1).topicId?.toString()).toBe("0.0.2");
     });
+
+    it.each([
+        [undefined, "topicId is required.", "INVALID_TOPIC_ID"],
+        [null, "topicId is required.", "INVALID_TOPIC_ID"],
+        ["", "topicId cannot be empty.", undefined],
+        ["   ", "topicId cannot be empty.", undefined],
+    ])(
+        "rejects topicId %j with INPUT_INVALID before querying",
+        async (topicId, message, sdkStatus) => {
+            await expect(
+                service.getTopicInfo(topicId as unknown as string),
+            ).rejects.toMatchObject({
+                name: "HieroError",
+                code: "INPUT_INVALID",
+                context: "TopicService.getTopicInfo",
+                message,
+                sdkStatus,
+            });
+            expect(execute).not.toHaveBeenCalled();
+            expect(context.emitBeforeTransaction).not.toHaveBeenCalled();
+        },
+    );
 });

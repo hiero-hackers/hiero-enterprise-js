@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import type { ApproveAllowanceOptions } from "../operations/ApproveAllowanceOperation.js";
 import { validationError } from "../../../errors/index.js";
 
@@ -23,6 +24,7 @@ export class ApproveAllowanceValidator {
             throw validationError(
                 "ApproveAllowanceValidator",
                 "At least one allowance must be provided (hbarAllowances, tokenAllowances, or nftAllowances).",
+                Status.EmptyAllowances,
             );
         }
     }
@@ -54,6 +56,7 @@ export class ApproveAllowanceValidator {
                 throw validationError(
                     "ApproveAllowanceValidator",
                     "hbarAllowances[].amount cannot be negative.",
+                    Status.NegativeAllowanceAmount,
                 );
             }
         }
@@ -93,6 +96,7 @@ export class ApproveAllowanceValidator {
                 throw validationError(
                     "ApproveAllowanceValidator",
                     "tokenAllowances[].amount cannot be negative.",
+                    Status.NegativeAllowanceAmount,
                 );
             }
 

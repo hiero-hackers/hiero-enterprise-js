@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import type { AccountId } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type {
@@ -53,6 +54,7 @@ export class DeleteAccountValidator {
             throw validationError(
                 "DeleteAccountValidator",
                 `${paramName} is required.`,
+                Status.AccountIdDoesNotExist,
             );
         }
 

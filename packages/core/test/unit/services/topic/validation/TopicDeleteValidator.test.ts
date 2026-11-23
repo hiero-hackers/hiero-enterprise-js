@@ -47,4 +47,26 @@ describe("TopicDeleteValidator", () => {
             );
         });
     });
+
+    describe("network status", () => {
+        it("reports INVALID_TOPIC_ID for a missing topicId", () => {
+            expect(() =>
+                validator.validate({} as TopicDeleteOperationOptions),
+            ).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "INVALID_TOPIC_ID",
+                }),
+            );
+        });
+
+        it("reports no status for an empty topicId, which the SDK can't parse", () => {
+            expect(() => validator.validate({ topicId: "" })).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: undefined,
+                }),
+            );
+        });
+    });
 });

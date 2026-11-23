@@ -114,7 +114,7 @@ See [`custom-network.ts`](../../samples/examples/src/network/custom-network.ts).
 
 ## Errors
 
-Every error is a `HieroError` with a `code`: `INPUT_INVALID`, `CONFIG_INVALID`, `NOT_FOUND`, `TIMED_OUT`, `SDK_ERROR`, `RESULT_MAPPING_FAILED` or `UNKNOWN`. Errors from a transaction also carry its `transactionId`; a failed `submitBatch` carries its `innerTransactionIds` too. See [Errors](../../README.md#errors) for an example.
+Every error is a `HieroError` with a `code`: `INPUT_INVALID`, `CONFIG_INVALID`, `NOT_FOUND`, `TIMED_OUT`, `SDK_ERROR`, `RESULT_MAPPING_FAILED` or `UNKNOWN`. Errors from a transaction also carry its `transactionId`; a failed `submitBatch` carries its `innerTransactionIds` too. `sdkStatus` holds the network status, such as `INVALID_SIGNATURE`. An `INPUT_INVALID` error has it too when the network would reject the same input with a specific status, so a 101-byte memo gives `MEMO_TOO_LONG` before anything is sent. See [Errors](../../README.md#errors) for an example.
 
 ## Examples
 

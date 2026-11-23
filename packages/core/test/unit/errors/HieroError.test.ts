@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { Status } from "@hiero-ledger/sdk";
 import {
     HieroError,
     HieroErrorCodes,
@@ -120,5 +121,16 @@ describe("validationError", () => {
         expect(error.code).toBe("INPUT_INVALID");
         expect(error.context).toBe("ScheduleSignValidator");
         expect(error.cause).toBeUndefined();
+        expect(error.sdkStatus).toBeUndefined();
+    });
+
+    it("sets the network status the input would get", () => {
+        const error = validationError(
+            "CreateAccountValidator",
+            "no key",
+            Status.KeyRequired,
+        );
+        expect(error.code).toBe("INPUT_INVALID");
+        expect(error.sdkStatus).toBe("KEY_REQUIRED");
     });
 });

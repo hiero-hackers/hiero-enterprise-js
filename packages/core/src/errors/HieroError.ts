@@ -1,3 +1,5 @@
+import type { Status } from "@hiero-ledger/sdk";
+
 /**
  * Custom error class for Hiero operations.
  * Wraps SDK and network errors with additional context.
@@ -26,7 +28,11 @@ export type HieroErrorCode =
 export class HieroError extends Error {
     /** Machine-readable error code */
     public readonly code: HieroErrorCode;
-    /** SDK-specific status string when the failure originated from the SDK/network */
+    /**
+     * The network status, e.g. `"INVALID_SIGNATURE"`: the one the network
+     * returned, or, on an `INPUT_INVALID` error, the one it would return for
+     * the same input. Unset when there is none.
+     */
     public readonly sdkStatus?: string;
     /** Additional context about what operation was being performed */
     public readonly context?: string;
@@ -120,11 +126,18 @@ export function normalizeError(error: unknown, context?: string): HieroError {
  *
  * @param context - The validator rejecting the input
  * @param message - What is wrong with the input
+ * @param sdkStatus - The status the network would return for this input,
+ *   if the SDK would send it; omit when the SDK would fail first
  * @returns A HieroError with code `INPUT_INVALID`
  */
-export function validationError(context: string, message: string): HieroError {
+export function validationError(
+    context: string,
+    message: string,
+    sdkStatus?: Status,
+): HieroError {
     return new HieroError(message, {
         code: HieroErrorCodes.InputInvalid,
+        sdkStatus: sdkStatus?.toString(),
         context,
     });
 }

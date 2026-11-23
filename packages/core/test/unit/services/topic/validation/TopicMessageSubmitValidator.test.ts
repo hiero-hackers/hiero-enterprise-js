@@ -168,4 +168,20 @@ describe("TopicMessageSubmitValidator", () => {
             ).toThrow(/chunkSize must be a positive integer/);
         });
     });
+
+    describe("network status", () => {
+        it("reports INVALID_TOPIC_ID for a missing topicId", () => {
+            expect(() =>
+                validator.validate({
+                    ...baseOptions,
+                    topicId: undefined as unknown as string,
+                }),
+            ).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "INVALID_TOPIC_ID",
+                }),
+            );
+        });
+    });
 });
