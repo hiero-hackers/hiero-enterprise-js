@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import type { AccountId, TokenId } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TransferNftOperationOptions } from "../operations/TransferNftOperation.js";
@@ -70,7 +71,7 @@ export class TransferNftValidator {
             throw validationError(
                 "TransferNftValidator",
                 "senderAccountId and receiverAccountId must be different — transferring to self is a no-op.",
-                "ACCOUNT_REPEATED_IN_ACCOUNT_AMOUNTS",
+                Status.AccountRepeatedInAccountAmounts,
             );
         }
     }

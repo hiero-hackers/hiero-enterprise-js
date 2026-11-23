@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { Status } from "@hiero-ledger/sdk";
 import {
     HieroError,
     HieroErrorCodes,
@@ -127,7 +128,7 @@ describe("validationError", () => {
         const error = validationError(
             "CreateAccountValidator",
             "no key",
-            "KEY_REQUIRED",
+            Status.KeyRequired,
         );
         expect(error.code).toBe("INPUT_INVALID");
         expect(error.sdkStatus).toBe("KEY_REQUIRED");

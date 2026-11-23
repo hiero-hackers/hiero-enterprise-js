@@ -1,5 +1,5 @@
 import type { CustomFixedFee, Key, TopicId } from "@hiero-ledger/sdk";
-import { TopicInfoQuery as SdkTopicInfoQuery } from "@hiero-ledger/sdk";
+import { Status, TopicInfoQuery as SdkTopicInfoQuery } from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../../context/index.js";
 import { normalizeError, validationError } from "../../../errors/index.js";
 import { QueryExecutor } from "../../transaction/index.js";
@@ -84,7 +84,7 @@ export class TopicInfoQuery {
             throw validationError(
                 CONTEXT,
                 "topicId is required.",
-                "INVALID_TOPIC_ID",
+                Status.InvalidTopicId,
             );
         }
 

@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TopicMessageSubmitOperationOptions } from "../operations/index.js";
 
@@ -34,7 +35,7 @@ export class TopicMessageSubmitValidator {
             throw validationError(
                 "TopicMessageSubmitValidator",
                 "topicId is required.",
-                "INVALID_TOPIC_ID",
+                Status.InvalidTopicId,
             );
         }
 

@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { AccountType } from "../../../types/index.js";
 import { validationError } from "../../../errors/index.js";
 import { utf8ByteLength } from "../../../utils/index.js";
@@ -47,7 +48,7 @@ export class CreateAccountValidator {
             throw validationError(
                 "CreateAccountValidator",
                 "Either 'key' (SDK Key) or 'publicKey' (string) must be provided.",
-                "KEY_REQUIRED",
+                Status.KeyRequired,
             );
         }
 
@@ -98,7 +99,7 @@ export class CreateAccountValidator {
             throw validationError(
                 "CreateAccountValidator",
                 "Initial balance cannot be negative.",
-                "INVALID_INITIAL_BALANCE",
+                Status.InvalidInitialBalance,
             );
         }
     }
@@ -125,7 +126,7 @@ export class CreateAccountValidator {
             throw validationError(
                 "CreateAccountValidator",
                 `Account memo exceeds 100 bytes (got ${utf8ByteLength(options.memo)}).`,
-                "MEMO_TOO_LONG",
+                Status.MemoTooLong,
             );
         }
     }

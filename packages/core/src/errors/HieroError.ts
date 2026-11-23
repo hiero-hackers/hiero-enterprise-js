@@ -1,3 +1,5 @@
+import type { Status } from "@hiero-ledger/sdk";
+
 /**
  * Custom error class for Hiero operations.
  * Wraps SDK and network errors with additional context.
@@ -131,11 +133,11 @@ export function normalizeError(error: unknown, context?: string): HieroError {
 export function validationError(
     context: string,
     message: string,
-    sdkStatus?: string,
+    sdkStatus?: Status,
 ): HieroError {
     return new HieroError(message, {
         code: HieroErrorCodes.InputInvalid,
-        sdkStatus,
+        sdkStatus: sdkStatus?.toString(),
         context,
     });
 }
