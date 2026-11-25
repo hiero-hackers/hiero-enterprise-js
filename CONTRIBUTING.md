@@ -120,6 +120,12 @@ CI runs the first five automatically (Solo is provisioned in the workflow);
 the examples run there against Solo too, with the mainnet-dependent mirror
 tours skipped via `EXAMPLES_SKIP=mirror/`.
 
+CI splits these into two jobs. "Build and Test" runs everything that needs no
+network (lint, format, build, unit tests, bundle and type checks).
+"Integration" starts Solo and runs the rest once that passes. A pull request
+that changes only `packages/mirror/` or Markdown files skips "Integration"
+and the TCK; pushes to `main` run everything.
+
 ### Running Integration Tests
 
 Integration tests live under [`packages/core/test/integration/`](packages/core/test/integration) and exercise the SDK end-to-end against a live consensus + mirror node. They are designed to run against a local [Solo](https://solo.hiero.org) network.
