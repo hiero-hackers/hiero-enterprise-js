@@ -24,7 +24,17 @@ import * as airdrop from "./methods/airdrop.js";
 
 const server = new JSONRPCServer();
 
-for (const methods of [sdk, key, topic, account, token, airdrop]) {
+for (const methods of [
+    sdk,
+    key,
+    topic,
+    account,
+    token,
+    airdrop,
+    schedule,
+    file,
+    network,
+]) {
     for (const [name, method] of Object.entries(methods)) {
         server.addMethod(name, method as SimpleJSONRPCMethod);
     }
