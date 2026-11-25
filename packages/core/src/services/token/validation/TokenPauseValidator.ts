@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TokenPauseOperationOptions } from "../operations/TokenPauseOperation.js";
 
@@ -23,6 +24,7 @@ export class TokenPauseValidator {
             throw validationError(
                 "TokenPauseValidator",
                 "tokenId is required.",
+                Status.InvalidTokenId,
             );
         }
 

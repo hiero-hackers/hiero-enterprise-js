@@ -1,4 +1,4 @@
-import { Long } from "@hiero-ledger/sdk";
+import { Long, Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type {
     NftAirdrop,
@@ -147,6 +147,7 @@ export class TokenAirdropNftValidator {
             throw validationError(
                 "TokenAirdropNftValidator",
                 `${prefix}: senderAccountId and receiverAccountId must be different.`,
+                Status.AccountRepeatedInAccountAmounts,
             );
         }
     }

@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TokenUnpauseOperationOptions } from "../operations/TokenUnpauseOperation.js";
 
@@ -23,6 +24,7 @@ export class TokenUnpauseValidator {
             throw validationError(
                 "TokenUnpauseValidator",
                 "tokenId is required.",
+                Status.InvalidTokenId,
             );
         }
 

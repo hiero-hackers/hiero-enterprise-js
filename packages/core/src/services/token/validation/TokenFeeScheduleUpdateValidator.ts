@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TokenFeeScheduleUpdateOperationOptions } from "../operations/TokenFeeScheduleUpdateOperation.js";
 
@@ -26,6 +27,7 @@ export class TokenFeeScheduleUpdateValidator {
             throw validationError(
                 "TokenFeeScheduleUpdateValidator",
                 "tokenId is required.",
+                Status.InvalidTokenId,
             );
         }
 

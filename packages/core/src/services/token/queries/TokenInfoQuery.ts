@@ -5,9 +5,9 @@ import type {
     TokenSupplyType,
     TokenType,
 } from "@hiero-ledger/sdk";
-import { TokenInfoQuery as SdkTokenInfoQuery } from "@hiero-ledger/sdk";
+import { Status, TokenInfoQuery as SdkTokenInfoQuery } from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../../context/index.js";
-import { normalizeError } from "../../../errors/index.js";
+import { normalizeError, validationError } from "../../../errors/index.js";
 import { QueryExecutor } from "../../transaction/index.js";
 import type { QueryOptions } from "../../transaction/index.js";
 
@@ -129,6 +129,14 @@ export class TokenInfoQuery {
         tokenId: string | TokenId,
         options: QueryOptions = {},
     ): Promise<TokenInfoResult> {
+        if (tokenId == null) {
+            throw validationError(
+                "TokenInfoQuery",
+                "tokenId is required.",
+                Status.InvalidTokenId,
+            );
+        }
+
         try {
             const query = new SdkTokenInfoQuery().setTokenId(tokenId);
             const info = await this.executor.run(query, options, {

@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TokenUpdateNftsOperationOptions } from "../operations/TokenUpdateNftsOperation.js";
 
@@ -25,6 +26,7 @@ export class TokenUpdateNftsValidator {
             throw validationError(
                 "TokenUpdateNftsValidator",
                 "tokenId is required.",
+                Status.InvalidTokenId,
             );
         }
 
