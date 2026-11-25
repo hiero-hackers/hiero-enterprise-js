@@ -23,4 +23,15 @@ describe("FileDeleteValidator", () => {
             /fileId cannot be empty/,
         );
     });
+
+    it("reports INVALID_FILE_ID for a missing fileId", () => {
+        expect(() =>
+            validator.validate({} as unknown as FileDeleteOperationOptions),
+        ).toThrow(
+            expect.objectContaining({
+                code: "INPUT_INVALID",
+                sdkStatus: "INVALID_FILE_ID",
+            }),
+        );
+    });
 });

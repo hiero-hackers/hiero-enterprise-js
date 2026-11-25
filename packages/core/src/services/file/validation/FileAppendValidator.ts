@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { FileAppendOperationOptions } from "../operations/index.js";
 
@@ -29,7 +30,11 @@ export class FileAppendValidator {
 
     private validateFileId(options: FileAppendOperationOptions): void {
         if (options.fileId == null) {
-            throw validationError("FileAppendValidator", "fileId is required.");
+            throw validationError(
+                "FileAppendValidator",
+                "fileId is required.",
+                Status.InvalidFileId,
+            );
         }
 
         if (

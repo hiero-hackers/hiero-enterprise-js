@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { ScheduleSignOptions } from "../operations/ScheduleSignOperation.js";
 
@@ -24,6 +25,7 @@ export class ScheduleSignValidator {
             throw validationError(
                 "ScheduleSignValidator",
                 "scheduleId is required.",
+                Status.InvalidScheduleId,
             );
         }
 

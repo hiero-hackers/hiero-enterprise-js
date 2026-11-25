@@ -1,7 +1,7 @@
 import type { FileId, KeyList } from "@hiero-ledger/sdk";
-import { FileInfoQuery as SdkFileInfoQuery } from "@hiero-ledger/sdk";
+import { FileInfoQuery as SdkFileInfoQuery, Status } from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../../context/index.js";
-import { normalizeError } from "../../../errors/index.js";
+import { normalizeError, validationError } from "../../../errors/index.js";
 import { QueryExecutor } from "../../transaction/index.js";
 import type { QueryOptions } from "../../transaction/index.js";
 
@@ -68,6 +68,14 @@ export class FileInfoQuery {
         fileId: string | FileId,
         options: QueryOptions = {},
     ): Promise<FileInfoResult> {
+        if (fileId == null) {
+            throw validationError(
+                "FileService.getFileInfo",
+                "fileId is required.",
+                Status.InvalidFileId,
+            );
+        }
+
         try {
             const query = new SdkFileInfoQuery().setFileId(fileId);
             const info = await this.executor.run(query, options, {

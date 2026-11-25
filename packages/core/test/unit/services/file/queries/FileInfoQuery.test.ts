@@ -125,4 +125,15 @@ describe("FileInfoQuery (via FileService)", () => {
         expect(sentQuery(0)).not.toBe(sentQuery(1));
         expect(sentQuery(1).fileId?.toString()).toBe("0.0.2");
     });
+
+    it("reports INVALID_FILE_ID for a missing fileId", async () => {
+        await expect(
+            service.getFileInfo(undefined as unknown as string),
+        ).rejects.toThrow(
+            expect.objectContaining({
+                code: "INPUT_INVALID",
+                sdkStatus: "INVALID_FILE_ID",
+            }),
+        );
+    });
 });

@@ -164,6 +164,7 @@ describe("NetworkService [facade contract]", () => {
                 code: "INPUT_INVALID",
                 context: "NetworkService.getTransactionReceipt",
                 message: "transactionId is required.",
+                sdkStatus: "INVALID_TRANSACTION_ID",
             });
             expect(execute).not.toHaveBeenCalled();
         });
