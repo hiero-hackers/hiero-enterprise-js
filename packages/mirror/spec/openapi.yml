@@ -421,6 +421,12 @@ paths:
                 $ref: "#/components/schemas/BalancesResponse"
         400:
           $ref: "#/components/responses/InvalidParameterError"
+        429:
+          description: Too many concurrent account.balance requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
       tags:
         - balances
   /api/v1/blocks:
@@ -1565,7 +1571,7 @@ tags:
     description: The tokens object represents the information associated with a token entity and returns a list of token information.The tokens list endpoint is cached and not updated as frequently as the token lookup by a specific ID.
 info:
   title: Mirror Node REST API
-  version: 0.166.0-SNAPSHOT
+  version: 0.168.0-SNAPSHOT
   license:
     name: Apache-2.0
     url: "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -1974,9 +1980,9 @@ components:
           type: string
           format: binary
         balance:
-          description: The account balance as a hex-encoded quantity in weibars
-          type: string
-          format: binary
+          description: The account balance in tinybars
+          type: integer
+          format: int64
         code:
           description: the bytecode of the account
           type: string
@@ -2237,6 +2243,56 @@ components:
           description: The hex encoded parity of the y-coordinate of the signature point
           example: "0x1"
           type: string
+    BlockOverride:
+      type: object
+      description:
+        EVM block context override. Every field is optional and fields can be combined. An omitted field keeps its
+        normal value for the selected simulation context. Every field except fee_recipient is a decimal long. The
+        override changes only the values the EVM observes; it does not change the state snapshot selected by block,
+        and it does not change gas prices or fees.
+      properties:
+        base_fee_per_gas:
+          description: Value returned by BASEFEE (block.basefee) in weibar per gas. Defaults to 0.
+          example: 0
+          format: int64
+          minimum: 0
+          type: [integer, "null"]
+        blob_base_fee:
+          description: Value returned by BLOBBASEFEE (block.blobbasefee) in weibar per blob gas. Defaults to 1.
+          example: 1
+          format: int64
+          minimum: 1
+          type: [integer, "null"]
+        block_number:
+          description: Value returned by NUMBER (block.number). Also moves the block range checked by BLOCKHASH.
+          example: 80
+          format: int64
+          minimum: 0
+          type: [integer, "null"]
+        fee_recipient:
+          description: Value returned by COINBASE (block.coinbase). Defaults to the network fee collection account 0.0.98.
+          example: "0x0000000000000000000000000000000000000062"
+          format: binary
+          pattern: "^(0x)?[0-9a-fA-F]{40}$"
+          type: [string, "null"]
+        gas_limit:
+          description: Value returned by GASLIMIT (block.gaslimit). Defaults to the transaction gas limit.
+          example: 15000000
+          format: int64
+          minimum: 1
+          type: [integer, "null"]
+        prev_randao:
+          description: Value returned by PREVRANDAO (block.prevrandao), zero-extended to 32 bytes.
+          example: 123456789
+          format: int64
+          minimum: 0
+          type: [integer, "null"]
+        time:
+          description: Value returned by TIMESTAMP (block.timestamp) in Unix seconds.
+          example: 1793619195
+          format: int64
+          minimum: 0
+          type: [integer, "null"]
     AccountBalance:
       type: object
       required:
@@ -2528,6 +2584,11 @@ components:
           description: The hex encoded chain_id of the wrapped ethereum transaction
           type: [string, "null"]
           example: "0x127"
+        child:
+          description: >-
+            Whether the transaction was executed as part of another transaction's EVM execution (e.g. a system contract
+            call or a call dispatched by a hook).
+          type: boolean
         contract_id:
           $ref: "#/components/schemas/EntityId"
         created_contract_ids:
@@ -2790,6 +2851,15 @@ components:
           format: binary
           type: [string, "null"]
     ContractResultStateChanges:
+      description: >-
+        EVM storage-slot changes recorded for the contract execution. This
+        reflects only writes to EVM storage slots. Operations that mutate
+        native ledger state through the Hedera system contracts (for example
+        HTS token association, mint, burn, or key updates) do not write to EVM
+        storage slots, so a successful system-contract call can return an empty
+        `state_changes` array. The authoritative result of such a call is its
+        response code and the affected entity's own record (for example
+        `/api/v1/tokens/{id}`), not this field.
       type: array
       items:
         $ref: "#/components/schemas/ContractResultStateChange"
@@ -2879,6 +2949,9 @@ components:
           example: "latest"
           pattern: "^((0x)?[0-9a-fA-F]+|(earliest|pending|latest))$"
           type: [string, "null"]
+        block_override:
+          description: Optional EVM block context override for this call. Requires block overrides to be enabled.
+          $ref: "#/components/schemas/BlockOverride"
         data:
           description: Hexadecimal method signature and encoded parameters. Up to 131072 bytes as at most 262146 hexadecimal digits including optional leading 0x.
           example: "0x47f1aae7"
@@ -2905,7 +2978,7 @@ components:
           minimum: 0
           type: [integer, "null"]
         gasPrice:
-          description: Gas price used for each paid gas.
+          description: Gas price used for each paid gas. Also accepted as gas_price.
           example: 100000000
           format: int64
           minimum: 0
@@ -2940,12 +3013,11 @@ components:
         address:
           $ref: "#/components/schemas/EvmAddress"
         balance:
-          description: Hex-encoded balance override in tinybars.
-          example: "0x1"
-          format: binary
-          maxLength: 18
-          pattern: "^(0x)?[0-9a-fA-F]{1,16}$"
-          type: [string, "null"]
+          description: Balance override in tinybars.
+          example: 100000000
+          format: int64
+          minimum: 0
+          type: [integer, "null"]
         code:
           description: Hex-encoded runtime bytecode override.
           example: "0x6080604052"
@@ -2953,12 +3025,11 @@ components:
           pattern: "^(0x)?[0-9a-fA-F]*$"
           type: [string, "null"]
         nonce:
-          description: Hex-encoded nonce override.
-          example: "0x1"
-          format: binary
-          maxLength: 18
-          pattern: "^(0x)?[0-9a-fA-F]{1,16}$"
-          type: [string, "null"]
+          description: Ethereum nonce override.
+          example: 1
+          format: int64
+          minimum: 0
+          type: [integer, "null"]
         state:
           description: Full storage replacement. Mutually exclusive with state_diff.
           items:
@@ -5317,10 +5388,10 @@ components:
           summary: Example of id equals operator
           value: eq:0.0.200
         idGtOperator:
-          summary: Example of id greather than operator
+          summary: Example of id greater than operator
           value: gt:0.0.200
         idGteOperator:
-          summary: Example of id greather than or equal to operator
+          summary: Example of id greater than or equal to operator
           value: gte:0.0.200
         idLtOperator:
           summary: Example of id less than operator
@@ -5450,10 +5521,10 @@ components:
           summary: Example of id equals operator
           value: eq:0.0.200
         idGtOperator:
-          summary: Example of id greather than operator
+          summary: Example of id greater than operator
           value: gt:0.0.200
         idGteOperator:
-          summary: Example of id greather than or equal to operator
+          summary: Example of id greater than or equal to operator
           value: gte:0.0.200
         idLtOperator:
           summary: Example of id less than operator
@@ -5702,10 +5773,10 @@ components:
           summary: Example of id equals operator
           value: eq:0.0.200
         idGtOperator:
-          summary: Example of id greather than operator
+          summary: Example of id greater than operator
           value: gt:0.0.200
         idGteOperator:
-          summary: Example of id greather than or equal to operator
+          summary: Example of id greater than or equal to operator
           value: gte:0.0.200
         idLtOperator:
           summary: Example of id less than operator
