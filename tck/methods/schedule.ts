@@ -157,7 +157,8 @@ export const createSchedule = async (params: ScheduleParams) => {
 
     return {
         scheduleId: result.scheduleId.toString(),
-        transactionId: result.transactionId,
+        // The scheduled (inner) transaction's ID, as the reference adapter returns.
+        transactionId: result.receipt.scheduledTransactionId?.toString(),
         status: result.status,
     };
 };
