@@ -5,7 +5,7 @@ import type {
     TransactionRecord,
     Hbar,
 } from "@hiero-ledger/sdk";
-import type { Account, Balance, TokenBalance } from "../../types/index.js";
+import type { Balance, TokenBalance } from "../../types/index.js";
 import type { IHieroContext } from "../../context/index.js";
 import { validationError } from "../../errors/index.js";
 import {
@@ -135,7 +135,7 @@ export class AccountService {
      * @param options.stakedNodeId - Node ID to stake to (mutually exclusive with stakedAccountId)
      * @param options.declineStakingReward - Whether to decline staking rewards
      * @param options.hooks - Hooks to create with the account (HIP-1195)
-     * @returns The created account (ID, public key, and optional EVM address)
+     * @returns The transaction result plus the created account (ID, public key, optional EVM address)
      *
      * @example
      * ```typescript
@@ -147,7 +147,7 @@ export class AccountService {
      * });
      * ```
      */
-    async createAccount(options: CreateAccountOptions): Promise<Account> {
+    async createAccount(options: CreateAccountOptions) {
         return await this.createOperation.execute(options);
     }
 

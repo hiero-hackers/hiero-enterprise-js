@@ -11,6 +11,7 @@ import {
     FeeEstimateQuery,
     FileId,
     NetworkVersionInfoQuery,
+    Status,
     Transaction,
     TransactionId,
     TransactionReceiptQuery,
@@ -135,7 +136,11 @@ function parseTransactionId(
     context: string,
 ): TransactionId {
     if (transactionId == null) {
-        throw validationError(context, "transactionId is required.");
+        throw validationError(
+            context,
+            "transactionId is required.",
+            Status.InvalidTransactionId,
+        );
     }
     if (typeof transactionId !== "string") {
         return transactionId;

@@ -57,6 +57,7 @@ describe("CreateAccountOperation (via AccountService)", () => {
             expect(account.accountId.toString()).toBe("0.0.999");
             expect(account.publicKey).toBe(pubKey);
             expect(account.evmAddress).toBeUndefined();
+            expect(account.transactionId).toBe("0.0.2@1700000000.000000000");
 
             const tx = sentTx();
             expect(tx).toBeInstanceOf(AccountCreateTransaction);

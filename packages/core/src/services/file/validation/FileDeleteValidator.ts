@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { FileDeleteOperationOptions } from "../operations/index.js";
 
@@ -17,7 +18,11 @@ export class FileDeleteValidator {
 
     private validateFileId(options: FileDeleteOperationOptions): void {
         if (options.fileId == null) {
-            throw validationError("FileDeleteValidator", "fileId is required.");
+            throw validationError(
+                "FileDeleteValidator",
+                "fileId is required.",
+                Status.InvalidFileId,
+            );
         }
 
         if (
