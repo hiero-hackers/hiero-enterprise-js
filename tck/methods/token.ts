@@ -1,6 +1,14 @@
-import { Long, Timestamp, TokenSupplyType } from "@hiero-ledger/sdk";
-import type { Key } from "@hiero-ledger/sdk";
-import { TokenService } from "@hiero-hackers/enterprise-core";
+import {
+    CustomFixedFee,
+    CustomFractionalFee,
+    CustomRoyaltyFee,
+    Hbar,
+    Long,
+    Timestamp,
+    TokenSupplyType,
+} from "@hiero-ledger/sdk";
+import type { CustomFee, Key } from "@hiero-ledger/sdk";
+import { AccountService, TokenService } from "@hiero-hackers/enterprise-core";
 import { contextFor } from "../session.js";
 import { transactionOptions } from "../common.js";
 import type { CommonTransactionParams } from "../common.js";
@@ -38,6 +46,11 @@ interface TokenParams {
     readonly customFees?: Record<string, unknown>[];
     readonly metadata?: string | string[];
     readonly amount?: string;
+    readonly serialNumbers?: string[];
+    readonly nftId?: string;
+    readonly queryPayment?: string;
+    readonly maxQueryPayment?: string;
+    readonly getCost?: boolean;
 }
 
 const service = (sessionId?: string) => new TokenService(contextFor(sessionId));
@@ -213,5 +226,225 @@ export const mintToken = async (params: TokenParams) => {
         status: result.status,
         newTotalSupply: result.totalSupply,
         serialNumbers: result.serials.map(String),
+    };
+};
+
+const serials = (values: string[] | undefined) =>
+    values?.map((value) => Long.fromString(value));
+
+const queryOptions = (params: TokenParams) => ({
+    queryPayment: params.queryPayment
+        ? Hbar.fromTinybars(params.queryPayment)
+        : undefined,
+    maxQueryPayment: params.maxQueryPayment
+        ? Hbar.fromTinybars(params.maxQueryPayment)
+        : undefined,
+});
+
+export const dissociateToken = async (params: TokenParams) => {
+    const result = await service(params.sessionId).dissociateToken({
+        ...transactionOptions(params.commonTransactionParams),
+        accountId: params.accountId!,
+        tokenIds: params.tokenIds ?? [],
+    });
+
+    return { status: result.status };
+};
+
+export const unfreezeToken = async (params: TokenParams) => {
+    const result = await service(params.sessionId).unfreezeToken({
+        ...transactionOptions(params.commonTransactionParams),
+        tokenId: params.tokenId!,
+        accountId: params.accountId!,
+    });
+
+    return { status: result.status };
+};
+
+export const unpauseToken = async (params: TokenParams) => {
+    const result = await service(params.sessionId).unpauseToken({
+        ...transactionOptions(params.commonTransactionParams),
+        tokenId: params.tokenId!,
+    });
+
+    return { status: result.status };
+};
+
+export const grantTokenKyc = async (params: TokenParams) => {
+    const result = await service(params.sessionId).grantKycToken({
+        ...transactionOptions(params.commonTransactionParams),
+        tokenId: params.tokenId!,
+        accountId: params.accountId!,
+    });
+
+    return { status: result.status };
+};
+
+export const revokeTokenKyc = async (params: TokenParams) => {
+    const result = await service(params.sessionId).revokeKycToken({
+        ...transactionOptions(params.commonTransactionParams),
+        tokenId: params.tokenId!,
+        accountId: params.accountId!,
+    });
+
+    return { status: result.status };
+};
+
+export const burnToken = async (params: TokenParams) => {
+    const result = await service(params.sessionId).burnToken({
+        ...transactionOptions(params.commonTransactionParams),
+        tokenId: params.tokenId!,
+        amount: long(params.amount),
+        serials: serials(params.serialNumbers),
+    });
+
+    return { status: result.status, newTotalSupply: result.totalSupply };
+};
+
+export const wipeToken = async (params: TokenParams) => {
+    const result = await service(params.sessionId).wipeToken({
+        ...transactionOptions(params.commonTransactionParams),
+        tokenId: params.tokenId!,
+        accountId: params.accountId!,
+        amount: long(params.amount),
+        serials: serials(params.serialNumbers),
+    });
+
+    return { status: result.status };
+};
+
+export const getMirrorNodeTokenBalance = async (params: TokenParams) => {
+    const accounts = new AccountService(contextFor(params.sessionId));
+    const balance = await accounts.getTokenBalance(
+        params.accountId!,
+        params.tokenId!,
+    );
+
+    return {
+        tokenId: balance.tokenId,
+        balance: balance.balance,
+        decimals: balance.decimals,
+    };
+};
+
+const accountParts = (accountId: { toString(): string } | null | undefined) => {
+    if (accountId == null) return null;
+    const [shard, realm, num] = accountId.toString().split(".");
+
+    return { shard, realm, num };
+};
+
+const customFee = (fee: CustomFee) => {
+    const common = {
+        feeCollectorAccountId: accountParts(fee.feeCollectorAccountId),
+        allCollectorsAreExempt: fee.allCollectorsAreExempt,
+    };
+
+    if (fee instanceof CustomFixedFee) {
+        return {
+            ...common,
+            fixedFee: {
+                amount: fee.amount?.toString(),
+                denominatingTokenId:
+                    fee.denominatingTokenId?.toString() ?? null,
+            },
+        };
+    }
+
+    if (fee instanceof CustomFractionalFee) {
+        return {
+            ...common,
+            fractionalFee: {
+                numerator: fee.numerator.toString(),
+                denominator: fee.denominator.toString(),
+                minimumAmount: fee.min?.toString() || "0",
+                maximumAmount: fee.max?.toString() || "0",
+                assessmentMethod:
+                    fee.assessmentMethod?.toString().toLowerCase() ||
+                    "inclusive",
+            },
+        };
+    }
+
+    if (fee instanceof CustomRoyaltyFee) {
+        return {
+            ...common,
+            royaltyFee: {
+                numerator: fee.numerator.toString(),
+                denominator: fee.denominator.toString(),
+                fallbackFee: fee.fallbackFee
+                    ? {
+                          amount: fee.fallbackFee.amount?.toString(),
+                          denominatingTokenId:
+                              fee.fallbackFee.denominatingTokenId?.toString() ??
+                              null,
+                      }
+                    : null,
+            },
+        };
+    }
+
+    return fee;
+};
+
+const hex = (bytes: Uint8Array | null) =>
+    bytes && bytes.length > 0 ? Buffer.from(bytes).toString("hex") : "";
+
+const seconds = (iso: string | null) =>
+    iso ? String(Math.floor(Date.parse(iso) / 1000)) : undefined;
+
+export const getTokenInfo = async (params: TokenParams) => {
+    if (params.getCost) notSupported("getCost on getTokenInfo");
+    const info = await service(params.sessionId).getTokenInfo(
+        params.tokenId!,
+        queryOptions(params),
+    );
+
+    return {
+        tokenId: info.tokenId,
+        name: info.name,
+        symbol: info.symbol,
+        decimals: info.decimals,
+        totalSupply: info.totalSupply,
+        treasuryAccountId: info.treasuryAccountId ?? undefined,
+        adminKey: info.adminKey?.toString() ?? "",
+        kycKey: info.kycKey?.toString() ?? "",
+        freezeKey: info.freezeKey?.toString() ?? "",
+        pauseKey: info.pauseKey?.toString() ?? "",
+        wipeKey: info.wipeKey?.toString() ?? "",
+        supplyKey: info.supplyKey?.toString() ?? "",
+        feeScheduleKey: info.feeScheduleKey?.toString() ?? "",
+        metadataKey: info.metadataKey?.toString() ?? "",
+        defaultFreezeStatus: info.defaultFreezeStatus,
+        defaultKycStatus: info.defaultKycStatus,
+        pauseStatus: info.pauseStatus == null ? null : String(info.pauseStatus),
+        isDeleted: info.isDeleted,
+        autoRenewAccountId: info.autoRenewAccountId ?? undefined,
+        autoRenewPeriod: info.autoRenewPeriod?.toString(),
+        expirationTime: seconds(info.expirationTime),
+        tokenMemo: info.tokenMemo,
+        customFees: info.customFees.map(customFee),
+        tokenType: info.tokenType?.toString(),
+        supplyType: info.supplyType?.toString(),
+        maxSupply: info.maxSupply ?? undefined,
+        metadata: hex(info.metadata),
+        ledgerId: info.ledgerId ?? undefined,
+    };
+};
+
+export const getTokenNftInfo = async (params: TokenParams) => {
+    if (params.getCost) notSupported("getCost on getTokenNftInfo");
+    const info = await service(params.sessionId).getNftInfo(
+        params.nftId!,
+        queryOptions(params),
+    );
+
+    return {
+        nftId: info.nftId,
+        accountId: info.accountId,
+        creationTime: seconds(info.creationTime),
+        metadata: hex(info.metadata),
+        ledgerId: info.ledgerId ?? undefined,
+        spenderId: info.spenderId,
     };
 };
