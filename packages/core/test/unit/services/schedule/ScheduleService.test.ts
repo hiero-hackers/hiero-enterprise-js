@@ -296,6 +296,38 @@ describe("ScheduleService", () => {
             expect(info.signerCount).toBe(2);
         });
 
+        it("returns the admin key and the signing keys", async () => {
+            const adminKey = PrivateKey.generateED25519().publicKey;
+            const signer = PrivateKey.generateED25519().publicKey;
+            execute.mockResolvedValueOnce(
+                scheduleInfo({ adminKey, signers: KeyList.of(signer) }),
+            );
+
+            const info = await scheduleService.getInfo(SCHEDULE_ID);
+
+            expect(info.adminKey?.toString()).toBe(adminKey.toString());
+            expect(info.signers.map(String)).toEqual([signer.toString()]);
+        });
+
+        it("returns a null admin key for an immutable schedule", async () => {
+            const info = await scheduleService.getInfo(SCHEDULE_ID);
+
+            expect(info.adminKey).toBeNull();
+        });
+
+        it("reports INVALID_SCHEDULE_ID when scheduleId is missing", async () => {
+            await expect(
+                scheduleService.getInfo(undefined as unknown as string),
+            ).rejects.toMatchObject({ sdkStatus: "INVALID_SCHEDULE_ID" });
+        });
+
+        it("rejects an empty scheduleId without a status", async () => {
+            await expect(scheduleService.getInfo("")).rejects.toMatchObject({
+                code: "INPUT_INVALID",
+                sdkStatus: undefined,
+            });
+        });
+
         it("wraps errors in a HieroError", async () => {
             execute.mockRejectedValueOnce(new Error("INVALID_SCHEDULE_ID"));
 

@@ -36,6 +36,16 @@ describe("ScheduleSignValidator", () => {
             ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
         });
 
+        it("reports INVALID_SCHEDULE_ID when scheduleId is missing", () => {
+            expect(() =>
+                validator.validate({
+                    scheduleId: undefined as unknown as string,
+                }),
+            ).toThrow(
+                expect.objectContaining({ sdkStatus: "INVALID_SCHEDULE_ID" }),
+            );
+        });
+
         it("throws when scheduleId is undefined", () => {
             expect(() =>
                 validator.validate({

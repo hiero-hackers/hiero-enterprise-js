@@ -1,7 +1,10 @@
-import type { ScheduleId } from "@hiero-ledger/sdk";
-import { ScheduleInfoQuery as SdkScheduleInfoQuery } from "@hiero-ledger/sdk";
+import type { Key, ScheduleId } from "@hiero-ledger/sdk";
+import {
+    ScheduleInfoQuery as SdkScheduleInfoQuery,
+    Status,
+} from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../../context/index.js";
-import { normalizeError } from "../../../errors/index.js";
+import { normalizeError, validationError } from "../../../errors/index.js";
 import { QueryExecutor } from "../../transaction/index.js";
 import type { QueryOptions } from "../../transaction/index.js";
 
@@ -46,6 +49,10 @@ export interface ScheduleInfoResult {
      * Useful for looking up the result after execution.
      */
     scheduledTransactionId: string | null;
+    /** Admin key of the schedule, or `null` when it is immutable. */
+    adminKey: Key | null;
+    /** Keys that have signed the schedule so far. */
+    signers: Key[];
     /** Number of keys that have signed the schedule so far. */
     signerCount: number;
     /**
@@ -67,6 +74,21 @@ export class ScheduleInfoQuery {
         scheduleId: string | ScheduleId,
         options: QueryOptions = {},
     ): Promise<ScheduleInfoResult> {
+        if (scheduleId == null) {
+            throw validationError(
+                "ScheduleService.getInfo",
+                "scheduleId is required.",
+                Status.InvalidScheduleId,
+            );
+        }
+
+        if (typeof scheduleId === "string" && scheduleId.trim() === "") {
+            throw validationError(
+                "ScheduleService.getInfo",
+                "scheduleId cannot be an empty string.",
+            );
+        }
+
         try {
             const query = new SdkScheduleInfoQuery().setScheduleId(scheduleId);
             const info = await this.executor.run(query, options, {
@@ -97,7 +119,9 @@ export class ScheduleInfoQuery {
                     : null,
                 scheduledTransactionId:
                     info.scheduledTransactionId?.toString() ?? null,
+                adminKey: info.adminKey ?? null,
                 // signers is a KeyList — toArray() gives the individual keys
+                signers: info.signers?.toArray() ?? [],
                 signerCount: info.signers?.toArray().length ?? 0,
                 waitForExpiry: info.waitForExpiry,
             };
