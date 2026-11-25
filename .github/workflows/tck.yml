@@ -2,8 +2,7 @@
 # Runs the Hiero SDK TCK (hiero-ledger/hiero-sdk-tck) against enterprise-core
 # through the JSON-RPC adapter in tck/, on every pull request, on every push
 # to main (for the README badge) and on demand.
-# Each TCK folder (service) runs in its own job with its own network. A push
-# to a `tck/<folder>` branch runs only that folder, for work on one service.
+# Each TCK folder (service) runs in its own job with its own network.
 #
 # The TCK's own action waits for the adapter, runs the suite, writes the
 # counts to the job summary and uploads the mochawesome report. The job then
@@ -26,7 +25,6 @@ on:
     push:
         branches:
             - main
-            - "tck/**"
     workflow_dispatch:
 
 concurrency:
@@ -37,32 +35,22 @@ permissions:
     contents: read
 
 jobs:
-    folders:
-        name: Pick the TCK folders
-        runs-on: ubuntu-latest
-        outputs:
-            folders: ${{ steps.pick.outputs.folders }}
-        steps:
-            - name: Pick the folders
-              id: pick
-              env:
-                  REF_NAME: ${{ github.ref_name }}
-              run: |
-                  if [[ "${REF_NAME}" == tck/* ]]; then
-                      echo "folders=[\"${REF_NAME#tck/}\"]" >> "$GITHUB_OUTPUT"
-                  else
-                      echo 'folders=["topic-service","crypto-service","token-service","file-service","contract-service","ethereum","schedule-service","node-service"]' >> "$GITHUB_OUTPUT"
-                  fi
-
     tck:
         name: TCK ${{ matrix.folder }}
-        needs: folders
         runs-on: ubuntu-latest
         timeout-minutes: 90
         strategy:
             fail-fast: false
             matrix:
-                folder: ${{ fromJSON(needs.folders.outputs.folders) }}
+                folder:
+                    - topic-service
+                    - crypto-service
+                    - token-service
+                    - file-service
+                    - contract-service
+                    - ethereum
+                    - schedule-service
+                    - node-service
         env:
             NODE_VERSION: "22"
         steps:
