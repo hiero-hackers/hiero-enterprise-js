@@ -46,7 +46,7 @@
         },
         {
             "test": "AddressBookQuery AddressBookQuery (#2) Query without fileId",
-            "reason": "Core defaults the file to 0.0.102 and answers; the TCK's own query without a fileId then retries past its 30s timeout."
+            "reason": "Not a core difference: the adapter answers with core's default address book (0.0.102), then the test's own consensusInfoClient.getAddressBook() without a fileId times out after 30s."
         }
     ]
 }
