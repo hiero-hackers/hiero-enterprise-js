@@ -136,8 +136,8 @@ export const updateToken = async (params: TokenParams) => {
     const result = await service(params.sessionId).updateToken({
         ...transactionOptions(params.commonTransactionParams),
         tokenId: params.tokenId!,
-        tokenName: params.name,
-        tokenSymbol: params.symbol,
+        tokenName: params.name || undefined,
+        tokenSymbol: params.symbol || undefined,
         treasuryAccountId: params.treasuryAccountId,
         adminKey: key(params.adminKey),
         kycKey: key(params.kycKey),
@@ -180,6 +180,8 @@ export const updateTokenFeeSchedule = async (params: TokenParams) => {
 };
 
 export const associateToken = async (params: TokenParams) => {
+    if (!params.tokenIds?.length) notSupported("associateToken with no tokens");
+
     // Core associates one token per transaction.
     if ((params.tokenIds?.length ?? 0) > 1) {
         notSupported("associateToken with more than one token");
@@ -242,6 +244,9 @@ const queryOptions = (params: TokenParams) => ({
 });
 
 export const dissociateToken = async (params: TokenParams) => {
+    if (!params.tokenIds?.length) {
+        notSupported("dissociateToken with no tokens");
+    }
     const result = await service(params.sessionId).dissociateToken({
         ...transactionOptions(params.commonTransactionParams),
         accountId: params.accountId!,
