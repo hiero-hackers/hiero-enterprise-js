@@ -1,4 +1,4 @@
-import { Long } from "@hiero-ledger/sdk";
+import { Long, Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TokenWipeOperationOptions } from "../operations/index.js";
 
@@ -16,7 +16,11 @@ export class TokenWipeValidator {
 
     private validateTokenId(options: TokenWipeOperationOptions): void {
         if (options.tokenId == null) {
-            throw validationError("TokenWipeValidator", "tokenId is required.");
+            throw validationError(
+                "TokenWipeValidator",
+                "tokenId is required.",
+                Status.InvalidTokenId,
+            );
         }
 
         if (
@@ -35,6 +39,7 @@ export class TokenWipeValidator {
             throw validationError(
                 "TokenWipeValidator",
                 "accountId is required.",
+                Status.InvalidAccountId,
             );
         }
 

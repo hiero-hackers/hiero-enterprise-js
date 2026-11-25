@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import { utf8ByteLength } from "../../../utils/index.js";
 import type { TokenUpdateOperationOptions } from "../operations/TokenUpdateOperation.js";
@@ -33,6 +34,7 @@ export class TokenUpdateValidator {
             throw validationError(
                 "TokenUpdateValidator",
                 "tokenId is required.",
+                Status.InvalidTokenId,
             );
         }
 
@@ -62,6 +64,7 @@ export class TokenUpdateValidator {
             throw validationError(
                 "TokenUpdateValidator",
                 `tokenName exceeds ${MAX_TOKEN_NAME_BYTES} bytes (got ${byteLength}).`,
+                Status.TokenNameTooLong,
             );
         }
     }
@@ -81,6 +84,7 @@ export class TokenUpdateValidator {
             throw validationError(
                 "TokenUpdateValidator",
                 `tokenSymbol exceeds ${MAX_TOKEN_SYMBOL_BYTES} bytes (got ${byteLength}).`,
+                Status.TokenSymbolTooLong,
             );
         }
     }
@@ -93,6 +97,7 @@ export class TokenUpdateValidator {
             throw validationError(
                 "TokenUpdateValidator",
                 `tokenMemo exceeds ${MAX_TOKEN_MEMO_BYTES} bytes (got ${byteLength}).`,
+                Status.MemoTooLong,
             );
         }
     }

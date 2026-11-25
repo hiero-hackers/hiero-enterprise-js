@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TokenAssociateOperationOptions } from "../operations/TokenAssociateOperation.js";
 
@@ -15,6 +16,7 @@ export class TokenAssociateValidator {
             throw validationError(
                 "TokenAssociateValidator",
                 "accountId is required.",
+                Status.InvalidAccountId,
             );
         }
 
@@ -34,6 +36,7 @@ export class TokenAssociateValidator {
             throw validationError(
                 "TokenAssociateValidator",
                 "tokenId is required.",
+                Status.InvalidTokenId,
             );
         }
 

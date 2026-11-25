@@ -1,5 +1,5 @@
 import type BigNumber from "bignumber.js";
-import { TokenType, TokenSupplyType, Long } from "@hiero-ledger/sdk";
+import { TokenType, TokenSupplyType, Long, Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import { utf8ByteLength } from "../../../utils/index.js";
 import type { TokenCreateOperationOptions } from "../operations/TokenCreateOperation.js";
@@ -73,6 +73,7 @@ export class TokenCreateValidator {
             throw validationError(
                 "TokenCreateValidator",
                 "tokenName is required.",
+                Status.MissingTokenName,
             );
         }
 
@@ -81,6 +82,7 @@ export class TokenCreateValidator {
             throw validationError(
                 "TokenCreateValidator",
                 `tokenName exceeds ${MAX_TOKEN_NAME_BYTES} bytes (got ${byteLength}).`,
+                Status.TokenNameTooLong,
             );
         }
     }
@@ -90,6 +92,7 @@ export class TokenCreateValidator {
             throw validationError(
                 "TokenCreateValidator",
                 "tokenSymbol is required.",
+                Status.MissingTokenSymbol,
             );
         }
 
@@ -98,6 +101,7 @@ export class TokenCreateValidator {
             throw validationError(
                 "TokenCreateValidator",
                 `tokenSymbol exceeds ${MAX_TOKEN_SYMBOL_BYTES} bytes (got ${byteLength}).`,
+                Status.TokenSymbolTooLong,
             );
         }
     }
@@ -126,6 +130,7 @@ export class TokenCreateValidator {
             throw validationError(
                 "TokenCreateValidator",
                 "decimals cannot be negative.",
+                Status.InvalidTokenDecimals,
             );
         }
 
@@ -133,6 +138,7 @@ export class TokenCreateValidator {
             throw validationError(
                 "TokenCreateValidator",
                 "initialSupply cannot be negative.",
+                Status.InvalidTokenInitialSupply,
             );
         }
 
@@ -140,6 +146,7 @@ export class TokenCreateValidator {
             throw validationError(
                 "TokenCreateValidator",
                 "maxSupply cannot be negative.",
+                Status.InvalidTokenMaxSupply,
             );
         }
     }
@@ -152,6 +159,7 @@ export class TokenCreateValidator {
             throw validationError(
                 "TokenCreateValidator",
                 `tokenMemo exceeds ${MAX_TOKEN_MEMO_BYTES} bytes (got ${byteLength}).`,
+                Status.MemoTooLong,
             );
         }
     }
@@ -172,6 +180,7 @@ export class TokenCreateValidator {
             throw validationError(
                 "TokenCreateValidator",
                 "maxSupply must be greater than 0 for finite supply.",
+                Status.InvalidTokenMaxSupply,
             );
         }
     }
@@ -183,6 +192,7 @@ export class TokenCreateValidator {
             throw validationError(
                 "TokenCreateValidator",
                 "Non-fungible tokens require a supplyKey — NFTs are minted after collection creation.",
+                Status.TokenHasNoSupplyKey,
             );
         }
 

@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TokenDissociateOperationOptions } from "../operations/index.js";
 
@@ -15,6 +16,7 @@ export class TokenDissociateValidator {
             throw validationError(
                 "TokenDissociateValidator",
                 "accountId is required.",
+                Status.InvalidAccountId,
             );
         }
 

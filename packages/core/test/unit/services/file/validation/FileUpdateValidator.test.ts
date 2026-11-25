@@ -65,4 +65,15 @@ describe("FileUpdateValidator", () => {
             /updateFile requires at least one field to change/,
         );
     });
+
+    it("reports INVALID_FILE_ID for a missing fileId", () => {
+        expect(() =>
+            validator.validate({} as unknown as FileUpdateOperationOptions),
+        ).toThrow(
+            expect.objectContaining({
+                code: "INPUT_INVALID",
+                sdkStatus: "INVALID_FILE_ID",
+            }),
+        );
+    });
 });

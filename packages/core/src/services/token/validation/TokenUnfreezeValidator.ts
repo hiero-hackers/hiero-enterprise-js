@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TokenUnfreezeOperationOptions } from "../operations/TokenUnfreezeOperation.js";
 
@@ -24,6 +25,7 @@ export class TokenUnfreezeValidator {
             throw validationError(
                 "TokenUnfreezeValidator",
                 "tokenId is required.",
+                Status.InvalidTokenId,
             );
         }
 
@@ -43,6 +45,7 @@ export class TokenUnfreezeValidator {
             throw validationError(
                 "TokenUnfreezeValidator",
                 "accountId is required.",
+                Status.InvalidAccountId,
             );
         }
 

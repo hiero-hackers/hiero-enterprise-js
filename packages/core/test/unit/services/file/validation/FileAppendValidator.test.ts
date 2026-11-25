@@ -95,4 +95,15 @@ describe("FileAppendValidator", () => {
             }),
         ).toThrow(/chunkSize must be a positive integer/);
     });
+
+    it("reports INVALID_FILE_ID for a missing fileId", () => {
+        expect(() =>
+            validator.validate({} as unknown as FileAppendOperationOptions),
+        ).toThrow(
+            expect.objectContaining({
+                code: "INPUT_INVALID",
+                sdkStatus: "INVALID_FILE_ID",
+            }),
+        );
+    });
 });

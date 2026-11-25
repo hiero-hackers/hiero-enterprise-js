@@ -18,7 +18,11 @@ allowBuilds:
 # @grpc/grpc-js: GHSA-m9gg-hp2v-232j (high, unauthorized certificates reported
 #     as authorized) + GHSA-f596-whhp-79r4 (low, handler errors sent to the
 #     client). Pulled in via @hiero-ledger/sdk, which pins 1.12.7.
+# vite: GHSA-587h-7wmj-h5pm (high) + GHSA-rq7h-c2jc-7f22, GHSA-r825-w8mm-5pxw,
+#     GHSA-698v-4r3x-3vcv (moderate), GHSA-9jrq-w75r-8gcw (low): dev-server
+#     file access and launch-editor command handling. Pulled in via vitest.
 overrides:
     ws: ^8.21.3
     esbuild: ^0.28.2
     "@grpc/grpc-js": ~1.13.7
+    vite: ^8.1.6

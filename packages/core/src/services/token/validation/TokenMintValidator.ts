@@ -1,4 +1,4 @@
-import { Long } from "@hiero-ledger/sdk";
+import { Long, Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TokenMintOperationOptions } from "../operations/TokenMintOperation.js";
 
@@ -15,7 +15,11 @@ export class TokenMintValidator {
 
     private validateTokenId(options: TokenMintOperationOptions): void {
         if (options.tokenId == null) {
-            throw validationError("TokenMintValidator", "tokenId is required.");
+            throw validationError(
+                "TokenMintValidator",
+                "tokenId is required.",
+                Status.InvalidTokenId,
+            );
         }
 
         if (
@@ -68,6 +72,7 @@ export class TokenMintValidator {
             throw validationError(
                 "TokenMintValidator",
                 "amount cannot be negative.",
+                Status.InvalidTokenMintAmount,
             );
         }
     }

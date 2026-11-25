@@ -1,4 +1,4 @@
-import { Long } from "@hiero-ledger/sdk";
+import { Long, Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type {
     TokenAirdropOperationOptions,
@@ -119,6 +119,7 @@ export class TokenAirdropValidator {
             throw validationError(
                 "TokenAirdropValidator",
                 `${prefix}: senderAccountId and receiverAccountId must be different.`,
+                Status.AccountRepeatedInAccountAmounts,
             );
         }
     }

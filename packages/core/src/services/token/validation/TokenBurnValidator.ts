@@ -1,4 +1,4 @@
-import { Long } from "@hiero-ledger/sdk";
+import { Long, Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TokenBurnOperationOptions } from "../operations/index.js";
 
@@ -15,7 +15,11 @@ export class TokenBurnValidator {
 
     private validateTokenId(options: TokenBurnOperationOptions): void {
         if (options.tokenId == null) {
-            throw validationError("TokenBurnValidator", "tokenId is required.");
+            throw validationError(
+                "TokenBurnValidator",
+                "tokenId is required.",
+                Status.InvalidTokenId,
+            );
         }
 
         if (
@@ -68,6 +72,7 @@ export class TokenBurnValidator {
             throw validationError(
                 "TokenBurnValidator",
                 "amount cannot be negative.",
+                Status.InvalidTokenBurnAmount,
             );
         }
     }
