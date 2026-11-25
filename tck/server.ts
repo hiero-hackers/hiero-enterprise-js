@@ -21,6 +21,7 @@ import * as schedule from "./methods/schedule.js";
 import * as file from "./methods/file.js";
 import * as network from "./methods/network.js";
 import * as airdrop from "./methods/airdrop.js";
+import * as contract from "./methods/contract.js";
 
 const server = new JSONRPCServer();
 
@@ -34,6 +35,7 @@ for (const methods of [
     schedule,
     file,
     network,
+    contract,
 ]) {
     for (const [name, method] of Object.entries(methods)) {
         server.addMethod(name, method as SimpleJSONRPCMethod);
