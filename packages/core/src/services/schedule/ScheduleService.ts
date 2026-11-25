@@ -60,7 +60,7 @@ export class ScheduleService {
      * cancelled — this method will throw in that case.
      *
      * @param options.scheduleId - The schedule entity to cancel
-     * @param options.adminKey - Private key matching the schedule's adminKey (or sign with it through `additionalSigners`)
+     * @param options.adminKey - Private key matching the schedule's adminKey
      */
     cancel(options: ScheduleCancelOptions) {
         return this.cancelOperation.execute(options);

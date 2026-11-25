@@ -211,17 +211,6 @@ describe("ScheduleService", () => {
             ]);
         });
 
-        it("signs only with additionalSigners when adminKey is omitted", async () => {
-            const extraKey = PrivateKey.generateED25519();
-
-            await scheduleService.cancel({
-                scheduleId: SCHEDULE_ID,
-                additionalSigners: [extraKey],
-            });
-
-            expect(sentOptions().additionalSigners).toEqual([extraKey]);
-        });
-
         it("sends the ScheduleDelete event and returns the result", async () => {
             const adminKey = PrivateKey.generateED25519();
 

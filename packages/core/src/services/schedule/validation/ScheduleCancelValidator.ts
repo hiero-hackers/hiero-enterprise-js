@@ -18,6 +18,7 @@ export class ScheduleCancelValidator {
      */
     validate(options: ScheduleCancelOptions): void {
         this.validateScheduleId(options);
+        this.validateAdminKey(options);
     }
 
     private validateScheduleId(options: ScheduleCancelOptions): void {
@@ -36,6 +37,16 @@ export class ScheduleCancelValidator {
             throw validationError(
                 "ScheduleCancelValidator",
                 "scheduleId cannot be an empty string.",
+            );
+        }
+    }
+
+    private validateAdminKey(options: ScheduleCancelOptions): void {
+        if (options.adminKey == null) {
+            throw validationError(
+                "ScheduleCancelValidator",
+                "adminKey is required.",
+                Status.InvalidSignature,
             );
         }
     }

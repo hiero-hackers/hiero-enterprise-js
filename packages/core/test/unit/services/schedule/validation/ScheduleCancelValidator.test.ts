@@ -41,17 +41,6 @@ describe("ScheduleCancelValidator", () => {
             ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
         });
 
-        it("reports INVALID_SCHEDULE_ID when scheduleId is missing", () => {
-            expect(() =>
-                validator.validate({
-                    scheduleId: undefined as unknown as string,
-                    adminKey,
-                }),
-            ).toThrow(
-                expect.objectContaining({ sdkStatus: "INVALID_SCHEDULE_ID" }),
-            );
-        });
-
         it("throws when scheduleId is undefined", () => {
             expect(() =>
                 validator.validate({
@@ -75,10 +64,51 @@ describe("ScheduleCancelValidator", () => {
     });
 
     describe("adminKey", () => {
-        it("passes without an adminKey (the admin key can sign another way)", () => {
+        it("throws when adminKey is null", () => {
             expect(() =>
-                validator.validate({ scheduleId: "0.0.12345" }),
-            ).not.toThrow();
+                validator.validate({
+                    scheduleId: "0.0.12345",
+                    adminKey: null as unknown as PrivateKey,
+                }),
+            ).toThrow(/adminKey is required/);
+        });
+
+        it("throws when adminKey is undefined", () => {
+            expect(() =>
+                validator.validate({
+                    scheduleId: "0.0.12345",
+                    adminKey: undefined as unknown as PrivateKey,
+                }),
+            ).toThrow(/adminKey is required/);
+        });
+    });
+    describe("network status", () => {
+        it("reports INVALID_SCHEDULE_ID for a missing scheduleId", () => {
+            expect(() =>
+                validator.validate({
+                    scheduleId: undefined as unknown as string,
+                    adminKey,
+                }),
+            ).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "INVALID_SCHEDULE_ID",
+                }),
+            );
+        });
+
+        it("reports INVALID_SIGNATURE for a missing adminKey", () => {
+            expect(() =>
+                validator.validate({
+                    scheduleId: "0.0.12345",
+                    adminKey: undefined as unknown as PrivateKey,
+                }),
+            ).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "INVALID_SIGNATURE",
+                }),
+            );
         });
     });
 });
