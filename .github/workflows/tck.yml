@@ -1,11 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # Runs the Hiero SDK TCK (hiero-ledger/hiero-sdk-tck) against enterprise-core
 # through the JSON-RPC adapter in tck/, on every pull request and on demand.
+# Each TCK folder (service) runs in its own job with its own network. A push
+# to a `tck/<folder>` branch runs only that folder, for work on one service.
 #
 # The TCK's own action waits for the adapter, runs the suite, writes the
 # counts to the job summary and uploads the mochawesome report. The job then
-# fails on any failure not listed in tck/known-differences.json, and on a
-# listed test that no longer fails.
+# fails on any failure not listed for its folder in
+# tck/known-differences.json, and on a listed test that no longer fails.
 # It starts no network and no server: this workflow builds core, starts the
 # adapter and a Solo network on the TCK's default ports (consensus 50211,
 # mirror REST 5551, mirror gRPC 5600, REST Java 8084, genesis operator 0.0.2).
@@ -20,6 +22,9 @@ on:
     pull_request:
         branches:
             - main
+    push:
+        branches:
+            - "tck/**"
     workflow_dispatch:
 
 concurrency:
@@ -30,10 +35,32 @@ permissions:
     contents: read
 
 jobs:
-    tck:
-        name: TCK compatibility
+    folders:
+        name: Pick the TCK folders
         runs-on: ubuntu-latest
-        timeout-minutes: 60
+        outputs:
+            folders: ${{ steps.pick.outputs.folders }}
+        steps:
+            - name: Pick the folders
+              id: pick
+              env:
+                  REF_NAME: ${{ github.ref_name }}
+              run: |
+                  if [[ "${REF_NAME}" == tck/* ]]; then
+                      echo "folders=[\"${REF_NAME#tck/}\"]" >> "$GITHUB_OUTPUT"
+                  else
+                      echo 'folders=["topic-service","crypto-service","token-service","file-service","contract-service","ethereum","schedule-service","node-service"]' >> "$GITHUB_OUTPUT"
+                  fi
+
+    tck:
+        name: TCK ${{ matrix.folder }}
+        needs: folders
+        runs-on: ubuntu-latest
+        timeout-minutes: 90
+        strategy:
+            fail-fast: false
+            matrix:
+                folder: ${{ fromJSON(needs.folders.outputs.folders) }}
         env:
             NODE_VERSION: "22"
         steps:
@@ -84,24 +111,22 @@ jobs:
             - name: Connect the consensus node port directly
               run: node .github/scripts/forward-consensus-port.mjs
 
-            # The adapter covers the topic and account tests so far (#370);
-            # widen the matrix as it grows (#371). The action fails on any
-            # failure, so the next step decides against the known differences.
+            # The action fails on any failure, so the next step decides
+            # against the known differences.
             - name: Run the TCK
               id: tck
               continue-on-error: true
-              timeout-minutes: 30
+              timeout-minutes: 60
               uses: hiero-ledger/hiero-sdk-tck@c9e7169888d86be4793cde5932ce57d9450a9761 # v0.14.0
               with:
-                  artifact-name: tck-report
-                  test-matrix: |
-                      src/tests/topic-service/**/*.ts
-                      src/tests/crypto-service/**/*.ts
+                  artifact-name: tck-report-${{ matrix.folder }}
+                  test-matrix: src/tests/${{ matrix.folder }}/**/*.ts
 
             - name: Compare with the known differences
               env:
                   REPORT_PATH: ${{ steps.tck.outputs.report-path }}
-              run: node .github/scripts/check-tck-results.mjs "${REPORT_PATH}/mochawesome.json" tck/known-differences.json
+                  FOLDER: ${{ matrix.folder }}
+              run: node .github/scripts/check-tck-results.mjs "${REPORT_PATH}/mochawesome.json" tck/known-differences.json "${FOLDER}"
 
             - name: Show the TCK adapter log
               if: always()

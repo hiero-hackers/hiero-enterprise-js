@@ -1,30 +1,32 @@
-[
-    {
-        "test": "AccountCreateTransaction Staked ID (#7) Creates an account with a staked account ID and a staked node ID",
-        "reason": "Core rejects stakedAccountId together with stakedNodeId as mutually exclusive; the SDK keeps the last one set."
-    },
-    {
-        "test": "AccountDeleteTransaction Delete Account Id (#1) Deletes an account with no transfer account",
-        "reason": "Core sends the balance to the operator when transferAccountId is omitted; the TCK expects ACCOUNT_ID_DOES_NOT_EXIST."
-    },
-    {
-        "test": "TransferTransaction - HBAR AddHbarTransfer (#8) Transfers 0 hbar from a sender account to a receiver account",
-        "reason": "Core rejects a transfer amount of 0 (\"amount must be positive.\")."
-    },
-    {
-        "test": "TransferTransaction - HBAR AddHbarTransfer (#14) Transfers an amount of hbar from a sender account to itself",
-        "reason": "Core rejects a transfer to the sender itself as a no-op."
-    },
-    {
-        "test": "TransferTransaction - Token AddTokenTransfer (#11) Transfers 0 fungible token from a sender account to a receiver account",
-        "reason": "Core rejects a transfer amount of 0 (\"amount must be positive.\")."
-    },
-    {
-        "test": "TransferTransaction - Token AddTokenTransfer (#17) Transfers an amount of fungible token from a sender account to itself",
-        "reason": "Core rejects a transfer to the sender itself as a no-op."
-    },
-    {
-        "test": "TransferTransaction - Token AddTokenTransferWithDecimals (#11) Transfers 0 fungible token from a sender account to a receiver account",
-        "reason": "Core rejects a transfer amount of 0 (\"amount must be positive.\")."
-    }
-]
+{
+    "crypto-service": [
+        {
+            "test": "AccountCreateTransaction Staked ID (#7) Creates an account with a staked account ID and a staked node ID",
+            "reason": "Core rejects stakedAccountId together with stakedNodeId as mutually exclusive; the SDK keeps the last one set."
+        },
+        {
+            "test": "AccountDeleteTransaction Delete Account Id (#1) Deletes an account with no transfer account",
+            "reason": "Core sends the balance to the operator when transferAccountId is omitted; the TCK expects ACCOUNT_ID_DOES_NOT_EXIST."
+        },
+        {
+            "test": "TransferTransaction - HBAR AddHbarTransfer (#8) Transfers 0 hbar from a sender account to a receiver account",
+            "reason": "Core rejects a transfer amount of 0 (\"amount must be positive.\")."
+        },
+        {
+            "test": "TransferTransaction - HBAR AddHbarTransfer (#14) Transfers an amount of hbar from a sender account to itself",
+            "reason": "Core rejects a transfer to the sender itself as a no-op."
+        },
+        {
+            "test": "TransferTransaction - Token AddTokenTransfer (#11) Transfers 0 fungible token from a sender account to a receiver account",
+            "reason": "Core rejects a transfer amount of 0 (\"amount must be positive.\")."
+        },
+        {
+            "test": "TransferTransaction - Token AddTokenTransfer (#17) Transfers an amount of fungible token from a sender account to itself",
+            "reason": "Core rejects a transfer to the sender itself as a no-op."
+        },
+        {
+            "test": "TransferTransaction - Token AddTokenTransferWithDecimals (#11) Transfers 0 fungible token from a sender account to a receiver account",
+            "reason": "Core rejects a transfer amount of 0 (\"amount must be positive.\")."
+        }
+    ]
+}
