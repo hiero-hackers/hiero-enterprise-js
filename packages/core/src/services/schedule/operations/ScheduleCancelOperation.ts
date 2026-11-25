@@ -17,8 +17,10 @@ export interface ScheduleCancelOptions extends TransactionOptions {
     /**
      * Private key matching the `adminKey` set at schedule creation time.
      * Automatically added as the first signer before the operator auto-sign.
+     * Optional: the admin key may instead sign through `additionalSigners`
+     * or `externalSigners`.
      */
-    adminKey: PrivateKey;
+    adminKey?: PrivateKey;
 }
 
 export class ScheduleCancelOperation extends BaseOperation<ScheduleCancelOptions> {
@@ -34,7 +36,7 @@ export class ScheduleCancelOperation extends BaseOperation<ScheduleCancelOptions
         return await this.run({
             ...options,
             additionalSigners: [
-                options.adminKey,
+                ...(options.adminKey ? [options.adminKey] : []),
                 ...(options.additionalSigners ?? []),
             ],
         });

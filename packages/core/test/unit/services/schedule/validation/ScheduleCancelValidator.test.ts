@@ -41,6 +41,17 @@ describe("ScheduleCancelValidator", () => {
             ).toThrow(expect.objectContaining({ code: "INPUT_INVALID" }));
         });
 
+        it("reports INVALID_SCHEDULE_ID when scheduleId is missing", () => {
+            expect(() =>
+                validator.validate({
+                    scheduleId: undefined as unknown as string,
+                    adminKey,
+                }),
+            ).toThrow(
+                expect.objectContaining({ sdkStatus: "INVALID_SCHEDULE_ID" }),
+            );
+        });
+
         it("throws when scheduleId is undefined", () => {
             expect(() =>
                 validator.validate({
@@ -64,22 +75,10 @@ describe("ScheduleCancelValidator", () => {
     });
 
     describe("adminKey", () => {
-        it("throws when adminKey is null", () => {
+        it("passes without an adminKey (the admin key can sign another way)", () => {
             expect(() =>
-                validator.validate({
-                    scheduleId: "0.0.12345",
-                    adminKey: null as unknown as PrivateKey,
-                }),
-            ).toThrow(/adminKey is required/);
-        });
-
-        it("throws when adminKey is undefined", () => {
-            expect(() =>
-                validator.validate({
-                    scheduleId: "0.0.12345",
-                    adminKey: undefined as unknown as PrivateKey,
-                }),
-            ).toThrow(/adminKey is required/);
+                validator.validate({ scheduleId: "0.0.12345" }),
+            ).not.toThrow();
         });
     });
 });

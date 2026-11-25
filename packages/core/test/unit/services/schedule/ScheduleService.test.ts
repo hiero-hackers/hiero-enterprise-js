@@ -211,6 +211,17 @@ describe("ScheduleService", () => {
             ]);
         });
 
+        it("signs only with additionalSigners when adminKey is omitted", async () => {
+            const extraKey = PrivateKey.generateED25519();
+
+            await scheduleService.cancel({
+                scheduleId: SCHEDULE_ID,
+                additionalSigners: [extraKey],
+            });
+
+            expect(sentOptions().additionalSigners).toEqual([extraKey]);
+        });
+
         it("sends the ScheduleDelete event and returns the result", async () => {
             const adminKey = PrivateKey.generateED25519();
 
@@ -294,6 +305,38 @@ describe("ScheduleService", () => {
             const info = await scheduleService.getInfo(SCHEDULE_ID);
 
             expect(info.signerCount).toBe(2);
+        });
+
+        it("returns the admin key and the signing keys", async () => {
+            const adminKey = PrivateKey.generateED25519().publicKey;
+            const signer = PrivateKey.generateED25519().publicKey;
+            execute.mockResolvedValueOnce(
+                scheduleInfo({ adminKey, signers: KeyList.of(signer) }),
+            );
+
+            const info = await scheduleService.getInfo(SCHEDULE_ID);
+
+            expect(info.adminKey?.toString()).toBe(adminKey.toString());
+            expect(info.signers.map(String)).toEqual([signer.toString()]);
+        });
+
+        it("returns a null admin key for an immutable schedule", async () => {
+            const info = await scheduleService.getInfo(SCHEDULE_ID);
+
+            expect(info.adminKey).toBeNull();
+        });
+
+        it("reports INVALID_SCHEDULE_ID when scheduleId is missing", async () => {
+            await expect(
+                scheduleService.getInfo(undefined as unknown as string),
+            ).rejects.toMatchObject({ sdkStatus: "INVALID_SCHEDULE_ID" });
+        });
+
+        it("rejects an empty scheduleId without a status", async () => {
+            await expect(scheduleService.getInfo("")).rejects.toMatchObject({
+                code: "INPUT_INVALID",
+                sdkStatus: undefined,
+            });
         });
 
         it("wraps errors in a HieroError", async () => {

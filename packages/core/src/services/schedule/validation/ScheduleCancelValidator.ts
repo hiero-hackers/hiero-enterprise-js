@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { ScheduleCancelOptions } from "../operations/ScheduleCancelOperation.js";
 
@@ -17,7 +18,6 @@ export class ScheduleCancelValidator {
      */
     validate(options: ScheduleCancelOptions): void {
         this.validateScheduleId(options);
-        this.validateAdminKey(options);
     }
 
     private validateScheduleId(options: ScheduleCancelOptions): void {
@@ -25,6 +25,7 @@ export class ScheduleCancelValidator {
             throw validationError(
                 "ScheduleCancelValidator",
                 "scheduleId is required.",
+                Status.InvalidScheduleId,
             );
         }
 
@@ -35,15 +36,6 @@ export class ScheduleCancelValidator {
             throw validationError(
                 "ScheduleCancelValidator",
                 "scheduleId cannot be an empty string.",
-            );
-        }
-    }
-
-    private validateAdminKey(options: ScheduleCancelOptions): void {
-        if (options.adminKey == null) {
-            throw validationError(
-                "ScheduleCancelValidator",
-                "adminKey is required.",
             );
         }
     }
