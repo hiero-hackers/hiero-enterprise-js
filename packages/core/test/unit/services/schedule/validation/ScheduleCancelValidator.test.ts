@@ -82,4 +82,47 @@ describe("ScheduleCancelValidator", () => {
             ).toThrow(/adminKey is required/);
         });
     });
+    describe("network status", () => {
+        it("reports INVALID_SCHEDULE_ID for a missing scheduleId", () => {
+            expect(() =>
+                validator.validate({
+                    scheduleId: undefined as unknown as string,
+                    adminKey,
+                }),
+            ).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "INVALID_SCHEDULE_ID",
+                }),
+            );
+        });
+
+        it("reports no status for a malformed scheduleId", () => {
+            expect(() =>
+                validator.validate({
+                    scheduleId: "Invalid.Schedule.Id",
+                    adminKey: undefined as unknown as PrivateKey,
+                }),
+            ).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: undefined,
+                }),
+            );
+        });
+
+        it("reports INVALID_SIGNATURE for a missing adminKey", () => {
+            expect(() =>
+                validator.validate({
+                    scheduleId: "0.0.12345",
+                    adminKey: undefined as unknown as PrivateKey,
+                }),
+            ).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: "INVALID_SIGNATURE",
+                }),
+            );
+        });
+    });
 });
