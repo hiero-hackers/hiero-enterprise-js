@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Runs the Hiero SDK TCK (hiero-ledger/hiero-sdk-tck) against enterprise-core
-# through the JSON-RPC adapter in tck/, on every pull request, on every push
-# to main (for the README badge) and on demand.
+# through the JSON-RPC adapter in tck/, on every pull request that touches
+# more than the mirror package or Markdown, on every push to main (for the
+# README badge) and on demand.
 # Each TCK folder (service) runs in its own job with its own network.
 #
 # The TCK's own action waits for the adapter, runs the suite, writes the
@@ -22,6 +23,10 @@ on:
     pull_request:
         branches:
             - main
+        # The TCK drives core only.
+        paths-ignore:
+            - "packages/mirror/**"
+            - "**/*.md"
     push:
         branches:
             - main
