@@ -1,5 +1,5 @@
 import { Hbar, Long } from "@hiero-ledger/sdk";
-import type { Key } from "@hiero-ledger/sdk";
+import type { Key, PrivateKey } from "@hiero-ledger/sdk";
 import {
     AccountService,
     ScheduleService,
@@ -175,11 +175,17 @@ export const signSchedule = async (params: ScheduleParams) => {
 };
 
 export const deleteSchedule = async (params: ScheduleParams) => {
+    // Core signs with `adminKey`; the TCK passes the admin key as the first
+    // signer.
+    const options = transactionOptions(params.commonTransactionParams);
+    const [adminKey, ...others] = options.additionalSigners ?? [];
     const result = await new ScheduleService(
         contextFor(params.sessionId),
     ).cancel({
-        ...transactionOptions(params.commonTransactionParams),
+        ...options,
+        additionalSigners: others,
         scheduleId: params.scheduleId!,
+        adminKey: adminKey as PrivateKey,
     });
 
     return { status: result.status };

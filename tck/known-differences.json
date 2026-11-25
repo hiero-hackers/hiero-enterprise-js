@@ -28,5 +28,15 @@
             "test": "TransferTransaction - Token AddTokenTransferWithDecimals (#11) Transfers 0 fungible token from a sender account to a receiver account",
             "reason": "Core rejects a transfer amount of 0 (\"amount must be positive.\")."
         }
+    ],
+    "schedule-service": [
+        {
+            "test": "ScheduleDeleteTransaction Schedule ID (#2) Deletes a scheduled transaction without the admin key",
+            "reason": "Core requires adminKey to cancel a schedule (INPUT_INVALID with INVALID_SIGNATURE); the TCK expects the network's SCHEDULE_IS_IMMUTABLE."
+        },
+        {
+            "test": "ScheduleDeleteTransaction Schedule ID (#8) Deletes a scheduled transaction that has already executed",
+            "reason": "Core requires adminKey to cancel a schedule (INPUT_INVALID with INVALID_SIGNATURE); the TCK expects the network's SCHEDULE_ALREADY_EXECUTED."
+        }
     ]
 }
