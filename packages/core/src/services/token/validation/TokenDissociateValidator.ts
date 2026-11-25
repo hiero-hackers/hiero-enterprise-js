@@ -46,13 +46,6 @@ export class TokenDissociateValidator {
             );
         }
 
-        if (options.tokenIds.length === 0) {
-            throw validationError(
-                "TokenDissociateValidator",
-                "tokenIds must contain at least one token id.",
-            );
-        }
-
         for (const tokenId of options.tokenIds) {
             if (tokenId == null) {
                 throw validationError(

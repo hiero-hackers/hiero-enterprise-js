@@ -102,7 +102,7 @@ export type BurnTokenOptions = TokenBurnOperationOptions;
 /** Options for wiping token supply from a specific account (fungible amount or NFT serials). */
 export type WipeTokenOptions = TokenWipeOperationOptions;
 
-/** Options for associating a single token to an account. */
+/** Options for associating one or more tokens to an account. */
 export type AssociateTokenOptions = TokenAssociateOperationOptions;
 
 /** Options for dissociating a single token from an account. */
@@ -429,12 +429,15 @@ export class TokenService {
     }
 
     /**
-     * Associate one token with an account.
+     * Associate one or more tokens with an account in one transaction.
      *
      * Association is required before non-treasury accounts can hold a token.
+     * Set exactly one of `tokenId` and `tokenIds`. An empty list or repeated
+     * tokens are left to the network.
      *
-     * @param options.accountId - Account to associate the token with
-     * @param options.tokenId - Token to associate to the account
+     * @param options.accountId - Account to associate the tokens with
+     * @param options.tokenId - A single token to associate to the account
+     * @param options.tokenIds - Several tokens to associate to the account
      */
     async associateToken(options: AssociateTokenOptions) {
         return await this.associateOperation.execute(options);
@@ -443,8 +446,9 @@ export class TokenService {
     /**
      * Schedule token association for deferred multi-sig execution.
      *
-     * @param options.accountId - Account to associate the token with
-     * @param options.tokenId - Token to associate to the account
+     * @param options.accountId - Account to associate the tokens with
+     * @param options.tokenId - A single token to associate to the account
+     * @param options.tokenIds - Several tokens to associate to the account
      * @param scheduleOptions.payerAccountId - Override the account that pays for the schedule creation
      * @param scheduleOptions.adminKey - Optional schedule admin key for later updates / deletion
      * @param scheduleOptions.scheduleMemo - Optional memo stored on the schedule itself
@@ -465,7 +469,7 @@ export class TokenService {
      * no longer receive those tokens unless re-associated.
      *
      * @param options.accountId - Account to dissociate the tokens from
-     * @param options.tokenIds - Tokens to dissociate from the account (at least one)
+     * @param options.tokenIds - Tokens to dissociate from the account
      */
     async dissociateToken(options: DissociateTokenOptions) {
         return await this.dissociateOperation.execute(options);
@@ -475,7 +479,7 @@ export class TokenService {
      * Schedule token dissociation for deferred multi-sig execution.
      *
      * @param options.accountId - Account to dissociate the tokens from
-     * @param options.tokenIds - Tokens to dissociate from the account (at least one)
+     * @param options.tokenIds - Tokens to dissociate from the account
      * @param scheduleOptions.payerAccountId - Override the account that pays for the schedule creation
      * @param scheduleOptions.adminKey - Optional schedule admin key for later updates / deletion
      * @param scheduleOptions.scheduleMemo - Optional memo stored on the schedule itself

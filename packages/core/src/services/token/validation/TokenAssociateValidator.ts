@@ -8,7 +8,7 @@ import type { TokenAssociateOperationOptions } from "../operations/TokenAssociat
 export class TokenAssociateValidator {
     validate(options: TokenAssociateOperationOptions): void {
         this.validateAccountId(options);
-        this.validateTokenId(options);
+        this.validateTokens(options);
     }
 
     private validateAccountId(options: TokenAssociateOperationOptions): void {
@@ -31,12 +31,24 @@ export class TokenAssociateValidator {
         }
     }
 
-    private validateTokenId(options: TokenAssociateOperationOptions): void {
+    private validateTokens(options: TokenAssociateOperationOptions): void {
+        if (options.tokenId != null && options.tokenIds != null) {
+            throw validationError(
+                "TokenAssociateValidator",
+                "Set either tokenId or tokenIds, not both.",
+            );
+        }
+
+        if (options.tokenIds != null) {
+            this.validateTokenIds(options.tokenIds);
+
+            return;
+        }
+
         if (options.tokenId == null) {
             throw validationError(
                 "TokenAssociateValidator",
-                "tokenId is required.",
-                Status.InvalidTokenId,
+                "tokenId or tokenIds is required.",
             );
         }
 
@@ -48,6 +60,31 @@ export class TokenAssociateValidator {
                 "TokenAssociateValidator",
                 "tokenId cannot be empty.",
             );
+        }
+    }
+
+    private validateTokenIds(tokenIds: unknown): void {
+        if (!Array.isArray(tokenIds)) {
+            throw validationError(
+                "TokenAssociateValidator",
+                "tokenIds must be an array.",
+            );
+        }
+
+        for (const tokenId of tokenIds) {
+            if (tokenId == null) {
+                throw validationError(
+                    "TokenAssociateValidator",
+                    "tokenIds entries cannot be null.",
+                );
+            }
+
+            if (typeof tokenId === "string" && tokenId.trim().length === 0) {
+                throw validationError(
+                    "TokenAssociateValidator",
+                    "tokenIds entries cannot be empty.",
+                );
+            }
         }
     }
 }

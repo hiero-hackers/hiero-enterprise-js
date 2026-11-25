@@ -966,7 +966,10 @@ export const SERVICE_METHODS: ServiceMethodTable = {
                     tokenIds: [MISSING_ID],
                 }),
             invalid: (s, env) =>
-                s.dissociateToken({ accountId: env.operatorId, tokenIds: [] }),
+                s.dissociateToken({
+                    accountId: env.operatorId,
+                    tokenIds: [""],
+                }),
             reject: true,
         },
         scheduleDissociateToken: {
@@ -979,7 +982,7 @@ export const SERVICE_METHODS: ServiceMethodTable = {
             invalid: (s, env) =>
                 s.scheduleDissociateToken({
                     accountId: env.operatorId,
-                    tokenIds: [],
+                    tokenIds: [""],
                 }),
             reject: true,
         },

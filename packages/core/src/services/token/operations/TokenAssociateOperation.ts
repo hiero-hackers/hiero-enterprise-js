@@ -10,11 +10,15 @@ import { TokenAssociateValidator } from "../validation/index.js";
 /**
  * Low-level options for token association.
  *
- * Keeps SDK prop types as-is while extending `TransactionOptions`.
+ * Keeps SDK prop types as-is while extending `TransactionOptions`. Set
+ * exactly one of `tokenId` and `tokenIds`.
  */
 export interface TokenAssociateOperationOptions extends TransactionOptions {
     accountId: AccountId | string;
-    tokenId: TokenId | string;
+    /** A single token to associate. */
+    tokenId?: TokenId | string;
+    /** Several tokens to associate in one transaction. */
+    tokenIds?: (TokenId | string)[];
 }
 
 export class TokenAssociateOperation extends BaseOperation<TokenAssociateOperationOptions> {
@@ -41,6 +45,6 @@ export class TokenAssociateOperation extends BaseOperation<TokenAssociateOperati
     ): TokenAssociateTransaction {
         return new TokenAssociateTransaction()
             .setAccountId(options.accountId)
-            .setTokenIds([options.tokenId]);
+            .setTokenIds(options.tokenIds ?? [options.tokenId!]);
     }
 }

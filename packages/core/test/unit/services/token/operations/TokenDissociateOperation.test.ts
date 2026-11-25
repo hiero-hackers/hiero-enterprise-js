@@ -117,13 +117,10 @@ describe("TokenDissociateOperation (via TokenService)", () => {
         ).rejects.toThrow(/tokenIds is required/i);
     });
 
-    it("throws when tokenIds is empty", async () => {
-        await expect(
-            service.dissociateToken({
-                accountId: "0.0.700",
-                tokenIds: [],
-            }),
-        ).rejects.toThrow(/tokenIds must contain at least one token id/i);
+    it("sends an empty tokenIds list to the network", async () => {
+        await service.dissociateToken({ accountId: "0.0.700", tokenIds: [] });
+
+        expect(run).toHaveBeenCalledTimes(1);
     });
 
     it("validates before scheduling", async () => {

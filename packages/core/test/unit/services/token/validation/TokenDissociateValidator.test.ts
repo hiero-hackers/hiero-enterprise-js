@@ -83,10 +83,10 @@ describe("TokenDissociateValidator", () => {
             ).toThrow(/tokenIds must be an array/);
         });
 
-        it("throws when tokenIds is an empty array", () => {
+        it("leaves an empty tokenIds list to the network", () => {
             expect(() =>
                 validator.validate({ ...baseOptions, tokenIds: [] }),
-            ).toThrow(/tokenIds must contain at least one token id/);
+            ).not.toThrow();
         });
 
         it("throws when an entry is null", () => {

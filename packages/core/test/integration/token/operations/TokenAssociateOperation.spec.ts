@@ -56,6 +56,41 @@ describe("TokenService associate operations [Integration]", () => {
         expect(relationship?.token_id).toBe(tokenId.toString());
     }, 120_000);
 
+    it("associates several tokens in one transaction", async () => {
+        const receiver = await createTestAccount(accountService, 1);
+        const tokenIds = [];
+
+        for (const symbol of ["MA1", "MA2"]) {
+            const { tokenId } = await tokenService.createFungibleToken({
+                tokenName: `Multi Associate ${symbol}`,
+                tokenSymbol: symbol,
+                decimals: 0,
+                initialSupply: 100,
+                treasuryAccountId: owner.accountId,
+                supplyKey: owner.key.publicKey,
+                additionalSigners: [owner.key],
+            });
+
+            tokenIds.push(tokenId);
+        }
+
+        await tokenService.associateToken({
+            accountId: receiver.accountId,
+            tokenIds,
+            additionalSigners: [receiver.key],
+        });
+
+        await waitForMirrorNodeRecord();
+
+        const tokens = await queryAccountTokens(receiver.accountId);
+
+        for (const tokenId of tokenIds) {
+            expect(
+                tokens.find((t) => t.token_id === tokenId.toString()),
+            ).toBeDefined();
+        }
+    }, 120_000);
+
     it("schedules a token association", async () => {
         const scheduledReceiver = await createTestAccount(accountService, 1);
 

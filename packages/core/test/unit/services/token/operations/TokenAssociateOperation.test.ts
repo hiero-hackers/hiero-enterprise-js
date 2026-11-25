@@ -43,6 +43,22 @@ describe("TokenAssociateOperation (via TokenService)", () => {
         expect(tx.tokenIds?.map(String)).toEqual(["0.0.500"]);
     });
 
+    it("associates several tokens in one transaction", async () => {
+        await service.associateToken({
+            accountId: "0.0.700",
+            tokenIds: ["0.0.500", "0.0.501"],
+        });
+
+        expect(run).toHaveBeenCalledTimes(1);
+        expect(sentTx().tokenIds?.map(String)).toEqual(["0.0.500", "0.0.501"]);
+    });
+
+    it("sends an empty tokenIds list to the network", async () => {
+        await service.associateToken({ accountId: "0.0.700", tokenIds: [] });
+
+        expect(sentTx().tokenIds).toEqual([]);
+    });
+
     it("sends the TokenAssociate event", async () => {
         await service.associateToken({
             accountId: "0.0.700",
@@ -102,5 +118,38 @@ describe("TokenAssociateOperation (via TokenService)", () => {
             }),
         ).rejects.toThrow(/tokenId cannot be empty/i);
         expect(run).not.toHaveBeenCalled();
+    });
+
+    it("throws when both tokenId and tokenIds are set", async () => {
+        await expect(
+            service.associateToken({
+                accountId: "0.0.700",
+                tokenId: "0.0.500",
+                tokenIds: ["0.0.501"],
+            }),
+        ).rejects.toThrow(/either tokenId or tokenIds/i);
+        expect(run).not.toHaveBeenCalled();
+    });
+
+    it("throws when neither tokenId nor tokenIds is set", async () => {
+        await expect(
+            service.associateToken({ accountId: "0.0.700" }),
+        ).rejects.toThrow(/tokenId or tokenIds is required/i);
+    });
+
+    it("schedules an association of several tokens", async () => {
+        const scheduleRun = vi
+            .spyOn(TransactionExecutor.prototype, "scheduleRun")
+            .mockResolvedValue({
+                scheduleId: ScheduleId.fromString("0.0.777"),
+            } as never);
+
+        await service.scheduleAssociateToken({
+            accountId: "0.0.700",
+            tokenIds: ["0.0.500", "0.0.501"],
+        });
+
+        const tx = scheduleRun.mock.calls[0][0] as TokenAssociateTransaction;
+        expect(tx.tokenIds?.map(String)).toEqual(["0.0.500", "0.0.501"]);
     });
 });
