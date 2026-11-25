@@ -82,5 +82,27 @@
             "test": "TokenUpdateTransaction Symbol (#3) Updates a mutable token with a symbol that is empty",
             "reason": "Core rejects an empty tokenSymbol on update (\"tokenSymbol cannot be empty.\"); the network treats it as no change."
         }
+    ],
+    "contract-service": [
+        {
+            "test": "ContractCreateTransaction Initcode (#3) Create a contract with both valid initcode and valid bytecodeFileId supplied",
+            "reason": "Core rejects bytecodeFileId together with bytecode (\"ContractCreate accepts bytecodeFileId or bytecode, not both.\"); the SDK keeps the last one set."
+        },
+        {
+            "test": "ContractCreateTransaction Staked Account/Node ID (#5) Create a contract that does not have an admin key and that tries to set both stakedAccountId and stakedNodeId present",
+            "reason": "Core rejects stakedAccountId together with stakedNodeId (\"Specify either stakedAccountId or stakedNodeId, not both.\"); the SDK keeps the last one set."
+        },
+        {
+            "test": "ContractCreateTransaction Staked Account/Node ID (#10) Create a contract that does have an admin key and that tries to set both stakedAccountId and stakedNodeId present",
+            "reason": "Core rejects stakedAccountId together with stakedNodeId (\"Specify either stakedAccountId or stakedNodeId, not both.\"); the SDK keeps the last one set."
+        },
+        {
+            "test": "ContractDeleteTransaction Transfer Account ID / Transfer Contract ID (#10) Attempt to delete a contract with both transferAccountId and transferContractId set",
+            "reason": "Core rejects transferAccountId together with transferContractId (\"Specify either transferAccountId or transferContractId, not both.\"); the SDK keeps the last one set."
+        },
+        {
+            "test": "ContractUpdateTransaction Staked ID (#5) Updates a contract that tries to set both stakedAccountId and stakedNodeId present",
+            "reason": "Core rejects stakedAccountId together with stakedNodeId (\"Specify either stakedAccountId or stakedNodeId, not both.\"); the SDK keeps the last one set."
+        }
     ]
 }
