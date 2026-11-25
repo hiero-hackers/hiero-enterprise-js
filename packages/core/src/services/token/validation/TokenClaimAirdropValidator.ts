@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TokenClaimAirdropOperationOptions } from "../operations/TokenClaimAirdropOperation.js";
 
@@ -42,6 +43,7 @@ export class TokenClaimAirdropValidator {
             throw validationError(
                 "TokenClaimAirdropValidator",
                 "pendingAirdropIds must not be empty.",
+                Status.EmptyPendingAirdropIdList,
             );
         }
     }

@@ -49,14 +49,12 @@ describe("TokenBurnValidator", () => {
     });
 
     describe("amount / serials mutual exclusivity", () => {
-        it("throws when neither amount nor serials is provided", () => {
+        it("lets the network judge when neither amount nor serials is provided", () => {
             expect(() =>
                 validator.validate({
                     tokenId: "0.0.500",
                 }),
-            ).toThrow(
-                /requires either amount \(fungible\) or serials \(NFT\)/i,
-            );
+            ).not.toThrow();
         });
 
         it("throws when both amount and serials are provided", () => {

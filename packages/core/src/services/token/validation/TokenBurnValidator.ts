@@ -1,4 +1,4 @@
-import { Long } from "@hiero-ledger/sdk";
+import { Long, Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TokenBurnOperationOptions } from "../operations/index.js";
 
@@ -9,13 +9,17 @@ export class TokenBurnValidator {
     validate(options: TokenBurnOperationOptions): void {
         this.validateTokenId(options);
         this.validateSerials(options);
-        this.validateAmountOrSerials(options);
+        this.validateNotBoth(options);
         this.validateAmount(options);
     }
 
     private validateTokenId(options: TokenBurnOperationOptions): void {
         if (options.tokenId == null) {
-            throw validationError("TokenBurnValidator", "tokenId is required.");
+            throw validationError(
+                "TokenBurnValidator",
+                "tokenId is required.",
+                Status.InvalidTokenId,
+            );
         }
 
         if (
@@ -29,17 +33,10 @@ export class TokenBurnValidator {
         }
     }
 
-    private validateAmountOrSerials(options: TokenBurnOperationOptions): void {
+    private validateNotBoth(options: TokenBurnOperationOptions): void {
         const hasAmount = options.amount != null;
         const hasSerials =
             options.serials != null && options.serials.length > 0;
-
-        if (!hasAmount && !hasSerials) {
-            throw validationError(
-                "TokenBurnValidator",
-                "Token burn requires either amount (fungible) or serials (NFT).",
-            );
-        }
 
         if (hasAmount && hasSerials) {
             throw validationError(
@@ -68,6 +65,7 @@ export class TokenBurnValidator {
             throw validationError(
                 "TokenBurnValidator",
                 "amount cannot be negative.",
+                Status.InvalidTokenBurnAmount,
             );
         }
     }

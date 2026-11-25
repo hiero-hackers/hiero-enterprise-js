@@ -1,4 +1,4 @@
-import { Long } from "@hiero-ledger/sdk";
+import { Long, Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TokenMintOperationOptions } from "../operations/TokenMintOperation.js";
 
@@ -8,14 +8,18 @@ import type { TokenMintOperationOptions } from "../operations/TokenMintOperation
 export class TokenMintValidator {
     validate(options: TokenMintOperationOptions): void {
         this.validateTokenId(options);
-        this.validateAmountOrMetadata(options);
+        this.validateNotBoth(options);
         this.validateAmount(options);
         this.validateMetadata(options);
     }
 
     private validateTokenId(options: TokenMintOperationOptions): void {
         if (options.tokenId == null) {
-            throw validationError("TokenMintValidator", "tokenId is required.");
+            throw validationError(
+                "TokenMintValidator",
+                "tokenId is required.",
+                Status.InvalidTokenId,
+            );
         }
 
         if (
@@ -29,17 +33,10 @@ export class TokenMintValidator {
         }
     }
 
-    private validateAmountOrMetadata(options: TokenMintOperationOptions): void {
+    private validateNotBoth(options: TokenMintOperationOptions): void {
         const hasAmount = options.amount != null;
         const hasMetadata =
             options.metadata != null && options.metadata.length > 0;
-
-        if (!hasAmount && !hasMetadata) {
-            throw validationError(
-                "TokenMintValidator",
-                "Token mint requires either amount (fungible) or metadata (NFT).",
-            );
-        }
 
         if (hasAmount && hasMetadata) {
             throw validationError(
@@ -68,6 +65,7 @@ export class TokenMintValidator {
             throw validationError(
                 "TokenMintValidator",
                 "amount cannot be negative.",
+                Status.InvalidTokenMintAmount,
             );
         }
     }

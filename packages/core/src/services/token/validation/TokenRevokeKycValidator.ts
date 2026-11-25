@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TokenRevokeKycOperationOptions } from "../operations/TokenRevokeKycOperation.js";
 
@@ -24,6 +25,7 @@ export class TokenRevokeKycValidator {
             throw validationError(
                 "TokenRevokeKycValidator",
                 "tokenId is required.",
+                Status.InvalidTokenId,
             );
         }
 
@@ -43,6 +45,7 @@ export class TokenRevokeKycValidator {
             throw validationError(
                 "TokenRevokeKycValidator",
                 "accountId is required.",
+                Status.InvalidAccountId,
             );
         }
 

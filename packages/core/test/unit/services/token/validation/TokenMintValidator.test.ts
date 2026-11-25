@@ -49,14 +49,12 @@ describe("TokenMintValidator", () => {
     });
 
     describe("amount / metadata mutual exclusivity", () => {
-        it("throws when neither amount nor metadata is provided", () => {
+        it("lets the network judge when neither amount nor metadata is provided", () => {
             expect(() =>
                 validator.validate({
                     tokenId: "0.0.500",
                 }),
-            ).toThrow(
-                /requires either amount \(fungible\) or metadata \(NFT\)/i,
-            );
+            ).not.toThrow();
         });
 
         it("throws when both amount and metadata are provided", () => {

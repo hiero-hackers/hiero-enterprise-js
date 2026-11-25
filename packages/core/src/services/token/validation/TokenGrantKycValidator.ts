@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { TokenGrantKycOperationOptions } from "../operations/TokenGrantKycOperation.js";
 
@@ -24,6 +25,7 @@ export class TokenGrantKycValidator {
             throw validationError(
                 "TokenGrantKycValidator",
                 "tokenId is required.",
+                Status.InvalidTokenId,
             );
         }
 
@@ -43,6 +45,7 @@ export class TokenGrantKycValidator {
             throw validationError(
                 "TokenGrantKycValidator",
                 "accountId is required.",
+                Status.InvalidAccountId,
             );
         }
 
