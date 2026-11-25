@@ -160,16 +160,16 @@ export const rejectToken = async (params: AirdropParams) => {
     const result = await service(params.sessionId).rejectTokensFlow({
         ownerId: params.ownerId!,
         fungibleTokenIds: params.serialNumbers ? undefined : tokenIds,
+        // One TokenId object per token: TokenRejectFlow dedupes the tokens
+        // it dissociates by reference.
         nftIds: params.serialNumbers
-            ? tokenIds.flatMap((tokenId) =>
-                  params.serialNumbers!.map(
-                      (serial) =>
-                          new NftId(
-                              TokenId.fromString(tokenId),
-                              Long.fromString(serial),
-                          ),
-                  ),
-              )
+            ? tokenIds.flatMap((tokenId) => {
+                  const id = TokenId.fromString(tokenId);
+
+                  return params.serialNumbers!.map(
+                      (serial) => new NftId(id, Long.fromString(serial)),
+                  );
+              })
             : undefined,
         ownerKey: signers.length
             ? (getKeyFromString(signers[0]) as PrivateKey)
