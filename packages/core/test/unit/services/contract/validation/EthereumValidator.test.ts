@@ -22,6 +22,17 @@ describe("EthereumValidator", () => {
         expect(() => validate({ maxGasAllowance: new Hbar(1) })).not.toThrow();
     });
 
+    it("names the network status for missing data and a negative allowance", () => {
+        expect(() => validate({ ethereumData: undefined })).toThrow(
+            expect.objectContaining({
+                sdkStatus: "INVALID_ETHEREUM_TRANSACTION",
+            }),
+        );
+        expect(() => validate({ maxGasAllowance: -1 })).toThrow(
+            expect.objectContaining({ sdkStatus: "NEGATIVE_ALLOWANCE_AMOUNT" }),
+        );
+    });
+
     it.each([
         [{ ethereumData: undefined }, /ethereumData is required/],
         [{ ethereumData: new Uint8Array() }, /must be non-empty bytes/],

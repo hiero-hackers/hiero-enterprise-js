@@ -1,4 +1,4 @@
-import { Long, Hbar } from "@hiero-ledger/sdk";
+import { ContractId, Long, Hbar, Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import { validateCallTarget } from "./validateCallTarget.js";
 import type { ContractExecuteOperationOptions } from "../operations/index.js";
@@ -24,11 +24,30 @@ export class ContractExecuteValidator {
     }
 
     private validateContractId(options: ContractExecuteOperationOptions): void {
-        if (options.contractId == null || options.contractId === "") {
+        if (options.contractId == null) {
+            throw validationError(
+                "ContractExecuteValidator",
+                "contractId is required.",
+                Status.InvalidContractId,
+            );
+        }
+
+        if (options.contractId === "") {
             throw validationError(
                 "ContractExecuteValidator",
                 "contractId is required.",
             );
+        }
+
+        if (typeof options.contractId === "string") {
+            try {
+                ContractId.fromString(options.contractId);
+            } catch {
+                throw validationError(
+                    "ContractExecuteValidator",
+                    `contractId "${options.contractId}" is not a valid contract ID.`,
+                );
+            }
         }
     }
 
@@ -37,6 +56,7 @@ export class ContractExecuteValidator {
             throw validationError(
                 "ContractExecuteValidator",
                 "gas is required.",
+                Status.InsufficientGas,
             );
         }
 
@@ -44,11 +64,16 @@ export class ContractExecuteValidator {
             typeof options.gas === "number"
                 ? options.gas > 0
                 : options.gas.greaterThan(0);
+        const isZero =
+            typeof options.gas === "number"
+                ? options.gas === 0
+                : options.gas.isZero();
 
         if (!isPositive) {
             throw validationError(
                 "ContractExecuteValidator",
                 "gas must be greater than zero.",
+                isZero ? Status.InsufficientGas : undefined,
             );
         }
     }
@@ -103,6 +128,7 @@ export class ContractExecuteValidator {
             throw validationError(
                 "ContractExecuteValidator",
                 "payableAmount must not be negative.",
+                Status.ContractNegativeValue,
             );
         }
     }

@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 
 /**
@@ -18,6 +19,7 @@ export function validateCallTarget(
         throw validationError(
             context,
             "A contract call requires either functionName or rawFunctionParameters.",
+            Status.ContractRevertExecuted,
         );
     }
 

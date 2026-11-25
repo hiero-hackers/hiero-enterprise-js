@@ -144,4 +144,20 @@ describe("ContractCallQuery (via ContractService.callContract)", () => {
             }),
         ).rejects.toThrow(/network down/);
     });
+
+    it("rejects a missing contractId or gas with a network status", async () => {
+        await expect(
+            service.callContract({
+                gas: 75_000,
+                functionName: "getMessage",
+            } as unknown as Parameters<typeof service.callContract>[0]),
+        ).rejects.toMatchObject({ sdkStatus: "INVALID_CONTRACT_ID" });
+        await expect(
+            service.callContract({
+                contractId: "0.0.12345",
+                functionName: "getMessage",
+            } as unknown as Parameters<typeof service.callContract>[0]),
+        ).rejects.toMatchObject({ sdkStatus: "INSUFFICIENT_GAS" });
+        expect(execute).not.toHaveBeenCalled();
+    });
 });
