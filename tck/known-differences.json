@@ -1,0 +1,108 @@
+{
+    "crypto-service": [
+        {
+            "test": "AccountCreateTransaction Staked ID (#7) Creates an account with a staked account ID and a staked node ID",
+            "reason": "Core rejects stakedAccountId together with stakedNodeId as mutually exclusive; the SDK keeps the last one set."
+        },
+        {
+            "test": "AccountDeleteTransaction Delete Account Id (#1) Deletes an account with no transfer account",
+            "reason": "Core sends the balance to the operator when transferAccountId is omitted; the TCK expects ACCOUNT_ID_DOES_NOT_EXIST."
+        },
+        {
+            "test": "TransferTransaction - HBAR AddHbarTransfer (#8) Transfers 0 hbar from a sender account to a receiver account",
+            "reason": "Core rejects a transfer amount of 0 (\"amount must be positive.\")."
+        },
+        {
+            "test": "TransferTransaction - HBAR AddHbarTransfer (#14) Transfers an amount of hbar from a sender account to itself",
+            "reason": "Core rejects a transfer to the sender itself as a no-op."
+        },
+        {
+            "test": "TransferTransaction - Token AddTokenTransfer (#11) Transfers 0 fungible token from a sender account to a receiver account",
+            "reason": "Core rejects a transfer amount of 0 (\"amount must be positive.\")."
+        },
+        {
+            "test": "TransferTransaction - Token AddTokenTransfer (#17) Transfers an amount of fungible token from a sender account to itself",
+            "reason": "Core rejects a transfer to the sender itself as a no-op."
+        },
+        {
+            "test": "TransferTransaction - Token AddTokenTransferWithDecimals (#11) Transfers 0 fungible token from a sender account to a receiver account",
+            "reason": "Core rejects a transfer amount of 0 (\"amount must be positive.\")."
+        }
+    ],
+    "schedule-service": [
+        {
+            "test": "ScheduleDeleteTransaction Schedule ID (#2) Deletes a scheduled transaction without the admin key",
+            "reason": "Core requires adminKey to cancel a schedule (INPUT_INVALID with INVALID_SIGNATURE); the TCK expects the network's SCHEDULE_IS_IMMUTABLE."
+        },
+        {
+            "test": "ScheduleDeleteTransaction Schedule ID (#8) Deletes a scheduled transaction that has already executed",
+            "reason": "Core requires adminKey to cancel a schedule (INPUT_INVALID with INVALID_SIGNATURE); the TCK expects the network's SCHEDULE_ALREADY_EXECUTED."
+        }
+    ],
+    "node-service": [
+        {
+            "test": "AddressBookQuery AddressBookQuery (#7) Query with limit=0",
+            "reason": "Core rejects a limit below 1 (\"limit must be an integer >= 1\"); the TCK expects the whole address book."
+        },
+        {
+            "test": "AddressBookQuery AddressBookQuery (#2) Query without fileId",
+            "reason": "Not a core difference: the adapter answers with core's default address book (0.0.102), then the test's own consensusInfoClient.getAddressBook() without a fileId times out after 30s."
+        }
+    ],
+    "token-service": [
+        {
+            "test": "TokenBurnTransaction Token ID (#5) Burns a deleted token",
+            "reason": "Core rejects a burn with neither amount nor serials (\"Token burn requires either amount (fungible) or serials (NFT).\"); the TCK sends neither and expects the network's TOKEN_WAS_DELETED."
+        },
+        {
+            "test": "TokenBurnTransaction Amount (#3) Burns no fungible tokens",
+            "reason": "Core rejects a burn with neither amount nor serials (\"Token burn requires either amount (fungible) or serials (NFT).\"); the network accepts it as an amount of 0."
+        },
+        {
+            "test": "TokenBurnTransaction Serial Numbers (#4) Burns no NFTs",
+            "reason": "Core rejects a burn with neither amount nor serials (\"Token burn requires either amount (fungible) or serials (NFT).\"); the TCK expects the network's INVALID_TOKEN_BURN_METADATA."
+        },
+        {
+            "test": "TokenMintTransaction Token ID (#5) Mints a deleted token",
+            "reason": "Core rejects a mint with neither amount nor metadata (\"Token mint requires either amount (fungible) or metadata (NFT).\"); the TCK sends neither and expects the network's TOKEN_WAS_DELETED."
+        },
+        {
+            "test": "TokenMintTransaction Amount (#3) Mints no fungible tokens",
+            "reason": "Core rejects a mint with neither amount nor metadata (\"Token mint requires either amount (fungible) or metadata (NFT).\"); the network accepts it as an amount of 0."
+        },
+        {
+            "test": "TokenMintTransaction Metadata (#5) Mints no NFTs",
+            "reason": "Core rejects a mint with neither amount nor metadata (\"Token mint requires either amount (fungible) or metadata (NFT).\"); the TCK expects the network's INVALID_TOKEN_MINT_METADATA."
+        },
+        {
+            "test": "TokenUpdateTransaction Name (#3) Updates a mutable token with a name that is empty",
+            "reason": "Core rejects an empty tokenName on update (\"tokenName cannot be empty.\"); the network treats it as no change."
+        },
+        {
+            "test": "TokenUpdateTransaction Symbol (#3) Updates a mutable token with a symbol that is empty",
+            "reason": "Core rejects an empty tokenSymbol on update (\"tokenSymbol cannot be empty.\"); the network treats it as no change."
+        }
+    ],
+    "contract-service": [
+        {
+            "test": "ContractCreateTransaction Initcode (#3) Create a contract with both valid initcode and valid bytecodeFileId supplied",
+            "reason": "Core rejects bytecodeFileId together with bytecode (\"ContractCreate accepts bytecodeFileId or bytecode, not both.\"); the SDK keeps the last one set."
+        },
+        {
+            "test": "ContractCreateTransaction Staked Account/Node ID (#5) Create a contract that does not have an admin key and that tries to set both stakedAccountId and stakedNodeId present",
+            "reason": "Core rejects stakedAccountId together with stakedNodeId (\"Specify either stakedAccountId or stakedNodeId, not both.\"); the SDK keeps the last one set."
+        },
+        {
+            "test": "ContractCreateTransaction Staked Account/Node ID (#10) Create a contract that does have an admin key and that tries to set both stakedAccountId and stakedNodeId present",
+            "reason": "Core rejects stakedAccountId together with stakedNodeId (\"Specify either stakedAccountId or stakedNodeId, not both.\"); the SDK keeps the last one set."
+        },
+        {
+            "test": "ContractDeleteTransaction Transfer Account ID / Transfer Contract ID (#10) Attempt to delete a contract with both transferAccountId and transferContractId set",
+            "reason": "Core rejects transferAccountId together with transferContractId (\"Specify either transferAccountId or transferContractId, not both.\"); the SDK keeps the last one set."
+        },
+        {
+            "test": "ContractUpdateTransaction Staked ID (#5) Updates a contract that tries to set both stakedAccountId and stakedNodeId present",
+            "reason": "Core rejects stakedAccountId together with stakedNodeId (\"Specify either stakedAccountId or stakedNodeId, not both.\"); the SDK keeps the last one set."
+        }
+    ]
+}
