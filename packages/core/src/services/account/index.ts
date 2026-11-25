@@ -22,4 +22,9 @@ export type {
     ScheduleTransferHbarOptions,
     ScheduleTransferTokenOptions,
     ScheduleTransferNftOptions,
+    TransferOptions,
+    ScheduleTransferOptions,
+    HbarTransferLeg,
+    TokenTransferLeg,
+    NftTransferLeg,
 } from "./operations/index.js";

@@ -19,6 +19,7 @@ import {
     TransferHbarOperation,
     TransferTokenOperation,
     TransferNftOperation,
+    TransferOperation,
 } from "./operations/index.js";
 import type {
     CreateAccountOptions,
@@ -41,6 +42,8 @@ import type {
     ScheduleTransferHbarOptions,
     ScheduleTransferTokenOptions,
     ScheduleTransferNftOptions,
+    TransferOptions,
+    ScheduleTransferOptions,
 } from "./operations/index.js";
 import {
     AccountBalanceQuery,
@@ -73,6 +76,7 @@ export class AccountService {
     private readonly transferHbarOperation: TransferHbarOperation;
     private readonly transferTokenOperation: TransferTokenOperation;
     private readonly transferNftOperation: TransferNftOperation;
+    private readonly transferOperation: TransferOperation;
     private readonly balanceQuery: AccountBalanceQuery;
     private readonly recordsQuery: AccountRecordsQuery;
     private readonly tokenBalanceQuery: TokenBalanceQuery;
@@ -110,6 +114,7 @@ export class AccountService {
         this.transferHbarOperation = new TransferHbarOperation(context);
         this.transferTokenOperation = new TransferTokenOperation(context);
         this.transferNftOperation = new TransferNftOperation(context);
+        this.transferOperation = new TransferOperation(context);
         this.balanceQuery = new AccountBalanceQuery(context);
         this.recordsQuery = new AccountRecordsQuery(context);
         this.tokenBalanceQuery = new TokenBalanceQuery(context);
@@ -568,6 +573,38 @@ export class AccountService {
     }
 
     // Crypto Transfers
+
+    /**
+     * Transfer HBAR, fungible tokens and NFTs between any number of accounts
+     * in one atomic transaction.
+     *
+     * The HBAR legs must sum to zero, and so must the legs of each token.
+     * Every sending account must sign: pass its key via
+     * `options.additionalSigners` unless it is the operator. To spend an
+     * allowance, mark the leg `approved` and set the spender as
+     * `options.payer` (with its key in `additionalSigners`): the network
+     * checks allowances against the payer.
+     *
+     * @param options.hbarTransfers - HBAR legs: `{ accountId, amount, approved? }`, amount signed (negative sends)
+     * @param options.tokenTransfers - Fungible token legs: `{ tokenId, accountId, amount, expectedDecimals?, approved? }`, amount signed in the token's smallest unit
+     * @param options.nftTransfers - NFT transfers: `{ tokenId, serial, senderAccountId, receiverAccountId, approved? }`
+     * @returns The transaction id and consensus status
+     */
+    async transfer(options: TransferOptions) {
+        return await this.transferOperation.execute(options);
+    }
+
+    /**
+     * Schedule a transfer of HBAR, fungible tokens and NFTs between any
+     * number of accounts.
+     *
+     * @param options - The transfer legs (see `transfer`) plus schedule
+     *   options (`payerAccountId`, `adminKey`, `scheduleMemo`, plus base
+     *   transaction fields)
+     */
+    async scheduleTransfer(options: ScheduleTransferOptions) {
+        return await this.transferOperation.schedule(options);
+    }
 
     /**
      * Transfer HBAR to another account.

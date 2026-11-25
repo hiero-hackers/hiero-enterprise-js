@@ -8,3 +8,4 @@ export { DeleteAllNftAllowancesValidator } from "./DeleteAllNftAllowancesValidat
 export { TransferHbarValidator } from "./TransferHbarValidator.js";
 export { TransferTokenValidator } from "./TransferTokenValidator.js";
 export { TransferNftValidator } from "./TransferNftValidator.js";
+export { TransferValidator } from "./TransferValidator.js";

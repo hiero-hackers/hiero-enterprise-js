@@ -51,3 +51,11 @@ export type {
     ScheduleTransferNftOptions,
     TransferNftOperationOptions,
 } from "./TransferNftOperation.js";
+export { TransferOperation } from "./TransferOperation.js";
+export type {
+    TransferOptions,
+    ScheduleTransferOptions,
+    HbarTransferLeg,
+    TokenTransferLeg,
+    NftTransferLeg,
+} from "./TransferOperation.js";

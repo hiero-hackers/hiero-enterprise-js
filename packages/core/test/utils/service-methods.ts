@@ -415,6 +415,34 @@ export const SERVICE_METHODS: ServiceMethodTable = {
             invalid: (s) => s.deleteTokenAllowance([]),
             reject: true,
         },
+        transfer: {
+            events: tx("CryptoTransfer", "transfer"),
+            call: (s, env) =>
+                s.transfer({
+                    hbarTransfers: [
+                        { accountId: env.operatorId, amount: -1 },
+                        { accountId: MISSING_ID, amount: 1 },
+                    ],
+                }),
+            invalid: (s, env) =>
+                s.transfer({
+                    hbarTransfers: [{ accountId: env.operatorId, amount: -1 }],
+                }),
+            reject: true,
+        },
+        scheduleTransfer: {
+            events: tx("CryptoTransfer", "transfer"),
+            call: (s, env) =>
+                s.scheduleTransfer({
+                    hbarTransfers: [
+                        { accountId: env.operatorId, amount: -1 },
+                        { accountId: MISSING_ID_2, amount: 1 },
+                    ],
+                    ...MISSING_PAYER,
+                }),
+            invalid: (s) => s.scheduleTransfer({}),
+            reject: true,
+        },
         transferHbar: {
             events: tx("CryptoTransfer", "transferHbar"),
             call: (s, env) => s.transferHbar(MISSING_ID, 1, env.operatorId),
