@@ -38,5 +38,11 @@
             "test": "ScheduleDeleteTransaction Schedule ID (#8) Deletes a scheduled transaction that has already executed",
             "reason": "Core requires adminKey to cancel a schedule (INPUT_INVALID with INVALID_SIGNATURE); the TCK expects the network's SCHEDULE_ALREADY_EXECUTED."
         }
+    ],
+    "node-service": [
+        {
+            "test": "AddressBookQuery AddressBookQuery (#7) Query with limit=0",
+            "reason": "Core rejects a limit below 1 (\"limit must be an integer >= 1\"); the TCK expects the whole address book."
+        }
     ]
 }
