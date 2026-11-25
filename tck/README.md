@@ -30,6 +30,6 @@ Requests core can't express (for example a custom `transactionId`, or a multi-le
 
 ## In CI
 
-`.github/workflows/tck.yml` runs every TCK folder on every pull request and on demand, one job per folder: each builds core, starts this adapter and a Solo network on the TCK's default ports, then runs the TCK's own action (`hiero-ledger/hiero-sdk-tck`, pinned to a release commit) on its folder. Pushing a branch named `tck/<folder>` (for example `tck/file-service`) runs only that folder, without a pull request. The job summary has the counts and the mochawesome report is uploaded as `tck-report`.
+`.github/workflows/tck.yml` runs every TCK folder on every pull request, on every push to `main` and on demand, one job per folder: each builds core, starts this adapter and a Solo network on the TCK's default ports, then runs the TCK's own action (`hiero-ledger/hiero-sdk-tck`, pinned to a release commit) on its folder. The job summary has the counts and the mochawesome report is uploaded as `tck-report-<folder>`.
 
 The TCK action fails on any failure, so the job decides with `.github/scripts/check-tck-results.mjs`: it fails on a failure that isn't listed under its folder in [`known-differences.json`](known-differences.json), and on a listed test that no longer fails. The list holds the tests core answers differently on purpose, such as rejecting a zero-amount transfer, each with the reason. Add a test there only for a deliberate difference; fix core for anything else.
