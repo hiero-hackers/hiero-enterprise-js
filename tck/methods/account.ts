@@ -87,7 +87,11 @@ export const createAccount = async (params: AccountParams) => {
         alias: params.alias,
     });
     // Core throws on any status other than SUCCESS.
-    return { accountId: account.accountId.toString(), status: "SUCCESS" };
+    return {
+        accountId: account.accountId.toString(),
+        transactionId: account.transactionId,
+        status: "SUCCESS",
+    };
 };
 
 export const updateAccount = async (params: AccountParams) => {
