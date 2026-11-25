@@ -8,6 +8,7 @@ A JSON-RPC server that lets the shared [Hiero SDK TCK](https://github.com/hiero-
 - Topic: `createTopic`, `updateTopic`, `deleteTopic`, `submitTopicMessage`, `getTopicInfo`.
 - Account: `createAccount`, `updateAccount`, `deleteAccount`, `transferCrypto`, `approveAllowance`, `deleteAllowance`, `getMirrorNodeAccountBalance`.
 - Schedule: `createSchedule` (scheduling a two-leg HBAR transfer, `mintToken`, `burnToken` or `createTopic`), `signSchedule`, `deleteSchedule`, `getScheduleInfo`.
+- Contract: `createContract`, `updateContract`, `deleteContract`, `executeContract`, `contractCallQuery`, `contractInfoQuery`, `contractByteCodeQuery`, `createEthereumTransaction`.
 - File: `createFile`, `updateFile`, `appendFile`, `deleteFile`, `getFileContents`, `getFileInfo`.
 - Network: `getTransactionReceipt`, `getAddressBook`.
 - Token: `createToken`, `updateToken`, `deleteToken`, `updateTokenFeeSchedule`, `associateToken`, `dissociateToken`, `freezeToken`, `unfreezeToken`, `pauseToken`, `unpauseToken`, `grantTokenKyc`, `revokeTokenKyc`, `mintToken`, `burnToken`, `wipeToken`, `airdropToken`, `claimToken`, `cancelAirdrop`, `rejectToken`, `getTokenInfo`, `getTokenNftInfo`, `getMirrorNodeTokenBalance`.
