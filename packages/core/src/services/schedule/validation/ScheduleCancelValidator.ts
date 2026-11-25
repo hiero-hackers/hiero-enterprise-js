@@ -1,4 +1,4 @@
-import { Status } from "@hiero-ledger/sdk";
+import { ScheduleId, Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { ScheduleCancelOptions } from "../operations/ScheduleCancelOperation.js";
 
@@ -38,6 +38,17 @@ export class ScheduleCancelValidator {
                 "ScheduleCancelValidator",
                 "scheduleId cannot be an empty string.",
             );
+        }
+
+        if (typeof options.scheduleId === "string") {
+            try {
+                ScheduleId.fromString(options.scheduleId);
+            } catch {
+                throw validationError(
+                    "ScheduleCancelValidator",
+                    `scheduleId "${options.scheduleId}" is not a valid schedule ID. Expected "<shard>.<realm>.<num>".`,
+                );
+            }
         }
     }
 

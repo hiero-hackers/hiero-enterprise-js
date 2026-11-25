@@ -97,6 +97,20 @@ describe("ScheduleCancelValidator", () => {
             );
         });
 
+        it("reports no status for a malformed scheduleId", () => {
+            expect(() =>
+                validator.validate({
+                    scheduleId: "Invalid.Schedule.Id",
+                    adminKey: undefined as unknown as PrivateKey,
+                }),
+            ).toThrow(
+                expect.objectContaining({
+                    code: "INPUT_INVALID",
+                    sdkStatus: undefined,
+                }),
+            );
+        });
+
         it("reports INVALID_SIGNATURE for a missing adminKey", () => {
             expect(() =>
                 validator.validate({
