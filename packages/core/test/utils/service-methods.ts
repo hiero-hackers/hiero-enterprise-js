@@ -892,7 +892,7 @@ export const SERVICE_METHODS: ServiceMethodTable = {
         mintToken: {
             events: tx("TokenMint", "mintToken"),
             call: (s) => s.mintToken({ tokenId: MISSING_ID, amount: 1 }),
-            invalid: (s) => s.mintToken({ tokenId: MISSING_ID, amount: -1 }),
+            invalid: (s) => s.mintToken({ tokenId: MISSING_ID }),
             reject: true,
         },
         scheduleMintToken: {
@@ -902,14 +902,13 @@ export const SERVICE_METHODS: ServiceMethodTable = {
                     { tokenId: MISSING_ID, amount: 1 },
                     MISSING_PAYER,
                 ),
-            invalid: (s) =>
-                s.scheduleMintToken({ tokenId: MISSING_ID, amount: -1 }),
+            invalid: (s) => s.scheduleMintToken({ tokenId: MISSING_ID }),
             reject: true,
         },
         burnToken: {
             events: tx("TokenBurn", "burnToken"),
             call: (s) => s.burnToken({ tokenId: MISSING_ID, amount: 1 }),
-            invalid: (s) => s.burnToken({ tokenId: MISSING_ID, amount: -1 }),
+            invalid: (s) => s.burnToken({ tokenId: MISSING_ID }),
             reject: true,
         },
         scheduleBurnToken: {
@@ -919,8 +918,7 @@ export const SERVICE_METHODS: ServiceMethodTable = {
                     { tokenId: MISSING_ID, amount: 1 },
                     MISSING_PAYER,
                 ),
-            invalid: (s) =>
-                s.scheduleBurnToken({ tokenId: MISSING_ID, amount: -1 }),
+            invalid: (s) => s.scheduleBurnToken({ tokenId: MISSING_ID }),
             reject: true,
         },
         wipeToken: {

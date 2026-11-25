@@ -145,11 +145,12 @@ describe("TokenMintOperation (via TokenService)", () => {
         expect(result.scheduleId.toString()).toBe("0.0.777");
     });
 
-    it("submits when both amount and metadata are missing", async () => {
-        await service.mintToken({
-            tokenId: "0.0.500",
-        });
-        expect(run).toHaveBeenCalled();
+    it("throws when both amount and metadata are missing", async () => {
+        await expect(
+            service.mintToken({
+                tokenId: "0.0.500",
+            }),
+        ).rejects.toThrow(/requires either amount \(fungible\) or metadata/i);
     });
 
     it("throws when both amount and metadata are provided", async () => {

@@ -8,7 +8,7 @@ import type { TokenMintOperationOptions } from "../operations/TokenMintOperation
 export class TokenMintValidator {
     validate(options: TokenMintOperationOptions): void {
         this.validateTokenId(options);
-        this.validateNotBoth(options);
+        this.validateAmountOrMetadata(options);
         this.validateAmount(options);
         this.validateMetadata(options);
     }
@@ -33,10 +33,17 @@ export class TokenMintValidator {
         }
     }
 
-    private validateNotBoth(options: TokenMintOperationOptions): void {
+    private validateAmountOrMetadata(options: TokenMintOperationOptions): void {
         const hasAmount = options.amount != null;
         const hasMetadata =
             options.metadata != null && options.metadata.length > 0;
+
+        if (!hasAmount && !hasMetadata) {
+            throw validationError(
+                "TokenMintValidator",
+                "Token mint requires either amount (fungible) or metadata (NFT).",
+            );
+        }
 
         if (hasAmount && hasMetadata) {
             throw validationError(

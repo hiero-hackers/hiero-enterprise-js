@@ -9,7 +9,7 @@ export class TokenBurnValidator {
     validate(options: TokenBurnOperationOptions): void {
         this.validateTokenId(options);
         this.validateSerials(options);
-        this.validateNotBoth(options);
+        this.validateAmountOrSerials(options);
         this.validateAmount(options);
     }
 
@@ -33,10 +33,17 @@ export class TokenBurnValidator {
         }
     }
 
-    private validateNotBoth(options: TokenBurnOperationOptions): void {
+    private validateAmountOrSerials(options: TokenBurnOperationOptions): void {
         const hasAmount = options.amount != null;
         const hasSerials =
             options.serials != null && options.serials.length > 0;
+
+        if (!hasAmount && !hasSerials) {
+            throw validationError(
+                "TokenBurnValidator",
+                "Token burn requires either amount (fungible) or serials (NFT).",
+            );
+        }
 
         if (hasAmount && hasSerials) {
             throw validationError(

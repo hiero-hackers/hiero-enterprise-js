@@ -122,11 +122,13 @@ describe("TokenBurnOperation (via TokenService)", () => {
         ).rejects.toThrow(/TokenBurn receipt did not include totalSupply/);
     });
 
-    it("submits when both amount and serials are missing", async () => {
-        await service.burnToken({
-            tokenId: "0.0.500",
-        });
-        expect(run).toHaveBeenCalled();
+    it("throws when both amount and serials are missing", async () => {
+        await expect(
+            service.burnToken({
+                tokenId: "0.0.500",
+            }),
+        ).rejects.toThrow(/requires either amount \(fungible\) or serials/i);
+        expect(run).not.toHaveBeenCalled();
     });
 
     it("throws when both amount and serials are provided", async () => {
