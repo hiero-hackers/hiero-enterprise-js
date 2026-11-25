@@ -85,6 +85,8 @@ export interface ContractResult {
     callResult?: string | null;
     /** Chain id of a wrapped ethereum transaction (detail responses only) */
     chainId?: string | null;
+    /** Whether it ran inside another transaction's EVM execution, e.g. a system contract call or a hook */
+    child?: boolean;
     /** The contract entity ID */
     contractId: string | null;
     /** Contracts created by this call */

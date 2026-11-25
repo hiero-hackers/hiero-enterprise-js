@@ -937,6 +937,7 @@ export function convertContractResult(
         bloom: raw.bloom,
         callResult: raw.call_result,
         chainId: raw.chain_id,
+        child: raw.child,
         contractId: raw.contract_id,
         createdContractIds: raw.created_contract_ids,
         errorMessage: raw.error_message,

@@ -613,6 +613,7 @@ export interface MirrorContractResult {
     bloom?: string | null;
     call_result?: string | null;
     chain_id?: string | null;
+    child?: boolean;
     contract_id: string | null;
     created_contract_ids?: string[] | null;
     error_message?: string | null;
