@@ -1,6 +1,7 @@
 # Hiero Enterprise JS
 
 [![CI](https://github.com/hiero-hackers/hiero-enterprise-js/actions/workflows/build.yml/badge.svg)](https://github.com/hiero-hackers/hiero-enterprise-js/actions/workflows/build.yml)
+[![TCK](https://github.com/hiero-hackers/hiero-enterprise-js/actions/workflows/tck.yml/badge.svg?branch=main)](https://github.com/hiero-hackers/hiero-enterprise-js/actions/workflows/tck.yml?query=branch%3Amain)
 [![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Jexsie/4a3c4fd2dae12f95e6177ae3bc807403/raw/hiero-enterprise-js-coverage.json)](https://github.com/hiero-hackers/hiero-enterprise-js/actions/workflows/build.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/hiero-hackers/hiero-enterprise-js/badge)](https://scorecard.dev/viewer/?uri=github.com/hiero-hackers/hiero-enterprise-js)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)

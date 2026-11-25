@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Runs the Hiero SDK TCK (hiero-ledger/hiero-sdk-tck) against enterprise-core
-# through the JSON-RPC adapter in tck/, on every pull request and on demand.
+# through the JSON-RPC adapter in tck/, on every pull request, on every push
+# to main (for the README badge) and on demand.
 # Each TCK folder (service) runs in its own job with its own network. A push
 # to a `tck/<folder>` branch runs only that folder, for work on one service.
 #
@@ -24,6 +25,7 @@ on:
             - main
     push:
         branches:
+            - main
             - "tck/**"
     workflow_dispatch:
 
