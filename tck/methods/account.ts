@@ -1,4 +1,4 @@
-import { Hbar, Long } from "@hiero-ledger/sdk";
+import { AccountId, Hbar, Long } from "@hiero-ledger/sdk";
 import type { Key, PrivateKey } from "@hiero-ledger/sdk";
 import { AccountService } from "@hiero-hackers/enterprise-core";
 import { contextFor } from "../session.js";
@@ -142,32 +142,33 @@ export const transferCrypto = async (
     const transfers = params.transfers ?? [];
     const options = transactionOptions(params.commonTransactionParams);
     const accounts = service(params.sessionId);
-    const unsupported = () =>
-        notSupported(
-            "transferCrypto beyond one two-leg HBAR or token transfer or one NFT transfer, without approval",
-        );
+    const approved = transfers.some((t) => t.approved);
 
-    if (transfers.some((t) => t.approved)) unsupported();
-
-    if (transfers.length === 2 && transfers.every((t) => t.hbar?.accountId)) {
+    // A balanced two-leg HBAR or token transfer, or one NFT, goes through
+    // core's single-transfer methods; anything else through `transfer`.
+    if (
+        !approved &&
+        transfers.length === 2 &&
+        transfers.every((t) => t.hbar?.accountId)
+    ) {
         const [from, to] = [...transfers].sort(
             (a, b) => Number(a.hbar!.amount) - Number(b.hbar!.amount),
         );
 
-        if (Number(from.hbar!.amount) + Number(to.hbar!.amount) !== 0) {
-            unsupported();
-        }
-        const result = await accounts.transferHbar(
-            to.hbar!.accountId!,
-            Hbar.fromTinybars(to.hbar!.amount),
-            from.hbar!.accountId!,
-            options,
-        );
+        if (Number(from.hbar!.amount) + Number(to.hbar!.amount) === 0) {
+            const result = await accounts.transferHbar(
+                to.hbar!.accountId!,
+                Hbar.fromTinybars(to.hbar!.amount),
+                from.hbar!.accountId!,
+                options,
+            );
 
-        return { status: result.status };
+            return { status: result.status };
+        }
     }
 
     if (
+        !approved &&
         transfers.length === 2 &&
         transfers.every((t) => t.token) &&
         transfers[0].token!.tokenId === transfers[1].token!.tokenId
@@ -176,21 +177,20 @@ export const transferCrypto = async (
             (a, b) => Number(a.token!.amount) - Number(b.token!.amount),
         );
 
-        if (Number(from.token!.amount) + Number(to.token!.amount) !== 0) {
-            unsupported();
-        }
-        const result = await accounts.transferToken(
-            to.token!.tokenId,
-            to.token!.accountId,
-            Number(to.token!.amount),
-            from.token!.accountId,
-            { ...options, expectedDecimals: to.token!.decimals },
-        );
+        if (Number(from.token!.amount) + Number(to.token!.amount) === 0) {
+            const result = await accounts.transferToken(
+                to.token!.tokenId,
+                to.token!.accountId,
+                Number(to.token!.amount),
+                from.token!.accountId,
+                { ...options, expectedDecimals: to.token!.decimals },
+            );
 
-        return { status: result.status };
+            return { status: result.status };
+        }
     }
 
-    if (transfers.length === 1 && transfers[0].nft) {
+    if (!approved && transfers.length === 1 && transfers[0].nft) {
         const nft = transfers[0].nft;
         const result = await accounts.transferNft(
             nft.tokenId,
@@ -203,7 +203,38 @@ export const transferCrypto = async (
         return { status: result.status };
     }
 
-    return unsupported();
+    const result = await accounts.transfer({
+        ...options,
+        hbarTransfers: transfers
+            .filter((t) => t.hbar)
+            .map(({ hbar, approved }) => ({
+                accountId:
+                    hbar!.accountId ??
+                    AccountId.fromEvmAddress(0, 0, hbar!.evmAddress!),
+                amount: Hbar.fromTinybars(hbar!.amount),
+                approved,
+            })),
+        tokenTransfers: transfers
+            .filter((t) => t.token)
+            .map(({ token, approved }) => ({
+                tokenId: token!.tokenId,
+                accountId: token!.accountId,
+                amount: Number(token!.amount),
+                expectedDecimals: token!.decimals,
+                approved,
+            })),
+        nftTransfers: transfers
+            .filter((t) => t.nft)
+            .map(({ nft, approved }) => ({
+                tokenId: nft!.tokenId,
+                serial: Number(nft!.serialNumber),
+                senderAccountId: nft!.senderAccountId,
+                receiverAccountId: nft!.receiverAccountId,
+                approved,
+            })),
+    });
+
+    return { status: result.status };
 };
 
 export const approveAllowance = async (

@@ -13,7 +13,7 @@ A JSON-RPC server that lets the shared [Hiero SDK TCK](https://github.com/hiero-
 - Network: `getTransactionReceipt`, `getAddressBook`.
 - Token: `createToken`, `updateToken`, `deleteToken`, `updateTokenFeeSchedule`, `associateToken`, `dissociateToken`, `freezeToken`, `unfreezeToken`, `pauseToken`, `unpauseToken`, `grantTokenKyc`, `revokeTokenKyc`, `mintToken`, `burnToken`, `wipeToken`, `airdropToken`, `claimToken`, `cancelAirdrop`, `rejectToken`, `getTokenInfo`, `getTokenNftInfo`, `getMirrorNodeTokenBalance`.
 
-Requests core can't express (for example a custom `transactionId`, or a multi-leg `transferCrypto`) answer with the TCK's `NOT_IMPLEMENTED` result, so the TCK skips those tests; the adapter logs each one. Methods it doesn't register are skipped too.
+Requests core can't express (for example an `approved` leg in `airdropToken`, or a schedule `expirationTime`) answer with the TCK's `NOT_IMPLEMENTED` result, so the TCK skips those tests; the adapter logs each one. Methods it doesn't register are skipped too.
 
 ## Run it
 

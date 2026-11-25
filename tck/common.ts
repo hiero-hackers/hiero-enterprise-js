@@ -20,17 +20,18 @@ export function transactionOptions(
     params: CommonTransactionParams | undefined,
 ): TransactionOptions {
     if (params == null) return {};
-    // Core picks the transaction ID itself (operator + now).
-    if (params.transactionId) {
-        notSupported("a custom transactionId");
-    }
-
     // A cleanup hook sends `null` when the setup that made the key was skipped.
     if (params.signers?.some((signer) => !signer)) {
         notSupported("a missing signer key (cleanup after a skipped setup)");
     }
 
+    // The TCK sends the payer's account ID; a full ID (`0.0.N@s.n`) is kept.
+    const id = params.transactionId || undefined;
+    const isFullId = id?.includes("@") === true;
+
     return {
+        payer: isFullId ? undefined : id,
+        transactionId: isFullId ? id : undefined,
         maxTransactionFee: params.maxTransactionFee
             ? Hbar.fromTinybars(params.maxTransactionFee)
             : undefined,
