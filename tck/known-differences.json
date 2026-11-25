@@ -48,5 +48,39 @@
             "test": "AddressBookQuery AddressBookQuery (#2) Query without fileId",
             "reason": "Not a core difference: the adapter answers with core's default address book (0.0.102), then the test's own consensusInfoClient.getAddressBook() without a fileId times out after 30s."
         }
+    ],
+    "token-service": [
+        {
+            "test": "TokenBurnTransaction Token ID (#5) Burns a deleted token",
+            "reason": "Core rejects a burn with neither amount nor serials (\"Token burn requires either amount (fungible) or serials (NFT).\"); the TCK sends neither and expects the network's TOKEN_WAS_DELETED."
+        },
+        {
+            "test": "TokenBurnTransaction Amount (#3) Burns no fungible tokens",
+            "reason": "Core rejects a burn with neither amount nor serials (\"Token burn requires either amount (fungible) or serials (NFT).\"); the network accepts it as an amount of 0."
+        },
+        {
+            "test": "TokenBurnTransaction Serial Numbers (#4) Burns no NFTs",
+            "reason": "Core rejects a burn with neither amount nor serials (\"Token burn requires either amount (fungible) or serials (NFT).\"); the TCK expects the network's INVALID_TOKEN_BURN_METADATA."
+        },
+        {
+            "test": "TokenMintTransaction Token ID (#5) Mints a deleted token",
+            "reason": "Core rejects a mint with neither amount nor metadata (\"Token mint requires either amount (fungible) or metadata (NFT).\"); the TCK sends neither and expects the network's TOKEN_WAS_DELETED."
+        },
+        {
+            "test": "TokenMintTransaction Amount (#3) Mints no fungible tokens",
+            "reason": "Core rejects a mint with neither amount nor metadata (\"Token mint requires either amount (fungible) or metadata (NFT).\"); the network accepts it as an amount of 0."
+        },
+        {
+            "test": "TokenMintTransaction Metadata (#5) Mints no NFTs",
+            "reason": "Core rejects a mint with neither amount nor metadata (\"Token mint requires either amount (fungible) or metadata (NFT).\"); the TCK expects the network's INVALID_TOKEN_MINT_METADATA."
+        },
+        {
+            "test": "TokenUpdateTransaction Name (#3) Updates a mutable token with a name that is empty",
+            "reason": "Core rejects an empty tokenName on update (\"tokenName cannot be empty.\"); the network treats it as no change."
+        },
+        {
+            "test": "TokenUpdateTransaction Symbol (#3) Updates a mutable token with a symbol that is empty",
+            "reason": "Core rejects an empty tokenSymbol on update (\"tokenSymbol cannot be empty.\"); the network treats it as no change."
+        }
     ]
 }

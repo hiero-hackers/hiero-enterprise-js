@@ -136,8 +136,8 @@ export const updateToken = async (params: TokenParams) => {
     const result = await service(params.sessionId).updateToken({
         ...transactionOptions(params.commonTransactionParams),
         tokenId: params.tokenId!,
-        tokenName: params.name || undefined,
-        tokenSymbol: params.symbol || undefined,
+        tokenName: params.name,
+        tokenSymbol: params.symbol,
         treasuryAccountId: params.treasuryAccountId,
         adminKey: key(params.adminKey),
         kycKey: key(params.kycKey),
