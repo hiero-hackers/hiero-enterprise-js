@@ -5,6 +5,10 @@
             "reason": "Core rejects stakedAccountId together with stakedNodeId as mutually exclusive; the SDK keeps the last one set."
         },
         {
+            "test": "AccountAllowanceDeleteTransaction DeleteAllTokenNftAllowances (#10) Deletes an allowance to a spender account from an owner account with a fungible token ID",
+            "reason": "Core rejects NFT serial number 0 (\"must be positive integers\") with no network status; the TCK expects FUNGIBLE_TOKEN_IN_NFT_ALLOWANCES."
+        },
+        {
             "test": "AccountDeleteTransaction Delete Account Id (#1) Deletes an account with no transfer account",
             "reason": "Core sends the balance to the operator when transferAccountId is omitted; the TCK expects ACCOUNT_ID_DOES_NOT_EXIST."
         },
