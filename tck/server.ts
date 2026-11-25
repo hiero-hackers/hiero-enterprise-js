@@ -17,10 +17,11 @@ import * as key from "./methods/key.js";
 import * as topic from "./methods/topic.js";
 import * as account from "./methods/account.js";
 import * as token from "./methods/token.js";
+import * as schedule from "./methods/schedule.js";
 
 const server = new JSONRPCServer();
 
-for (const methods of [sdk, key, topic, account, token]) {
+for (const methods of [sdk, key, topic, account, token, schedule]) {
     for (const [name, method] of Object.entries(methods)) {
         server.addMethod(name, method as SimpleJSONRPCMethod);
     }

@@ -7,6 +7,7 @@ A JSON-RPC server that lets the shared [Hiero SDK TCK](https://github.com/hiero-
 - Session methods: `setup`, `setOperator`, `reset`, `version`, plus `generateKey`.
 - Topic: `createTopic`, `updateTopic`, `deleteTopic`, `submitTopicMessage`, `getTopicInfo`.
 - Account: `createAccount`, `updateAccount`, `deleteAccount`, `transferCrypto`, `approveAllowance`, `deleteAllowance`, `getMirrorNodeAccountBalance`.
+- Schedule: `createSchedule` (scheduling a two-leg HBAR transfer, `mintToken`, `burnToken` or `createTopic`), `signSchedule`, `deleteSchedule`, `getScheduleInfo`.
 - Token (needed by the topic and account tests): `createToken`, `updateToken`, `deleteToken`, `updateTokenFeeSchedule`, `associateToken`, `freezeToken`, `pauseToken`, `mintToken`.
 
 Requests core can't express (for example a custom `transactionId`, or a multi-leg `transferCrypto`) answer with the TCK's `NOT_IMPLEMENTED` result, so the TCK skips those tests; the adapter logs each one. Methods it doesn't register are skipped too.
