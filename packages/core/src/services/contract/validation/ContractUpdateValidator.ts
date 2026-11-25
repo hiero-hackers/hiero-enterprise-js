@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import { utf8ByteLength } from "../../../utils/index.js";
 import { validateHookCreations, validateHookIds } from "./hooks.js";
@@ -40,6 +41,7 @@ export class ContractUpdateValidator {
             throw validationError(
                 "ContractUpdateValidator",
                 "contractId is required.",
+                Status.InvalidContractId,
             );
         }
 
@@ -62,6 +64,7 @@ export class ContractUpdateValidator {
             throw validationError(
                 "ContractUpdateValidator",
                 `contractMemo exceeds ${MAX_CONTRACT_MEMO_BYTES} bytes (got ${byteLength}).`,
+                Status.MemoTooLong,
             );
         }
     }
@@ -99,6 +102,7 @@ export class ContractUpdateValidator {
             throw validationError(
                 "ContractUpdateValidator",
                 "maxAutomaticTokenAssociations must be -1 (unlimited) or a non-negative integer.",
+                Status.InvalidMaxAutoAssociations,
             );
         }
     }

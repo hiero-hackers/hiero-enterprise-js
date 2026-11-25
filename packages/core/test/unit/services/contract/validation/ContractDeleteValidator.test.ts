@@ -84,4 +84,17 @@ describe("ContractDeleteValidator", () => {
             ).toThrow(/transferAccountId or transferContractId/);
         });
     });
+
+    it("names the network status the network would return", () => {
+        expect(() =>
+            validator.validate({
+                transferAccountId: "0.0.2",
+            } as unknown as ContractDeleteOperationOptions),
+        ).toThrow(
+            expect.objectContaining({ sdkStatus: "INVALID_CONTRACT_ID" }),
+        );
+        expect(() => validator.validate({ contractId: "0.0.12345" })).toThrow(
+            expect.objectContaining({ sdkStatus: "OBTAINER_REQUIRED" }),
+        );
+    });
 });

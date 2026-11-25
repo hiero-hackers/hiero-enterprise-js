@@ -240,4 +240,34 @@ describe("ContractExecuteValidator", () => {
             ).toThrow(/payableAmount must not be negative/);
         });
     });
+
+    it("names the network status the network would return", () => {
+        expect(() =>
+            validator.validate({
+                ...baseOptions,
+                contractId: undefined,
+            } as unknown as ContractExecuteOperationOptions),
+        ).toThrow(
+            expect.objectContaining({ sdkStatus: "INVALID_CONTRACT_ID" }),
+        );
+        expect(() => validator.validate({ ...baseOptions, gas: 0 })).toThrow(
+            expect.objectContaining({ sdkStatus: "INSUFFICIENT_GAS" }),
+        );
+        expect(() =>
+            validator.validate({ ...baseOptions, functionName: undefined }),
+        ).toThrow(
+            expect.objectContaining({ sdkStatus: "CONTRACT_REVERT_EXECUTED" }),
+        );
+        expect(() =>
+            validator.validate({ ...baseOptions, payableAmount: -1 }),
+        ).toThrow(
+            expect.objectContaining({ sdkStatus: "CONTRACT_NEGATIVE_VALUE" }),
+        );
+    });
+
+    it("names no network status for an empty contractId", () => {
+        expect(() =>
+            validator.validate({ ...baseOptions, contractId: "" }),
+        ).toThrow(expect.objectContaining({ sdkStatus: undefined }));
+    });
 });

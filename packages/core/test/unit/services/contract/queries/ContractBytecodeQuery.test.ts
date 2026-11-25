@@ -49,4 +49,11 @@ describe("ContractBytecodeQuery (via ContractService.getContractBytecode)", () =
             /network down/,
         );
     });
+
+    it("rejects a missing contractId with INVALID_CONTRACT_ID", async () => {
+        await expect(
+            service.getContractBytecode(undefined as unknown as string),
+        ).rejects.toMatchObject({ sdkStatus: "INVALID_CONTRACT_ID" });
+        expect(execute).not.toHaveBeenCalled();
+    });
 });

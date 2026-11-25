@@ -1,4 +1,4 @@
-import { Long } from "@hiero-ledger/sdk";
+import { Long, Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import { utf8ByteLength } from "../../../utils/index.js";
 import { validateHookCreations } from "./hooks.js";
@@ -42,6 +42,7 @@ export class ContractCreateValidator {
             throw validationError(
                 "ContractCreateValidator",
                 "ContractCreate requires either bytecodeFileId or bytecode.",
+                Status.InvalidFileId,
             );
         }
 
@@ -56,6 +57,7 @@ export class ContractCreateValidator {
             throw validationError(
                 "ContractCreateValidator",
                 "bytecode must not be empty.",
+                Status.ContractBytecodeEmpty,
             );
         }
     }
@@ -65,6 +67,7 @@ export class ContractCreateValidator {
             throw validationError(
                 "ContractCreateValidator",
                 "gas is required.",
+                Status.InsufficientGas,
             );
         }
 
@@ -77,6 +80,7 @@ export class ContractCreateValidator {
             throw validationError(
                 "ContractCreateValidator",
                 "gas must be greater than zero.",
+                Status.InsufficientGas,
             );
         }
     }
@@ -118,6 +122,7 @@ export class ContractCreateValidator {
             throw validationError(
                 "ContractCreateValidator",
                 `contractMemo exceeds ${MAX_CONTRACT_MEMO_BYTES} bytes (got ${byteLength}).`,
+                Status.MemoTooLong,
             );
         }
     }

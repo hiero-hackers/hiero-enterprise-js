@@ -5,9 +5,12 @@ import type {
     ContractFunctionParameters,
     ContractFunctionResult,
 } from "@hiero-ledger/sdk";
-import { ContractCallQuery as SdkContractCallQuery } from "@hiero-ledger/sdk";
+import {
+    ContractCallQuery as SdkContractCallQuery,
+    Status,
+} from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../../context/index.js";
-import { normalizeError } from "../../../errors/index.js";
+import { normalizeError, validationError } from "../../../errors/index.js";
 import { validateCallTarget } from "../validation/index.js";
 import { QueryExecutor } from "../../transaction/index.js";
 import type { QueryOptions } from "../../transaction/index.js";
@@ -69,6 +72,22 @@ export class ContractCallQuery {
     async execute(
         options: ContractCallQueryOptions,
     ): Promise<ContractFunctionResult> {
+        if (options.contractId == null) {
+            throw validationError(
+                "ContractService.callContract",
+                "contractId is required.",
+                Status.InvalidContractId,
+            );
+        }
+
+        if (options.gas == null) {
+            throw validationError(
+                "ContractService.callContract",
+                "gas is required.",
+                Status.InsufficientGas,
+            );
+        }
+
         validateCallTarget("ContractService.callContract", options);
 
         try {

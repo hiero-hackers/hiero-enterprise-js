@@ -1,4 +1,4 @@
-import { Long, Hbar } from "@hiero-ledger/sdk";
+import { Long, Hbar, Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import { validateCallTarget } from "./validateCallTarget.js";
 import type { ContractExecuteOperationOptions } from "../operations/index.js";
@@ -24,7 +24,15 @@ export class ContractExecuteValidator {
     }
 
     private validateContractId(options: ContractExecuteOperationOptions): void {
-        if (options.contractId == null || options.contractId === "") {
+        if (options.contractId == null) {
+            throw validationError(
+                "ContractExecuteValidator",
+                "contractId is required.",
+                Status.InvalidContractId,
+            );
+        }
+
+        if (options.contractId === "") {
             throw validationError(
                 "ContractExecuteValidator",
                 "contractId is required.",
@@ -37,6 +45,7 @@ export class ContractExecuteValidator {
             throw validationError(
                 "ContractExecuteValidator",
                 "gas is required.",
+                Status.InsufficientGas,
             );
         }
 
@@ -49,6 +58,7 @@ export class ContractExecuteValidator {
             throw validationError(
                 "ContractExecuteValidator",
                 "gas must be greater than zero.",
+                Status.InsufficientGas,
             );
         }
     }
@@ -103,6 +113,7 @@ export class ContractExecuteValidator {
             throw validationError(
                 "ContractExecuteValidator",
                 "payableAmount must not be negative.",
+                Status.ContractNegativeValue,
             );
         }
     }

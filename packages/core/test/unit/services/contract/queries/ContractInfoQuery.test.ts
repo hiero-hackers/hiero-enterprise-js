@@ -53,4 +53,11 @@ describe("ContractInfoQuery (via ContractService.getContractInfo)", () => {
             /network down/,
         );
     });
+
+    it("rejects a missing contractId with INVALID_CONTRACT_ID", async () => {
+        await expect(
+            service.getContractInfo(undefined as unknown as string),
+        ).rejects.toMatchObject({ sdkStatus: "INVALID_CONTRACT_ID" });
+        expect(execute).not.toHaveBeenCalled();
+    });
 });

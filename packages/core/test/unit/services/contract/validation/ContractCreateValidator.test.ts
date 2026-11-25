@@ -225,4 +225,36 @@ describe("ContractCreateValidator", () => {
             ).toThrow(/hooks\[0\]\.evmHook\.contractId is required/);
         });
     });
+
+    it("names the network status the network would return", () => {
+        expect(() =>
+            validator.validate({
+                gas: 1,
+            } as unknown as ContractCreateOperationOptions),
+        ).toThrow(expect.objectContaining({ sdkStatus: "INVALID_FILE_ID" }));
+        expect(() =>
+            validator.validate({
+                ...baseOptions,
+                bytecodeFileId: undefined,
+                bytecode: new Uint8Array(),
+            }),
+        ).toThrow(
+            expect.objectContaining({ sdkStatus: "CONTRACT_BYTECODE_EMPTY" }),
+        );
+        expect(() => validator.validate({ ...baseOptions, gas: 0 })).toThrow(
+            expect.objectContaining({ sdkStatus: "INSUFFICIENT_GAS" }),
+        );
+        expect(() =>
+            validator.validate({
+                ...baseOptions,
+                gas: undefined,
+            } as unknown as ContractCreateOperationOptions),
+        ).toThrow(expect.objectContaining({ sdkStatus: "INSUFFICIENT_GAS" }));
+        expect(() =>
+            validator.validate({
+                ...baseOptions,
+                contractMemo: "a".repeat(101),
+            }),
+        ).toThrow(expect.objectContaining({ sdkStatus: "MEMO_TOO_LONG" }));
+    });
 });
