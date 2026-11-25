@@ -75,12 +75,16 @@ export class ContractCreateValidator {
             typeof options.gas === "number"
                 ? options.gas > 0
                 : options.gas.greaterThan(0);
+        const isZero =
+            typeof options.gas === "number"
+                ? options.gas === 0
+                : options.gas.isZero();
 
         if (!isPositive) {
             throw validationError(
                 "ContractCreateValidator",
                 "gas must be greater than zero.",
-                Status.InsufficientGas,
+                isZero ? Status.InsufficientGas : undefined,
             );
         }
     }

@@ -270,4 +270,17 @@ describe("ContractExecuteValidator", () => {
             validator.validate({ ...baseOptions, contractId: "" }),
         ).toThrow(expect.objectContaining({ sdkStatus: undefined }));
     });
+
+    it("names no network status for negative gas or a malformed contractId", () => {
+        expect(() => validator.validate({ ...baseOptions, gas: -1 })).toThrow(
+            expect.objectContaining({ sdkStatus: undefined }),
+        );
+        expect(() =>
+            validator.validate({
+                ...baseOptions,
+                contractId: "invalid",
+                gas: undefined,
+            } as unknown as ContractExecuteOperationOptions),
+        ).toThrow(/not a valid contract ID/);
+    });
 });

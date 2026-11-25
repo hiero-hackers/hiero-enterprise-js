@@ -257,4 +257,10 @@ describe("ContractCreateValidator", () => {
             }),
         ).toThrow(expect.objectContaining({ sdkStatus: "MEMO_TOO_LONG" }));
     });
+
+    it("names no network status for a negative gas", () => {
+        expect(() => validator.validate({ ...baseOptions, gas: -1 })).toThrow(
+            expect.objectContaining({ sdkStatus: undefined }),
+        );
+    });
 });

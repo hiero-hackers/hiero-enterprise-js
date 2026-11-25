@@ -1,4 +1,4 @@
-import { Long, Hbar, Status } from "@hiero-ledger/sdk";
+import { ContractId, Long, Hbar, Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import { validateCallTarget } from "./validateCallTarget.js";
 import type { ContractExecuteOperationOptions } from "../operations/index.js";
@@ -38,6 +38,17 @@ export class ContractExecuteValidator {
                 "contractId is required.",
             );
         }
+
+        if (typeof options.contractId === "string") {
+            try {
+                ContractId.fromString(options.contractId);
+            } catch {
+                throw validationError(
+                    "ContractExecuteValidator",
+                    `contractId "${options.contractId}" is not a valid contract ID.`,
+                );
+            }
+        }
     }
 
     private validateGas(options: ContractExecuteOperationOptions): void {
@@ -53,12 +64,16 @@ export class ContractExecuteValidator {
             typeof options.gas === "number"
                 ? options.gas > 0
                 : options.gas.greaterThan(0);
+        const isZero =
+            typeof options.gas === "number"
+                ? options.gas === 0
+                : options.gas.isZero();
 
         if (!isPositive) {
             throw validationError(
                 "ContractExecuteValidator",
                 "gas must be greater than zero.",
-                Status.InsufficientGas,
+                isZero ? Status.InsufficientGas : undefined,
             );
         }
     }
