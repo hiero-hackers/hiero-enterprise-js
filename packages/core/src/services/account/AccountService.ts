@@ -135,7 +135,7 @@ export class AccountService {
      * @param options.stakedNodeId - Node ID to stake to (mutually exclusive with stakedAccountId)
      * @param options.declineStakingReward - Whether to decline staking rewards
      * @param options.hooks - Hooks to create with the account (HIP-1195)
-     * @returns The created account (ID, public key, and optional EVM address)
+     * @returns The created account (ID, public key, optional EVM address) and the transaction ID
      *
      * @example
      * ```typescript
@@ -147,7 +147,9 @@ export class AccountService {
      * });
      * ```
      */
-    async createAccount(options: CreateAccountOptions): Promise<Account> {
+    async createAccount(
+        options: CreateAccountOptions,
+    ): Promise<Account & { transactionId: string }> {
         return await this.createOperation.execute(options);
     }
 
