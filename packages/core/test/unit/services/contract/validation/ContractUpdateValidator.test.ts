@@ -194,4 +194,28 @@ describe("ContractUpdateValidator", () => {
             ).toThrow(/hooksToDelete\[0\] must be a non-negative integer/);
         });
     });
+
+    it("names the network status the network would return", () => {
+        expect(() =>
+            validator.validate({} as unknown as ContractUpdateOperationOptions),
+        ).toThrow(
+            expect.objectContaining({ sdkStatus: "INVALID_CONTRACT_ID" }),
+        );
+        expect(() =>
+            validator.validate({
+                ...baseOptions,
+                contractMemo: "a".repeat(101),
+            }),
+        ).toThrow(expect.objectContaining({ sdkStatus: "MEMO_TOO_LONG" }));
+        expect(() =>
+            validator.validate({
+                ...baseOptions,
+                maxAutomaticTokenAssociations: -2,
+            }),
+        ).toThrow(
+            expect.objectContaining({
+                sdkStatus: "INVALID_MAX_AUTO_ASSOCIATIONS",
+            }),
+        );
+    });
 });

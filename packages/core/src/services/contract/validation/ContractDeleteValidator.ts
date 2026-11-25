@@ -1,3 +1,4 @@
+import { Status } from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { ContractDeleteOperationOptions } from "../operations/index.js";
 
@@ -24,6 +25,7 @@ export class ContractDeleteValidator {
             throw validationError(
                 "ContractDeleteValidator",
                 "contractId is required.",
+                Status.InvalidContractId,
             );
         }
 
@@ -60,6 +62,7 @@ export class ContractDeleteValidator {
             throw validationError(
                 "ContractDeleteValidator",
                 "A transfer target is required: provide either transferAccountId or transferContractId to receive the contract's remaining HBAR balance.",
+                Status.ObtainerRequired,
             );
         }
     }

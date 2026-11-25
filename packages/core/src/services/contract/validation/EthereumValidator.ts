@@ -1,4 +1,9 @@
-import { EthereumTransactionData, FileId, Hbar } from "@hiero-ledger/sdk";
+import {
+    EthereumTransactionData,
+    FileId,
+    Hbar,
+    Status,
+} from "@hiero-ledger/sdk";
 import { validationError } from "../../../errors/index.js";
 import type { EthereumOperationOptions } from "../operations/index.js";
 
@@ -22,6 +27,7 @@ export class EthereumValidator {
             throw validationError(
                 "EthereumValidator",
                 "ethereumData is required.",
+                Status.InvalidEthereumTransaction,
             );
         }
         if (data instanceof EthereumTransactionData) {
@@ -64,6 +70,7 @@ export class EthereumValidator {
             throw validationError(
                 "EthereumValidator",
                 `maxGasAllowance must be a non-negative amount of HBAR, got ${allowance.toString()}.`,
+                Status.NegativeAllowanceAmount,
             );
         }
     }

@@ -1,7 +1,10 @@
 import type { ContractId, ContractInfo } from "@hiero-ledger/sdk";
-import { ContractInfoQuery as SdkContractInfoQuery } from "@hiero-ledger/sdk";
+import {
+    ContractInfoQuery as SdkContractInfoQuery,
+    Status,
+} from "@hiero-ledger/sdk";
 import type { IHieroContext } from "../../../context/index.js";
-import { normalizeError } from "../../../errors/index.js";
+import { normalizeError, validationError } from "../../../errors/index.js";
 import { QueryExecutor } from "../../transaction/index.js";
 import type { QueryOptions } from "../../transaction/index.js";
 
@@ -23,6 +26,14 @@ export class ContractInfoQuery {
         contractId: string | ContractId,
         options: QueryOptions = {},
     ): Promise<ContractInfo> {
+        if (contractId == null) {
+            throw validationError(
+                "ContractService.getContractInfo",
+                "contractId is required.",
+                Status.InvalidContractId,
+            );
+        }
+
         try {
             const query = new SdkContractInfoQuery().setContractId(contractId);
             return await this.executor.run(query, options, {
