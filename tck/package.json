@@ -12,11 +12,11 @@
         "@hiero-hackers/enterprise-core": "workspace:*",
         "@hiero-ledger/proto": "^2.32.0",
         "@hiero-ledger/sdk": "^2.90.1",
-        "express": "5.2.1",
-        "json-rpc-2.0": "1.7.0"
+        "express": "5.3.0",
+        "json-rpc-2.0": "1.8.1"
     },
     "devDependencies": {
         "@types/express": "^5.0.6",
-        "@types/node": "^26.6.5"
+        "@types/node": "^26.6.7"
     }
 }
